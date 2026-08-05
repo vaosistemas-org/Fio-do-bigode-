@@ -1,98 +1,251 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function HomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">olá mundo, essa a minha primeira tela do fio do bigode</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.brand}>FIO DO BIGODE</Text>
+        <Text style={styles.title}>Minhas obras</Text>
+        <Text style={styles.subtitle}>
+          Acompanhe o andamento, as pendências e as próximas visitas.
+        </Text>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <View style={styles.summary}>
+        <View>
+          <Text style={styles.summaryNumber}>3</Text>
+          <Text style={styles.summaryLabel}>Obras ativas</Text>
+        </View>
+
+        <View>
+          <Text style={styles.summaryNumber}>5</Text>
+          <Text style={styles.summaryLabel}>Pendências</Text>
+        </View>
+
+        <View>
+          <Text style={styles.summaryNumber}>2</Text>
+          <Text style={styles.summaryLabel}>Visitas hoje</Text>
+        </View>
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Obras recentes</Text>
+
+        <Pressable>
+          <Text style={styles.link}>Ver todas</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.cardTop}>
+          <View>
+            <Text style={styles.clientName}>Residência Almeida</Text>
+            <Text style={styles.address}>Florianópolis · SC</Text>
+          </View>
+
+          <View style={styles.statusBadge}>
+            <Text style={styles.statusText}>Em montagem</Text>
+          </View>
+        </View>
+
+        <Text style={styles.progressLabel}>Progresso da obra</Text>
+
+        <View style={styles.progressBackground}>
+          <View style={styles.progressValue} />
+        </View>
+
+        <View style={styles.progressInfo}>
+          <Text style={styles.progressText}>65% concluída</Text>
+          <Text style={styles.nextVisit}>Próxima visita: 8 de agosto</Text>
+        </View>
+
+        <Pressable style={styles.cardButton}>
+          <Text style={styles.cardButtonText}>Abrir obra</Text>
+        </Pressable>
+      </View>
+
+      <Pressable style={styles.newProjectButton}>
+        <Text style={styles.newProjectButtonText}>+ Nova obra</Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flexGrow: 1,
+    backgroundColor: '#F5F4F0',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 40,
   },
-  stepContainer: {
-    gap: 8,
+
+  header: {
+    marginBottom: 24,
+  },
+
+  brand: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 2,
+    color: '#6D6A63',
+    marginBottom: 10,
+  },
+
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#181816',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+
+  subtitle: {
+    fontSize: 16,
+    lineHeight: 23,
+    color: '#6D6A63',
+  },
+
+  summary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#181816',
+    borderRadius: 18,
+    padding: 20,
+    marginBottom: 30,
+  },
+
+  summaryNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  summaryLabel: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#C9C7BF',
+  },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#181816',
+  },
+
+  link: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6D6A63',
+  },
+
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 22,
+  },
+
+  cardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+  },
+
+  clientName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#181816',
+  },
+
+  address: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#77746D',
+  },
+
+  statusBadge: {
+    backgroundColor: '#EEECE6',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#514F49',
+  },
+
+  progressLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#514F49',
+    marginBottom: 8,
+  },
+
+  progressBackground: {
+    height: 8,
+    backgroundColor: '#E5E2DA',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+
+  progressValue: {
+    width: '65%',
+    height: '100%',
+    backgroundColor: '#181816',
+    borderRadius: 20,
+  },
+
+  progressInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 9,
+    marginBottom: 20,
+  },
+
+  progressText: {
+    fontSize: 12,
+    color: '#514F49',
+  },
+
+  nextVisit: {
+    fontSize: 12,
+    color: '#77746D',
+  },
+
+  cardButton: {
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#181816',
+    borderRadius: 12,
+    paddingVertical: 13,
+  },
+
+  cardButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#181816',
+  },
+
+  newProjectButton: {
+    alignItems: 'center',
+    backgroundColor: '#181816',
+    borderRadius: 14,
+    paddingVertical: 16,
+  },
+
+  newProjectButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
