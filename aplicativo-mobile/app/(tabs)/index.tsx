@@ -18,7 +18,7 @@ export default function HomeScreen() {
         />
       }>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Fio do Bigode</ThemedText>
+        <ThemedText type="title">olá mundo, essa a minha primeira tela do fio do bigode</ThemedText>
         <HelloWave />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
