@@ -1,6 +1,10 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { supabase } from '@/lib/supabase';
 
 export default function HomeScreen() {
+async function handleLogout() {
+  await supabase.auth.signOut();
+}
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
@@ -10,6 +14,10 @@ export default function HomeScreen() {
           Acompanhe o andamento, as pendências e as próximas visitas.
         </Text>
       </View>
+
+<Pressable onPress={handleLogout}>
+  <Text>Sair</Text>
+</Pressable>
 
       <View style={styles.summary}>
         <View>
