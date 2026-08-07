@@ -45,6 +45,9 @@ const router = useRouter();
 
 const [loading, setLoading] = useState(false);
 const [errorMessage, setErrorMessage] = useState('');
+const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
+const [recoveryMessage, setRecoveryMessage] = useState('');
+
 async function handleLogin() {
   setErrorMessage('');
 
@@ -80,7 +83,45 @@ async function handleLogin() {
     setLoading(false);
   }
 }
+function handleForgotPassword() {
+  setErrorMessage('');
+  setRecoveryMessage('');
+  setIsRecoveringPassword(true);
+}
+async function handleSendRecoveryEmail() {
+  setErrorMessage('');
+  setRecoveryMessage('');
 
+  if (!email.trim()) {
+    setErrorMessage('Informe seu e-mail.');
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+  email.trim(),
+  {
+    redirectTo: 'http://localhost:8081/reset-password',
+  }
+);
+    if (error) {
+  setErrorMessage(error.message);
+  return;
+}
+
+    setRecoveryMessage(
+      'Enviamos um link de recuperação para o seu e-mail.'
+    );
+  } catch {
+    setErrorMessage(
+      'Não foi possível enviar o e-mail. Verifique sua conexão e tente novamente.'
+    );
+  } finally {
+    setLoading(false);
+  }
+}
   return (
     <KeyboardAvoidingView
       style={styles.screen}
@@ -109,7 +150,9 @@ async function handleLogin() {
           </View>
 
           <View style={styles.formArea}>
-            <Text style={styles.title}>Entrar na sua conta</Text>
+            <Text style={styles.title}>
+  {isRecoveringPassword ? 'Recuperar senha' : 'Entrar na sua conta'}
+</Text>
 
             <Text style={styles.label}>E-mail</Text>
 
@@ -125,39 +168,44 @@ async function handleLogin() {
               style={styles.input}
             />
 
-            <Text style={styles.label}>Senha</Text>
+{!isRecoveringPassword && (
+  <>
+    <Text style={styles.label}>Senha</Text>
 
-            <View style={styles.passwordContainer}>
-              <TextInput
-                testID="login-password"
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Digite sua senha"
-                placeholderTextColor={COLORS.muted}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                style={styles.passwordInput}
-              />
+    <View style={styles.passwordContainer}>
+      <TextInput
+        testID="login-password"
+        value={password}
+        onChangeText={setPassword}
+        placeholder="Digite sua senha"
+        placeholderTextColor={COLORS.muted}
+        secureTextEntry={!showPassword}
+        autoCapitalize="none"
+        style={styles.passwordInput}
+      />
 
-              <Pressable
-                testID="login-password-toggle"
-                onPress={() => setShowPassword((current) => !current)}
-                hitSlop={10}
-              >
-                <Text style={styles.passwordToggle}>
-                  {showPassword ? 'Ocultar' : 'Mostrar'}
-                </Text>
-              </Pressable>
-            </View>
-
-            <Pressable
-              testID="login-forgot-password"
-              style={styles.forgotPassword}
-            >
-              <Text style={styles.forgotPasswordText}>
-                Esqueci minha senha
-              </Text>
-            </Pressable>
+      <Pressable
+        testID="login-password-toggle"
+        onPress={() => setShowPassword((current) => !current)}
+        hitSlop={10}
+      >
+        <Text style={styles.passwordToggle}>
+          {showPassword ? 'Ocultar' : 'Mostrar'}
+        </Text>
+      </Pressable>
+    </View>
+  </>
+)}
+            {!isRecoveringPassword && (
+  <Pressable
+    testID="login-forgot-password"
+    onPress={handleForgotPassword}
+  >
+    <Text style={styles.forgotPasswordText}>
+      Esqueci minha senha
+    </Text>
+  </Pressable>
+)}
 
 {errorMessage ? (
   <Text testID="login-error-message" style={styles.errorText}>
@@ -165,9 +213,15 @@ async function handleLogin() {
   </Text>
 ) : null}
 
+{recoveryMessage ? (
+  <Text style={styles.recoveryText}>
+    {recoveryMessage}
+  </Text>
+) : null}
+
            <Pressable
   testID="login-submit"
-  onPress={handleLogin}
+  onPress={isRecoveringPassword ? handleSendRecoveryEmail : handleLogin}
   disabled={loading}
   style={({ pressed }) => [
     styles.loginButton,
@@ -176,7 +230,11 @@ async function handleLogin() {
   ]}
 >
   <Text style={styles.loginButtonText}>
-    {loading ? 'Entrando...' : 'Entrar'}
+    {loading
+  ? 'Aguarde...'
+  : isRecoveringPassword
+    ? 'Enviar link de recuperação'
+    : 'Entrar'}
   </Text>
 </Pressable>
           </View>
@@ -361,6 +419,12 @@ errorText: {
   marginBottom: 14,
   fontSize: 13,
   color: '#B42318',
+},
+
+recoveryText: {
+  marginBottom: 14,
+  fontSize: 13,
+  color: COLORS.sage,
 },
 
   loginButton: {

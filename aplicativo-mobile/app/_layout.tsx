@@ -42,6 +42,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
+<Stack.Screen name="reset-password" options={{ headerShown: false }} />
         <Stack.Protected guard={isAuthenticated}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
