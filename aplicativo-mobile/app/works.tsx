@@ -13,25 +13,34 @@ import {
 
 import { supabase } from '@/lib/supabase';
 
+type WorkStatus =
+  | 'agendada'
+  | 'em_andamento'
+  | 'aguardando_peca'
+  | 'aguardando_cliente'
+  | 'finalizada';
+
 type Work = {
   id: string;
   code: string;
   client_name: string;
+  client_phone: string;
   address: string;
   project_order: string | null;
-  status: string;
+  status: WorkStatus;
   progress: number;
   next_visit_at: string | null;
+  notes: string | null;
   updated_at: string;
 };
 
-type WorkFilter =
+type FilterType =
   | 'total'
   | 'em_andamento'
   | 'aguardando'
-  | 'finalizadas';
+  | 'finalizada';
 
-const STATUS_LABELS: Record<string, string> = {
+const STATUS_LABELS: Record<WorkStatus, string> = {
   agendada: 'Agendada',
   em_andamento: 'Em andamento',
   aguardando_peca: 'Aguardando peça',
@@ -39,51 +48,51 @@ const STATUS_LABELS: Record<string, string> = {
   finalizada: 'Finalizada',
 };
 
-function formatDate(date: string | null) {
-  if (!date) {
-    return null;
+function formatDate(value: string | null) {
+  if (!value) {
+    return 'Não definida';
   }
 
-  return new Date(date).toLocaleDateString('pt-BR');
+  return new Date(value).toLocaleDateString('pt-BR');
 }
 
-function formatUpdatedAt(dateString: string) {
-  const date = new Date(dateString);
+function formatUpdatedAt(value: string) {
+  const date = new Date(value);
   const now = new Date();
 
-  const differenceMs = now.getTime() - date.getTime();
-  const differenceMinutes = Math.floor(
-    differenceMs / (1000 * 60)
+  const diffMilliseconds =
+    now.getTime() - date.getTime();
+
+  const diffMinutes = Math.floor(
+    diffMilliseconds / 60000
   );
 
-  if (differenceMinutes < 1) {
+  if (diffMinutes < 1) {
     return 'Atualizada agora';
   }
 
-  if (differenceMinutes < 60) {
-    return `Atualizada há ${differenceMinutes} min`;
+  if (diffMinutes < 60) {
+    return `Atualizada há ${diffMinutes} min`;
   }
 
-  const differenceHours = Math.floor(
-    differenceMinutes / 60
+  const diffHours = Math.floor(
+    diffMinutes / 60
   );
 
-  if (differenceHours < 24) {
-    return differenceHours === 1
-      ? 'Atualizada há 1 hora'
-      : `Atualizada há ${differenceHours} horas`;
+  if (diffHours < 24) {
+    return `Atualizada há ${diffHours} ${
+      diffHours === 1 ? 'hora' : 'horas'
+    }`;
   }
 
-  const differenceDays = Math.floor(
-    differenceHours / 24
+  const diffDays = Math.floor(
+    diffHours / 24
   );
 
-  if (differenceDays === 1) {
-    return 'Atualizada ontem';
-  }
-
-  if (differenceDays <= 7) {
-    return `Atualizada há ${differenceDays} dias`;
+  if (diffDays <= 7) {
+    return `Atualizada há ${diffDays} ${
+      diffDays === 1 ? 'dia' : 'dias'
+    }`;
   }
 
   return `Atualizada em ${date.toLocaleDateString(
@@ -96,15 +105,20 @@ export default function WorksScreen() {
 
   const [works, setWorks] = useState<Work[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [refreshing, setRefreshing] =
+    useState(false);
   const [message, setMessage] = useState('');
 
-  const [query, setQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] =
-    useState<WorkFilter>('total');
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] =
+    useState<FilterType>('total');
 
-  async function loadWorks(showLoading = true) {
-    if (showLoading) {
+  async function loadWorks(
+    isRefresh = false
+  ) {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
       setLoading(true);
     }
 
@@ -116,11 +130,13 @@ export default function WorksScreen() {
         id,
         code,
         client_name,
+        client_phone,
         address,
         project_order,
         status,
         progress,
         next_visit_at,
+        notes,
         updated_at
       `)
       .is('archived_at', null)
@@ -129,16 +145,24 @@ export default function WorksScreen() {
       });
 
     if (error) {
-      setWorks([]);
       setMessage(error.message);
-      setLoading(false);
-      setRefreshing(false);
+
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
+
       return;
     }
 
-    setWorks(data ?? []);
-    setLoading(false);
-    setRefreshing(false);
+    setWorks((data ?? []) as Work[]);
+
+    if (isRefresh) {
+      setRefreshing(false);
+    } else {
+      setLoading(false);
+    }
   }
 
   useFocusEffect(
@@ -147,68 +171,93 @@ export default function WorksScreen() {
     }, [])
   );
 
-  async function handleRefresh() {
-    setRefreshing(true);
-    await loadWorks(false);
-  }
+  const counts = useMemo(() => {
+    return {
+      total: works.length,
 
-  const totalWorks = works.length;
+      em_andamento: works.filter(
+        (work) =>
+          work.status === 'em_andamento'
+      ).length,
 
-  const inProgressWorks = works.filter(
-    (work) => work.status === 'em_andamento'
-  ).length;
+      aguardando: works.filter(
+        (work) =>
+          work.status ===
+            'aguardando_peca' ||
+          work.status ===
+            'aguardando_cliente'
+      ).length,
 
-  const waitingWorks = works.filter(
-    (work) =>
-      work.status === 'aguardando_peca' ||
-      work.status === 'aguardando_cliente'
-  ).length;
-
-  const finishedWorks = works.filter(
-    (work) => work.status === 'finalizada'
-  ).length;
+      finalizada: works.filter(
+        (work) =>
+          work.status === 'finalizada'
+      ).length,
+    };
+  }, [works]);
 
   const filteredWorks = useMemo(() => {
-    const normalizedQuery = query
-      .trim()
-      .toLowerCase();
+    const normalizedSearch =
+      search.trim().toLowerCase();
 
     return works.filter((work) => {
-      const matchesFilter =
-        selectedFilter === 'total' ||
-        (selectedFilter === 'em_andamento' &&
-          work.status === 'em_andamento') ||
-        (selectedFilter === 'aguardando' &&
-          (work.status === 'aguardando_peca' ||
-            work.status ===
-              'aguardando_cliente')) ||
-        (selectedFilter === 'finalizadas' &&
-          work.status === 'finalizada');
+      let matchesFilter = true;
+
+      if (
+        activeFilter ===
+        'em_andamento'
+      ) {
+        matchesFilter =
+          work.status ===
+          'em_andamento';
+      }
+
+      if (
+        activeFilter === 'aguardando'
+      ) {
+        matchesFilter =
+          work.status ===
+            'aguardando_peca' ||
+          work.status ===
+            'aguardando_cliente';
+      }
+
+      if (
+        activeFilter === 'finalizada'
+      ) {
+        matchesFilter =
+          work.status === 'finalizada';
+      }
 
       if (!matchesFilter) {
         return false;
       }
 
-      if (!normalizedQuery) {
+      if (!normalizedSearch) {
         return true;
       }
 
-      const searchableText = [
+      const searchableValues = [
         work.code,
         work.client_name,
         work.address,
         work.project_order ?? '',
-        STATUS_LABELS[work.status] ??
-          work.status,
-      ]
-        .join(' ')
-        .toLowerCase();
+        STATUS_LABELS[work.status],
+      ];
 
-      return searchableText.includes(
-        normalizedQuery
+      return searchableValues.some(
+        (value) =>
+          value
+            .toLowerCase()
+            .includes(
+              normalizedSearch
+            )
       );
     });
-  }, [works, query, selectedFilter]);
+  }, [
+    works,
+    search,
+    activeFilter,
+  ]);
 
   function openWork(workId: string) {
     router.push({
@@ -219,24 +268,51 @@ export default function WorksScreen() {
     });
   }
 
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator />
+
+        <Text
+          style={styles.loadingText}
+        >
+          Carregando obras...
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView
       style={styles.page}
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
+      contentContainerStyle={
+        styles.container
+      }
+      showsVerticalScrollIndicator={
+        false
+      }
       keyboardShouldPersistTaps="handled"
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={handleRefresh}
+          onRefresh={() =>
+            loadWorks(true)
+          }
         />
       }
     >
+      {/* TOPO */}
       <View style={styles.topBar}>
         <View>
-          <Text style={styles.brand}>FIO</Text>
+          <Text style={styles.brand}>
+            FIO
+          </Text>
 
-          <Text style={styles.brandSubtitle}>
+          <Text
+            style={
+              styles.brandSubtitle
+            }
+          >
             GESTÃO DE OBRAS
           </Text>
         </View>
@@ -247,384 +323,391 @@ export default function WorksScreen() {
             router.replace('/profile')
           }
         >
-          <Text style={styles.profileButtonText}>
+          <Text
+            style={
+              styles.profileButtonText
+            }
+          >
             Meu FIO
           </Text>
         </Pressable>
       </View>
 
-      <View style={styles.header}>
-        <Text style={styles.title}>
-          Minhas obras
-        </Text>
+      {/* TITULO + NOVA OBRA */}
+      <View style={styles.titleRow}>
+        <View
+          style={styles.titleContent}
+        >
+          <Text style={styles.eyebrow}>
+            OBRAS
+          </Text>
 
-        <Text style={styles.subtitle}>
-          Acompanhe o andamento das obras às
-          quais você possui acesso.
+          <Text style={styles.title}>
+            Minhas Obras
+          </Text>
+        </View>
+
+        <Pressable
+          style={
+            styles.newWorkButton
+          }
+          onPress={() =>
+            router.push('/new-work')
+          }
+        >
+          <Text
+            style={
+              styles.newWorkButtonText
+            }
+          >
+            + Nova obra
+          </Text>
+        </Pressable>
+      </View>
+
+      <Text style={styles.subtitle}>
+        Acompanhe o andamento das
+        obras em que você participa.
+      </Text>
+
+      {/* BUSCA */}
+      <TextInput
+        style={styles.searchInput}
+        value={search}
+        onChangeText={setSearch}
+        placeholder="Buscar obra, cliente, código ou endereço"
+        placeholderTextColor="#92989B"
+        returnKeyType="search"
+        clearButtonMode="while-editing"
+      />
+
+      {/* FILTROS */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={
+          false
+        }
+        style={
+          styles.filtersScroll
+        }
+        contentContainerStyle={
+          styles.filtersContainer
+        }
+      >
+        <FilterButton
+          label="Total"
+          count={counts.total}
+          active={
+            activeFilter === 'total'
+          }
+          onPress={() =>
+            setActiveFilter('total')
+          }
+        />
+
+        <FilterButton
+          label="Em andamento"
+          count={
+            counts.em_andamento
+          }
+          active={
+            activeFilter ===
+            'em_andamento'
+          }
+          onPress={() =>
+            setActiveFilter(
+              'em_andamento'
+            )
+          }
+        />
+
+        <FilterButton
+          label="Aguardando"
+          count={counts.aguardando}
+          active={
+            activeFilter ===
+            'aguardando'
+          }
+          onPress={() =>
+            setActiveFilter(
+              'aguardando'
+            )
+          }
+        />
+
+        <FilterButton
+          label="Finalizadas"
+          count={counts.finalizada}
+          active={
+            activeFilter ===
+            'finalizada'
+          }
+          onPress={() =>
+            setActiveFilter(
+              'finalizada'
+            )
+          }
+        />
+      </ScrollView>
+
+      {/* RESULTADO */}
+      <View
+        style={
+          styles.resultsHeader
+        }
+      >
+        <Text
+          style={
+            styles.resultsTitle
+          }
+        >
+          {filteredWorks.length}{' '}
+          {filteredWorks.length === 1
+            ? 'obra'
+            : 'obras'}
         </Text>
       </View>
 
-      {loading ? (
-        <View style={styles.loadingArea}>
-          <ActivityIndicator />
-
-          <Text style={styles.loadingText}>
-            Carregando obras...
+      {!!message && (
+        <View style={styles.errorCard}>
+          <Text
+            style={styles.errorText}
+          >
+            {message}
           </Text>
         </View>
-      ) : (
-        <>
-          <View style={styles.searchArea}>
-            <TextInput
-              style={styles.searchInput}
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Buscar cliente, código, projeto ou endereço"
-              placeholderTextColor="#8A9094"
-              autoCorrect={false}
-              returnKeyType="search"
-            />
-          </View>
+      )}
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={
-              false
-            }
-            contentContainerStyle={
-              styles.filters
+      {!message &&
+        filteredWorks.length === 0 && (
+          <View
+            style={styles.emptyCard}
+          >
+            <Text
+              style={
+                styles.emptyTitle
+              }
+            >
+              {works.length === 0
+                ? 'Nenhuma obra cadastrada'
+                : 'Nenhuma obra encontrada'}
+            </Text>
+
+            <Text
+              style={
+                styles.emptyText
+              }
+            >
+              {works.length === 0
+                ? 'Quando uma obra for criada, ela aparecerá aqui.'
+                : 'Tente alterar a busca ou os filtros.'}
+            </Text>
+          </View>
+        )}
+
+      {/* CARDS */}
+      {filteredWorks.map((work) => {
+        const progress = Math.max(
+          0,
+          Math.min(
+            work.progress ?? 0,
+            100
+          )
+        );
+
+        return (
+          <Pressable
+            key={work.id}
+            style={styles.workCard}
+            onPress={() =>
+              openWork(work.id)
             }
           >
-            <FilterButton
-              label="Total"
-              count={totalWorks}
-              selected={
-                selectedFilter === 'total'
+            <View
+              style={
+                styles.workCardTop
               }
-              onPress={() =>
-                setSelectedFilter('total')
-              }
-            />
-
-            <FilterButton
-              label="Em andamento"
-              count={inProgressWorks}
-              selected={
-                selectedFilter ===
-                'em_andamento'
-              }
-              onPress={() =>
-                setSelectedFilter(
-                  'em_andamento'
-                )
-              }
-            />
-
-            <FilterButton
-              label="Aguardando"
-              count={waitingWorks}
-              selected={
-                selectedFilter ===
-                'aguardando'
-              }
-              onPress={() =>
-                setSelectedFilter(
-                  'aguardando'
-                )
-              }
-            />
-
-            <FilterButton
-              label="Finalizadas"
-              count={finishedWorks}
-              selected={
-                selectedFilter ===
-                'finalizadas'
-              }
-              onPress={() =>
-                setSelectedFilter(
-                  'finalizadas'
-                )
-              }
-            />
-          </ScrollView>
-
-          {!!message && (
-            <View style={styles.errorCard}>
-              <Text style={styles.errorText}>
-                {message}
-              </Text>
-            </View>
-          )}
-
-          {works.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>
-                Nenhuma obra por enquanto
-              </Text>
-
-              <Text style={styles.emptyText}>
-                Quando uma obra for criada ou
-                compartilhada com você, ela
-                aparecerá aqui.
-              </Text>
-            </View>
-          ) : filteredWorks.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>
-                Nenhuma obra encontrada
-              </Text>
-
-              <Text style={styles.emptyText}>
-                Tente alterar a busca ou selecionar
-                outro filtro.
-              </Text>
-            </View>
-          ) : (
-            <>
-              <View style={styles.listHeader}>
-                <Text style={styles.sectionTitle}>
-                  Obras
-                </Text>
-
-                <Text style={styles.resultCount}>
-                  {filteredWorks.length}{' '}
-                  {filteredWorks.length === 1
-                    ? 'obra'
-                    : 'obras'}
+            >
+              {/* CAPA PROVISORIA */}
+              <View
+                style={
+                  styles.coverPlaceholder
+                }
+              >
+                <Text
+                  style={
+                    styles.coverInitial
+                  }
+                >
+                  {work.client_name
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase() || 'F'}
                 </Text>
               </View>
 
-              <View style={styles.list}>
-                {filteredWorks.map((work) => {
-                  const safeProgress = Math.max(
-                    0,
-                    Math.min(
-                      work.progress,
-                      100
-                    )
-                  );
+              <View
+                style={
+                  styles.workIdentity
+                }
+              >
+                <Text
+                  style={
+                    styles.workCode
+                  }
+                >
+                  {work.code}
+                </Text>
 
-                  return (
-                    <Pressable
-                      key={work.id}
-                      onPress={() =>
-                        openWork(work.id)
-                      }
-                      style={({ pressed }) => [
-                        styles.card,
-                        pressed &&
-                          styles.cardPressed,
-                      ]}
-                    >
-                      <View style={styles.cardTop}>
-                        <View
-                          style={
-                            styles.cardIdentity
-                          }
-                        >
-                          <View
-                            style={
-                              styles.coverPlaceholder
-                            }
-                          >
-                            <Text
-                              style={
-                                styles.coverInitial
-                              }
-                            >
-                              {work.client_name
-                                .trim()
-                                .charAt(0)
-                                .toUpperCase() ||
-                                'F'}
-                            </Text>
-                          </View>
+                <Text
+                  style={
+                    styles.clientName
+                  }
+                  numberOfLines={2}
+                >
+                  {work.client_name}
+                </Text>
 
-                          <View
-                            style={
-                              styles.cardMain
-                            }
-                          >
-                            <Text
-                              style={
-                                styles.workCode
-                              }
-                            >
-                              {work.code}
-                            </Text>
-
-                            <Text
-                              style={
-                                styles.clientName
-                              }
-                              numberOfLines={2}
-                            >
-                              {work.client_name}
-                            </Text>
-
-                            {!!work.project_order && (
-                              <Text
-                                style={
-                                  styles.projectOrder
-                                }
-                                numberOfLines={1}
-                              >
-                                {
-                                  work.project_order
-                                }
-                              </Text>
-                            )}
-                          </View>
-                        </View>
-
-                        <View
-                          style={
-                            styles.statusBadge
-                          }
-                        >
-                          <Text
-                            style={
-                              styles.statusText
-                            }
-                          >
-                            {STATUS_LABELS[
-                              work.status
-                            ] ?? work.status}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <Text
-                        style={styles.address}
-                        numberOfLines={2}
-                      >
-                        {work.address}
-                      </Text>
-
-                      <View
-                        style={
-                          styles.progressHeader
-                        }
-                      >
-                        <Text
-                          style={
-                            styles.progressLabel
-                          }
-                        >
-                          Progresso
-                        </Text>
-
-                        <Text
-                          style={
-                            styles.progressPercent
-                          }
-                        >
-                          {safeProgress}%
-                        </Text>
-                      </View>
-
-                      <View
-                        style={
-                          styles.progressBackground
-                        }
-                      >
-                        <View
-                          style={[
-                            styles.progressValue,
-                            {
-                              width:
-                                `${safeProgress}%` as `${number}%`,
-                            },
-                          ]}
-                        />
-                      </View>
-
-                      <View
-                        style={
-                          styles.cardDetails
-                        }
-                      >
-                        <View
-                          style={
-                            styles.detailItem
-                          }
-                        >
-                          <Text
-                            style={
-                              styles.detailLabel
-                            }
-                          >
-                            PRÓXIMA VISITA
-                          </Text>
-
-                          <Text
-                            style={
-                              styles.detailValue
-                            }
-                          >
-                            {formatDate(
-                              work.next_visit_at
-                            ) ??
-                              'Não definida'}
-                          </Text>
-                        </View>
-
-                        <View
-                          style={[
-                            styles.detailItem,
-                            styles.detailItemRight,
-                          ]}
-                        >
-                          <Text
-                            style={
-                              styles.detailLabel
-                            }
-                          >
-                            MOVIMENTAÇÃO
-                          </Text>
-
-                          <Text
-                            style={
-                              styles.detailValue
-                            }
-                          >
-                            {formatUpdatedAt(
-                              work.updated_at
-                            )}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View
-                        style={
-                          styles.openHint
-                        }
-                      >
-                        <Text
-                          style={
-                            styles.openHintText
-                          }
-                        >
-                          Abrir obra
-                        </Text>
-
-                        <Text
-                          style={
-                            styles.openArrow
-                          }
-                        >
-                          ›
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
+                {!!work.project_order && (
+                  <Text
+                    style={
+                      styles.projectOrder
+                    }
+                    numberOfLines={1}
+                  >
+                    {
+                      work.project_order
+                    }
+                  </Text>
+                )}
               </View>
-            </>
-          )}
-        </>
-      )}
+            </View>
+
+            <View
+              style={
+                styles.statusRow
+              }
+            >
+              <View
+                style={
+                  styles.statusBadge
+                }
+              >
+                <Text
+                  style={
+                    styles.statusText
+                  }
+                >
+                  {
+                    STATUS_LABELS[
+                      work.status
+                    ]
+                  }
+                </Text>
+              </View>
+
+              <Text
+                style={
+                  styles.progressText
+                }
+              >
+                {progress}%
+              </Text>
+            </View>
+
+            <View
+              style={
+                styles.progressBackground
+              }
+            >
+              <View
+                style={[
+                  styles.progressValue,
+                  {
+                    width:
+                      `${progress}%` as `${number}%`,
+                  },
+                ]}
+              />
+            </View>
+
+            <View
+              style={
+                styles.infoSection
+              }
+            >
+              <Text
+                style={
+                  styles.infoLabel
+                }
+              >
+                ENDEREÇO
+              </Text>
+
+              <Text
+                style={
+                  styles.infoValue
+                }
+                numberOfLines={2}
+              >
+                {work.address}
+              </Text>
+            </View>
+
+            <View
+              style={styles.cardDivider}
+            />
+
+            <View
+              style={
+                styles.cardFooter
+              }
+            >
+              <View
+                style={
+                  styles.footerInfo
+                }
+              >
+                <Text
+                  style={
+                    styles.infoLabel
+                  }
+                >
+                  PRÓXIMA VISITA
+                </Text>
+
+                <Text
+                  style={
+                    styles.nextVisit
+                  }
+                >
+                  {formatDate(
+                    work.next_visit_at
+                  )}
+                </Text>
+              </View>
+
+              <Text
+                style={
+                  styles.openWorkText
+                }
+              >
+                Abrir obra ›
+              </Text>
+            </View>
+
+            <Text
+              style={
+                styles.updatedText
+              }
+            >
+              {formatUpdatedAt(
+                work.updated_at
+              )}
+            </Text>
+          </Pressable>
+        );
+      })}
     </ScrollView>
   );
 }
@@ -632,44 +715,52 @@ export default function WorksScreen() {
 type FilterButtonProps = {
   label: string;
   count: number;
-  selected: boolean;
+  active: boolean;
   onPress: () => void;
 };
 
 function FilterButton({
   label,
   count,
-  selected,
+  active,
   onPress,
 }: FilterButtonProps) {
   return (
     <Pressable
-      onPress={onPress}
       style={[
         styles.filterButton,
-        selected &&
-          styles.filterButtonSelected,
+        active &&
+          styles.filterButtonActive,
       ]}
+      onPress={onPress}
     >
       <Text
         style={[
-          styles.filterCount,
-          selected &&
-            styles.filterTextSelected,
-        ]}
-      >
-        {count}
-      </Text>
-
-      <Text
-        style={[
           styles.filterLabel,
-          selected &&
-            styles.filterTextSelected,
+          active &&
+            styles.filterLabelActive,
         ]}
       >
         {label}
       </Text>
+
+      <View
+        style={[
+          styles.filterCount,
+          active &&
+            styles.filterCountActive,
+        ]}
+      >
+        <Text
+          style={[
+            styles.filterCountText,
+            active &&
+              styles.filterCountTextActive,
+          ]}
+        >
+          {count}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -687,14 +778,27 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 40,
-    paddingBottom: 60,
+    paddingBottom: 70,
+  },
+
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F7F7F5',
+  },
+
+  loadingText: {
+    marginTop: 10,
+    fontSize: 13,
+    color: '#777D80',
   },
 
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 34,
+    justifyContent: 'space-between',
+    marginBottom: 28,
   },
 
   brand: {
@@ -727,132 +831,152 @@ const styles = StyleSheet.create({
     color: '#2C343A',
   },
 
-  header: {
-    marginBottom: 22,
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+
+  titleContent: {
+    flex: 1,
+  },
+
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.4,
+    color: '#E07A3A',
   },
 
   title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#2C343A',
-    marginBottom: 8,
-  },
-
-  subtitle: {
-    fontSize: 16,
-    lineHeight: 23,
-    color: '#687177',
-  },
-
-  loadingArea: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 70,
-  },
-
-  loadingText: {
-    marginTop: 10,
-    fontSize: 13,
-    color: '#777D80',
-  },
-
-  searchArea: {
-    marginBottom: 16,
-  },
-
-  searchInput: {
-    minHeight: 52,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#D8DCDA',
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    fontSize: 15,
-    color: '#2C343A',
-  },
-
-  filters: {
-    gap: 9,
-    paddingBottom: 26,
-  },
-
-  filterButton: {
-    minWidth: 104,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#E1E4E1',
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-  },
-
-  filterButtonSelected: {
-    borderColor: '#2C343A',
-    backgroundColor: '#2C343A',
-  },
-
-  filterCount: {
-    fontSize: 19,
+    marginTop: 5,
+    fontSize: 30,
+    lineHeight: 36,
     fontWeight: '800',
     color: '#2C343A',
   },
 
-  filterLabel: {
-    marginTop: 2,
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#687177',
+  newWorkButton: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    paddingHorizontal: 15,
+    paddingVertical: 9,
+    backgroundColor: '#E07A3A',
   },
 
-  filterTextSelected: {
+  newWorkButtonText: {
+    fontSize: 13,
+    fontWeight: '800',
     color: '#FFFFFF',
   },
 
-  listHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
+  subtitle: {
+    marginTop: 8,
+    marginBottom: 22,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#737A7E',
   },
 
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+  searchInput: {
+    minHeight: 50,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#DEE2DF',
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    fontSize: 14,
     color: '#2C343A',
   },
 
-  resultCount: {
-    fontSize: 12,
-    color: '#8A9094',
+  filtersScroll: {
+    marginHorizontal: -20,
+    marginTop: 14,
   },
 
-  list: {
-    gap: 14,
+  filtersContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 4,
+    gap: 8,
   },
 
-  card: {
-    padding: 18,
+  filterButton: {
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#E7E9E6',
+    borderColor: '#DDE1DE',
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+  },
+
+  filterButtonActive: {
+    borderColor: '#5F7567',
+    backgroundColor: '#EEF1ED',
+  },
+
+  filterLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#747B80',
+  },
+
+  filterLabelActive: {
+    color: '#435649',
+  },
+
+  filterCount: {
+    minWidth: 21,
+    height: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    backgroundColor: '#F0F1EF',
+  },
+
+  filterCountActive: {
+    backgroundColor: '#5F7567',
+  },
+
+  filterCountText: {
+    paddingHorizontal: 5,
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#666D71',
+  },
+
+  filterCountTextActive: {
+    color: '#FFFFFF',
+  },
+
+  resultsHeader: {
+    marginTop: 22,
+    marginBottom: 10,
+  },
+
+  resultsTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#858B8F',
+  },
+
+  workCard: {
+    marginBottom: 14,
+    padding: 17,
+    borderWidth: 1,
+    borderColor: '#E4E7E4',
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
   },
 
-  cardPressed: {
-    opacity: 0.82,
-  },
-
-  cardTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-
-  cardIdentity: {
-    flex: 1,
+  workCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: 10,
   },
 
   coverPlaceholder: {
@@ -860,23 +984,22 @@ const styles = StyleSheet.create({
     height: 54,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
     borderRadius: 14,
     backgroundColor: '#EEF1ED',
   },
 
   coverInitial: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: '#5F7567',
   },
 
-  cardMain: {
+  workIdentity: {
     flex: 1,
+    marginLeft: 13,
   },
 
   workCode: {
-    marginBottom: 3,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.8,
@@ -884,6 +1007,7 @@ const styles = StyleSheet.create({
   },
 
   clientName: {
+    marginTop: 3,
     fontSize: 18,
     lineHeight: 22,
     fontWeight: '800',
@@ -893,129 +1017,116 @@ const styles = StyleSheet.create({
   projectOrder: {
     marginTop: 3,
     fontSize: 12,
-    fontWeight: '600',
-    color: '#777D80',
+    color: '#7B8286',
+  },
+
+  statusRow: {
+    marginTop: 17,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
   statusBadge: {
-    maxWidth: 108,
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
     backgroundColor: '#EEF1ED',
   },
 
   statusText: {
-    fontSize: 10,
-    lineHeight: 13,
+    fontSize: 11,
     fontWeight: '700',
-    textAlign: 'center',
-    color: '#5F7567',
+    color: '#506455',
   },
 
-  address: {
-    marginTop: 17,
-    fontSize: 13,
-    lineHeight: 18,
-    color: '#777D80',
-  },
-
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 18,
-    marginBottom: 8,
-  },
-
-  progressLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#596269',
-  },
-
-  progressPercent: {
+  progressText: {
     fontSize: 12,
     fontWeight: '800',
     color: '#596269',
   },
 
   progressBackground: {
-    height: 8,
+    height: 7,
+    marginTop: 10,
+    borderRadius: 999,
     overflow: 'hidden',
-    borderRadius: 20,
-    backgroundColor: '#E5E7E4',
+    backgroundColor: '#E7E9E7',
   },
 
   progressValue: {
     height: '100%',
-    borderRadius: 20,
+    borderRadius: 999,
     backgroundColor: '#5F7567',
   },
 
-  cardDetails: {
-    flexDirection: 'row',
-    marginTop: 18,
+  infoSection: {
+    marginTop: 17,
   },
 
-  detailItem: {
-    flex: 1,
-    paddingRight: 8,
-  },
-
-  detailItemRight: {
-    paddingLeft: 8,
-    paddingRight: 0,
-  },
-
-  detailLabel: {
-    marginBottom: 4,
+  infoLabel: {
+    marginBottom: 3,
     fontSize: 9,
     fontWeight: '800',
-    letterSpacing: 0.7,
-    color: '#8A9094',
+    letterSpacing: 0.8,
+    color: '#979C9F',
   },
 
-  detailValue: {
-    fontSize: 12,
-    lineHeight: 17,
+  infoValue: {
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '600',
+    color: '#50595E',
+  },
+
+  cardDivider: {
+    height: 1,
+    marginVertical: 15,
+    backgroundColor: '#ECEEEC',
+  },
+
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+
+  footerInfo: {
+    flex: 1,
+  },
+
+  nextVisit: {
+    fontSize: 13,
+    fontWeight: '700',
     color: '#2C343A',
   },
 
-  openHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: 18,
-    paddingTop: 13,
-    borderTopWidth: 1,
-    borderTopColor: '#ECEEEC',
-  },
-
-  openHintText: {
+  openWorkText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#5F7567',
+    fontWeight: '800',
+    color: '#E07A3A',
   },
 
-  openArrow: {
-    marginLeft: 6,
-    fontSize: 20,
-    lineHeight: 20,
-    color: '#5F7567',
+  updatedText: {
+    marginTop: 13,
+    fontSize: 10,
+    color: '#9A9FA2',
   },
 
   emptyCard: {
-    padding: 24,
+    padding: 28,
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E7E9E6',
+    borderColor: '#E4E7E4',
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
   },
 
   emptyTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
+    textAlign: 'center',
     color: '#2C343A',
   },
 
@@ -1023,11 +1134,11 @@ const styles = StyleSheet.create({
     marginTop: 7,
     fontSize: 13,
     lineHeight: 19,
-    color: '#777D80',
+    textAlign: 'center',
+    color: '#7A8185',
   },
 
   errorCard: {
-    marginBottom: 20,
     padding: 16,
     borderRadius: 14,
     backgroundColor: '#FFF2F0',

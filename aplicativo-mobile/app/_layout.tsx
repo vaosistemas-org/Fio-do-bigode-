@@ -90,6 +90,7 @@ export default function RootLayout() {
          <Stack.Screen name="profile" />
 <Stack.Screen name="works" />
 <Stack.Screen name="works/[id]" />
+<Stack.Screen name="new-work" />
 <Stack.Screen name="edit-profile" />
           <Stack.Screen name="company-link" />
           <Stack.Screen name="company-link-requests" />
