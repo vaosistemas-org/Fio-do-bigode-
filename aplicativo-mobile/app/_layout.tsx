@@ -15,19 +15,62 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isProfileComplete, setIsProfileComplete] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  async function checkProfile(userId: string) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('full_name, phone, job_title, coverage_area')
+      .eq('id', userId)
+      .maybeSingle();
+
+    const profileComplete = Boolean(
+      data?.full_name?.trim() &&
+        data?.phone?.trim() &&
+        data?.job_title?.trim() &&
+        data?.coverage_area?.trim()
+    );
+
+    setIsProfileComplete(profileComplete);
+  }
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    async function loadSession() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       setIsAuthenticated(!!session);
+
+      if (session) {
+        await checkProfile(session.user.id);
+      } else {
+        setIsProfileComplete(false);
+      }
+
       setIsLoading(false);
-    });
+    }
+
+    loadSession();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session);
-      setIsLoading(false);
+
+      if (!session) {
+        setIsProfileComplete(false);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+
+      setTimeout(async () => {
+        await checkProfile(session.user.id);
+        setIsLoading(false);
+      }, 0);
     });
 
     return () => {
@@ -41,19 +84,34 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-<Stack.Screen name="reset-password" options={{ headerShown: false }} />
-        <Stack.Protected guard={isAuthenticated}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Protected guard={isAuthenticated && isProfileComplete}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="profile" />
+          <Stack.Screen name="works" />
+          <Stack.Screen name="edit-profile" />
+          <Stack.Screen name="company-link" />
+          <Stack.Screen name="company-link-requests" />
+
           <Stack.Screen
             name="modal"
             options={{ presentation: 'modal', title: 'Modal' }}
           />
         </Stack.Protected>
 
-        <Stack.Protected guard={!isAuthenticated}>
-          <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Protected guard={isAuthenticated && !isProfileComplete}>
+          <Stack.Screen name="complete-profile" />
         </Stack.Protected>
+
+        <Stack.Protected guard={!isAuthenticated}>
+  <Stack.Screen name="login" />
+  <Stack.Screen name="signup" />
+</Stack.Protected>
+
+        <Stack.Screen
+          name="reset-password"
+          options={{ headerShown: false }}
+        />
       </Stack>
 
       <StatusBar style="auto" />

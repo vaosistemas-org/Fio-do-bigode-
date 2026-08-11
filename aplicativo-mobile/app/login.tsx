@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+
 import { supabase } from '@/lib/supabase';
 
 const COLORS = {
@@ -28,100 +29,110 @@ function FioLine() {
   return (
     <View style={styles.fioLine}>
       <View style={[styles.fioStraight, styles.fioOrange]} />
-
       <View style={styles.fioRise} />
-
       <View style={[styles.fioStraight, styles.fioGreen]} />
     </View>
   );
 }
 
 export default function LoginScreen() {
+  const router = useRouter();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isRecoveringPassword, setIsRecoveringPassword] =
+    useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState('');
 
-const [loading, setLoading] = useState(false);
-const [errorMessage, setErrorMessage] = useState('');
-const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
-const [recoveryMessage, setRecoveryMessage] = useState('');
+  async function handleLogin() {
+    setErrorMessage('');
+    setRecoveryMessage('');
 
-async function handleLogin() {
-  setErrorMessage('');
-
-  if (!email.trim()) {
-    setErrorMessage('Informe seu e-mail.');
-    return;
-  }
-
-  if (!password) {
-    setErrorMessage('Informe sua senha.');
-    return;
-  }
-
-  try {
-    setLoading(true);
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-
-    if (error) {
-      setErrorMessage('E-mail ou senha inválidos.');
+    if (!email.trim()) {
+      setErrorMessage('Informe seu e-mail.');
       return;
     }
 
-    router.replace('/');
-  } catch {
-    setErrorMessage(
-      'Não foi possível entrar. Verifique sua conexão e tente novamente.'
-    );
-  } finally {
-    setLoading(false);
-  }
-}
-function handleForgotPassword() {
-  setErrorMessage('');
-  setRecoveryMessage('');
-  setIsRecoveringPassword(true);
-}
-async function handleSendRecoveryEmail() {
-  setErrorMessage('');
-  setRecoveryMessage('');
+    if (!password) {
+      setErrorMessage('Informe sua senha.');
+      return;
+    }
 
-  if (!email.trim()) {
-    setErrorMessage('Informe seu e-mail.');
-    return;
+    try {
+      setLoading(true);
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        setErrorMessage('E-mail ou senha inválidos.');
+        return;
+      }
+
+     
+    } catch {
+      setErrorMessage(
+        'Não foi possível entrar. Verifique sua conexão e tente novamente.'
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
-  try {
-    setLoading(true);
-
-    const { error } = await supabase.auth.resetPasswordForEmail(
-  email.trim(),
-  {
-    redirectTo: 'http://localhost:8081/reset-password',
+  function handleForgotPassword() {
+    setErrorMessage('');
+    setRecoveryMessage('');
+    setIsRecoveringPassword(true);
   }
-);
-    if (error) {
-  setErrorMessage(error.message);
-  return;
-}
 
-    setRecoveryMessage(
-      'Enviamos um link de recuperação para o seu e-mail.'
-    );
-  } catch {
-    setErrorMessage(
-      'Não foi possível enviar o e-mail. Verifique sua conexão e tente novamente.'
-    );
-  } finally {
-    setLoading(false);
+  function handleBackToLogin() {
+    setErrorMessage('');
+    setRecoveryMessage('');
+    setIsRecoveringPassword(false);
   }
-}
+
+  async function handleSendRecoveryEmail() {
+    setErrorMessage('');
+    setRecoveryMessage('');
+
+    if (!email.trim()) {
+      setErrorMessage('Informe seu e-mail.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        email.trim(),
+        {
+          redirectTo: 'http://localhost:8081/reset-password',
+        }
+      );
+
+      if (error) {
+        setErrorMessage(error.message);
+        return;
+      }
+
+      setRecoveryMessage(
+        'Enviamos um link de recuperação para o seu e-mail.'
+      );
+    } catch {
+      setErrorMessage(
+        'Não foi possível enviar o e-mail. Verifique sua conexão e tente novamente.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.screen}
@@ -137,10 +148,13 @@ async function handleSendRecoveryEmail() {
           <View style={styles.brandArea}>
             <View style={styles.logoRow}>
               <View style={styles.logoAccent} />
+
               <Text style={styles.logo}>FIO</Text>
             </View>
 
-            <Text style={styles.logoSubtitle}>GESTÃO DE OBRAS</Text>
+            <Text style={styles.logoSubtitle}>
+              GESTÃO DE OBRAS
+            </Text>
 
             <Text style={styles.tagline}>
               Segue o fio da sua obra.
@@ -151,8 +165,10 @@ async function handleSendRecoveryEmail() {
 
           <View style={styles.formArea}>
             <Text style={styles.title}>
-  {isRecoveringPassword ? 'Recuperar senha' : 'Entrar na sua conta'}
-</Text>
+              {isRecoveringPassword
+                ? 'Recuperar senha'
+                : 'Entrar na sua conta'}
+            </Text>
 
             <Text style={styles.label}>E-mail</Text>
 
@@ -168,83 +184,114 @@ async function handleSendRecoveryEmail() {
               style={styles.input}
             />
 
-{!isRecoveringPassword && (
-  <>
-    <Text style={styles.label}>Senha</Text>
-
-    <View style={styles.passwordContainer}>
-      <TextInput
-        testID="login-password"
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Digite sua senha"
-        placeholderTextColor={COLORS.muted}
-        secureTextEntry={!showPassword}
-        autoCapitalize="none"
-        style={styles.passwordInput}
-      />
-
-      <Pressable
-        testID="login-password-toggle"
-        onPress={() => setShowPassword((current) => !current)}
-        hitSlop={10}
-      >
-        <Text style={styles.passwordToggle}>
-          {showPassword ? 'Ocultar' : 'Mostrar'}
-        </Text>
-      </Pressable>
-    </View>
-  </>
-)}
             {!isRecoveringPassword && (
-  <Pressable
-    testID="login-forgot-password"
-    onPress={handleForgotPassword}
-  >
-    <Text style={styles.forgotPasswordText}>
-      Esqueci minha senha
-    </Text>
-  </Pressable>
-)}
+              <>
+                <Text style={styles.label}>Senha</Text>
 
-{errorMessage ? (
-  <Text testID="login-error-message" style={styles.errorText}>
-    {errorMessage}
-  </Text>
-) : null}
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    testID="login-password"
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Digite sua senha"
+                    placeholderTextColor={COLORS.muted}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    style={styles.passwordInput}
+                  />
 
-{recoveryMessage ? (
-  <Text style={styles.recoveryText}>
-    {recoveryMessage}
-  </Text>
-) : null}
+                  <Pressable
+                    testID="login-password-toggle"
+                    onPress={() =>
+                      setShowPassword((current) => !current)
+                    }
+                    hitSlop={10}
+                  >
+                    <Text style={styles.passwordToggle}>
+                      {showPassword ? 'Ocultar' : 'Mostrar'}
+                    </Text>
+                  </Pressable>
+                </View>
 
-           <Pressable
-  testID="login-submit"
-  onPress={isRecoveringPassword ? handleSendRecoveryEmail : handleLogin}
-  disabled={loading}
-  style={({ pressed }) => [
-    styles.loginButton,
-    pressed && styles.loginButtonPressed,
-    loading && styles.loginButtonDisabled,
-  ]}
->
-  <Text style={styles.loginButtonText}>
-    {loading
-  ? 'Aguarde...'
-  : isRecoveringPassword
-    ? 'Enviar link de recuperação'
-    : 'Entrar'}
-  </Text>
-</Pressable>
-          </View>
+                <Pressable
+                  testID="login-forgot-password"
+                  style={styles.forgotPassword}
+                  onPress={handleForgotPassword}
+                >
+                  <Text style={styles.forgotPasswordText}>
+                    Esqueci minha senha
+                  </Text>
+                </Pressable>
+              </>
+            )}
 
-          <View style={styles.footer}>
-            <View style={styles.securityDot} />
+            {!!errorMessage && (
+              <Text style={styles.errorText}>
+                {errorMessage}
+              </Text>
+            )}
 
-            <Text style={styles.securityText}>
-              Acesso seguro e confidencial
-            </Text>
+            {!!recoveryMessage && (
+              <Text style={styles.recoveryText}>
+                {recoveryMessage}
+              </Text>
+            )}
+
+            <Pressable
+              testID="login-submit"
+              onPress={
+                isRecoveringPassword
+                  ? handleSendRecoveryEmail
+                  : handleLogin
+              }
+              disabled={loading}
+              style={({ pressed }) => [
+                styles.loginButton,
+                pressed && styles.loginButtonPressed,
+                loading && styles.loginButtonDisabled,
+              ]}
+            >
+              <Text style={styles.loginButtonText}>
+                {loading
+                  ? 'Aguarde...'
+                  : isRecoveringPassword
+                    ? 'Enviar link de recuperação'
+                    : 'Entrar'}
+              </Text>
+            </Pressable>
+
+            {isRecoveringPassword ? (
+              <Pressable
+                style={styles.backToLoginButton}
+                onPress={handleBackToLogin}
+              >
+                <Text style={styles.backToLoginText}>
+                  Voltar para o login
+                </Text>
+              </Pressable>
+            ) : (
+              <View style={styles.signupArea}>
+                <Text style={styles.signupText}>
+                  Ainda não tem uma conta?
+                </Text>
+
+                <Pressable
+                  onPress={() => router.push('/signup')}
+                >
+                  <Text style={styles.signupLink}>
+                    Criar conta
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+
+            <View style={styles.footer}>
+              <View style={styles.securityDot} />
+
+              <Text style={styles.securityText}>
+                Acesso seguro e confidencial
+              </Text>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -415,17 +462,17 @@ const styles = StyleSheet.create({
     color: COLORS.sage,
   },
 
-errorText: {
-  marginBottom: 14,
-  fontSize: 13,
-  color: '#B42318',
-},
+  errorText: {
+    marginBottom: 14,
+    fontSize: 13,
+    color: '#B42318',
+  },
 
-recoveryText: {
-  marginBottom: 14,
-  fontSize: 13,
-  color: COLORS.sage,
-},
+  recoveryText: {
+    marginBottom: 14,
+    fontSize: 13,
+    color: COLORS.sage,
+  },
 
   loginButton: {
     height: 56,
@@ -439,14 +486,42 @@ recoveryText: {
     opacity: 0.86,
   },
 
-loginButtonDisabled: {
-  opacity: 0.6,
-},
+  loginButtonDisabled: {
+    opacity: 0.6,
+  },
 
   loginButtonText: {
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.white,
+  },
+
+  signupArea: {
+    alignItems: 'center',
+    marginTop: 24,
+  },
+
+  signupText: {
+    fontSize: 13,
+    color: COLORS.muted,
+  },
+
+  signupLink: {
+    marginTop: 6,
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.sage,
+  },
+
+  backToLoginButton: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+
+  backToLoginText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.sage,
   },
 
   footer: {
