@@ -1,16 +1,16 @@
 import {
-    useFocusEffect,
-    useLocalSearchParams,
-    useRouter,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
 } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-    ActivityIndicator,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
@@ -378,6 +378,38 @@ export default function WorkDetailsScreen() {
           <View
             style={styles.moduleGrid}
           >
+            {/* PARTICIPANTES */}
+<Pressable
+  style={styles.moduleCard}
+  onPress={() =>
+    router.push({
+      pathname:
+        '/work-participants',
+      params: {
+        workId: work.id,
+      },
+    })
+  }
+>
+  <Text
+    style={styles.moduleTitle}
+  >
+    Participantes
+  </Text>
+
+  <Text
+    style={styles.moduleText}
+  >
+    Pessoas com acesso a esta obra
+  </Text>
+
+  <Text
+    style={styles.moduleOpen}
+  >
+    Abrir participantes ›
+  </Text>
+</Pressable>
+
             {/* AMBIENTES */}
             <Pressable
               style={styles.moduleCard}

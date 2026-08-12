@@ -1,23 +1,24 @@
 import { decode } from 'base64-arraybuffer';
 import * as ImagePicker from 'expo-image-picker';
 import {
-    useFocusEffect,
-    useLocalSearchParams,
-    useRouter,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
 } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Pressable,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
+import { useWorkAccess } from '@/hooks/use-work-access';
 import { supabase } from '@/lib/supabase';
 
 type Environment = {
@@ -122,6 +123,15 @@ export default function EnvironmentPhotosScreen() {
     successMessage,
     setSuccessMessage,
   ] = useState('');
+
+  const {
+    userId,
+    canManage,
+    canWrite,
+    isViewer,
+  } = useWorkAccess(
+    environment?.work_id
+  );
 
   async function loadData(
     isRefresh = false
@@ -303,6 +313,12 @@ export default function EnvironmentPhotosScreen() {
       );
     }
 
+    if (!canWrite) {
+      throw new Error(
+        'Você possui acesso somente para visualização.'
+      );
+    }
+
     if (!asset.base64) {
       throw new Error(
         'Não foi possível ler a imagem selecionada.'
@@ -405,6 +421,7 @@ export default function EnvironmentPhotosScreen() {
     source: PhotoSource
   ) {
     if (
+      !canWrite ||
       uploading ||
       assets.length === 0
     ) {
@@ -453,7 +470,10 @@ export default function EnvironmentPhotosScreen() {
   }
 
   async function takePhoto() {
-    if (uploading) {
+    if (
+      !canWrite ||
+      uploading
+    ) {
       return;
     }
 
@@ -492,7 +512,10 @@ export default function EnvironmentPhotosScreen() {
   }
 
   async function pickPhotos() {
-    if (uploading) {
+    if (
+      !canWrite ||
+      uploading
+    ) {
       return;
     }
 
@@ -542,10 +565,27 @@ export default function EnvironmentPhotosScreen() {
     );
   }
 
+  function canDeletePhoto(
+    photo: WorkPhoto
+  ) {
+    if (canManage) {
+      return true;
+    }
+
+    return (
+      canWrite &&
+      !!userId &&
+      photo.created_by === userId
+    );
+  }
+
   function confirmDelete(
     photo: WorkPhoto
   ) {
-    if (deletingId) {
+    if (
+      deletingId ||
+      !canDeletePhoto(photo)
+    ) {
       return;
     }
 
@@ -570,26 +610,27 @@ export default function EnvironmentPhotosScreen() {
   async function deletePhoto(
     photo: WorkPhoto
   ) {
+    if (
+      !canDeletePhoto(photo)
+    ) {
+      setErrorMessage(
+        'Você não possui permissão para excluir esta foto.'
+      );
+
+      return;
+    }
+
     setDeletingId(photo.id);
     setErrorMessage('');
     setSuccessMessage('');
 
     try {
-      const {
-        error: databaseError,
-      } = await supabase
-        .from('work_photos')
-        .delete()
-        .eq('id', photo.id);
-
-      if (databaseError) {
-        setErrorMessage(
-          databaseError.message
-        );
-
-        return;
-      }
-
+      /*
+       * Para colaborador, o Storage verifica se a foto
+       * ainda pertence a ele por meio de public.work_photos.
+       * Por isso removemos primeiro o arquivo e depois
+       * o registro da galeria.
+       */
       const {
         error: storageError,
       } =
@@ -601,12 +642,27 @@ export default function EnvironmentPhotosScreen() {
 
       if (storageError) {
         setErrorMessage(
-          'A foto saiu da galeria, mas houve um problema ao limpar o arquivo do Storage.'
+          storageError.message
         );
-      } else {
-        setSuccessMessage(
-          'Foto removida.'
+
+        return;
+      }
+
+      const {
+        error: databaseError,
+      } = await supabase
+        .from('work_photos')
+        .delete()
+        .eq('id', photo.id);
+
+      if (databaseError) {
+        setErrorMessage(
+          'O arquivo foi removido, mas houve um problema ao atualizar a galeria.'
         );
+
+        await loadData();
+
+        return;
       }
 
       setPhotos(
@@ -615,6 +671,10 @@ export default function EnvironmentPhotosScreen() {
             (item) =>
               item.id !== photo.id
           )
+      );
+
+      setSuccessMessage(
+        'Foto removida.'
       );
     } catch (error) {
       setErrorMessage(
@@ -771,12 +831,37 @@ export default function EnvironmentPhotosScreen() {
         </Text>
 
         <Text style={styles.subtitle}>
-          Registre a evolução do
-          ambiente sem precisar
-          selecionar a obra ou o
-          ambiente novamente.
+          {isViewer
+            ? 'Visualize os registros fotográficos deste ambiente.'
+            : 'Registre a evolução do ambiente sem precisar selecionar a obra ou o ambiente novamente.'}
         </Text>
       </View>
+
+      {isViewer && (
+        <View
+          style={
+            styles.readOnlyCard
+          }
+        >
+          <Text
+            style={
+              styles.readOnlyTitle
+            }
+          >
+            SOMENTE VISUALIZAÇÃO
+          </Text>
+
+          <Text
+            style={
+              styles.readOnlyText
+            }
+          >
+            Seu acesso permite consultar
+            as fotos, mas não adicionar
+            ou excluir registros.
+          </Text>
+        </View>
+      )}
 
       {/* CONTADOR */}
       <View style={styles.counterCard}>
@@ -822,43 +907,45 @@ export default function EnvironmentPhotosScreen() {
       </View>
 
       {/* AÇÕES */}
-      <View style={styles.actions}>
-        <Pressable
-          style={[
-            styles.cameraButton,
-            uploading &&
-              styles.disabledButton,
-          ]}
-          onPress={takePhoto}
-          disabled={uploading}
-        >
-          <Text
-            style={
-              styles.cameraButtonText
-            }
+      {canWrite && (
+        <View style={styles.actions}>
+          <Pressable
+            style={[
+              styles.cameraButton,
+              uploading &&
+                styles.disabledButton,
+            ]}
+            onPress={takePhoto}
+            disabled={uploading}
           >
-            Câmera
-          </Text>
-        </Pressable>
+            <Text
+              style={
+                styles.cameraButtonText
+              }
+            >
+              Câmera
+            </Text>
+          </Pressable>
 
-        <Pressable
-          style={[
-            styles.galleryButton,
-            uploading &&
-              styles.disabledButton,
-          ]}
-          onPress={pickPhotos}
-          disabled={uploading}
-        >
-          <Text
-            style={
-              styles.galleryButtonText
-            }
+          <Pressable
+            style={[
+              styles.galleryButton,
+              uploading &&
+                styles.disabledButton,
+            ]}
+            onPress={pickPhotos}
+            disabled={uploading}
           >
-            Selecionar fotos
-          </Text>
-        </Pressable>
-      </View>
+            <Text
+              style={
+                styles.galleryButtonText
+              }
+            >
+              Selecionar fotos
+            </Text>
+          </Pressable>
+        </View>
+      )}
 
       {uploading && (
         <View
@@ -928,9 +1015,9 @@ export default function EnvironmentPhotosScreen() {
           <Text
             style={styles.emptyText}
           >
-            Tire uma foto agora ou
-            selecione várias imagens da
-            galeria.
+            {canWrite
+              ? 'Tire uma foto agora ou selecione várias imagens da galeria.'
+              : 'Nenhuma foto foi registrada neste ambiente.'}
           </Text>
         </View>
       ) : (
@@ -975,28 +1062,35 @@ export default function EnvironmentPhotosScreen() {
                 )}
               </Text>
 
-              <Pressable
-                style={
-                  styles.deleteButton
-                }
-                onPress={() =>
-                  confirmDelete(photo)
-                }
-                disabled={
-                  deletingId !== null
-                }
-              >
-                <Text
+              {canDeletePhoto(
+                photo
+              ) && (
+                <Pressable
                   style={
-                    styles.deleteButtonText
+                    styles.deleteButton
+                  }
+                  onPress={() =>
+                    confirmDelete(
+                      photo
+                    )
+                  }
+                  disabled={
+                    deletingId !==
+                    null
                   }
                 >
-                  {deletingId ===
-                  photo.id
-                    ? 'Excluindo...'
-                    : 'Excluir'}
-                </Text>
-              </Pressable>
+                  <Text
+                    style={
+                      styles.deleteButtonText
+                    }
+                  >
+                    {deletingId ===
+                    photo.id
+                      ? 'Excluindo...'
+                      : 'Excluir'}
+                  </Text>
+                </Pressable>
+              )}
             </View>
           ))}
         </View>
@@ -1128,6 +1222,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: '#747B80',
+  },
+
+  readOnlyCard: {
+    marginBottom: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#DADFDA',
+    borderRadius: 14,
+    backgroundColor: '#EEF1ED',
+  },
+
+  readOnlyTitle: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+    color: '#506455',
+  },
+
+  readOnlyText: {
+    marginTop: 5,
+    fontSize: 11,
+    lineHeight: 17,
+    color: '#66736B',
   },
 
   counterCard: {

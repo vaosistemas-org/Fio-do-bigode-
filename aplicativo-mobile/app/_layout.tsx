@@ -166,12 +166,20 @@ export default function RootLayout() {
           />
 
           <Stack.Screen
-            name="works/[id]"
-          />
+  name="works/[id]"
+/>
 
-          <Stack.Screen
-            name="new-work"
-          />
+<Stack.Screen
+  name="work-participants"
+/>
+
+<Stack.Screen
+  name="add-work-participant"
+/>
+
+<Stack.Screen
+  name="new-work"
+/>
 
           <Stack.Screen
             name="environments"
@@ -224,7 +232,7 @@ export default function RootLayout() {
           <Stack.Screen
            name="company-invitations"
           />
-          
+
           <Stack.Screen
             name="company-link-requests"
           />
