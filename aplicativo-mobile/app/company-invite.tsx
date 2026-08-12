@@ -6,7 +6,6 @@ import {
 import {
     ActivityIndicator,
     Alert,
-    Image,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -20,6 +19,8 @@ import {
     useRouter,
 } from 'expo-router';
 
+import ProfessionalMiniProfile from '@/components/ProfessionalMiniProfile';
+
 import { supabase } from '@/lib/supabase';
 
 type Candidate = {
@@ -28,31 +29,6 @@ type Candidate = {
   job_title: string | null;
   avatar_url: string | null;
 };
-
-function getInitials(
-  name: string
-) {
-  const parts = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  if (parts.length === 0) {
-    return 'F';
-  }
-
-  if (parts.length === 1) {
-    return parts[0]
-      .charAt(0)
-      .toUpperCase();
-  }
-
-  return `${parts[0].charAt(
-    0
-  )}${parts[
-    parts.length - 1
-  ].charAt(0)}`.toUpperCase();
-}
 
 export default function CompanyInviteScreen() {
   const router = useRouter();
@@ -231,7 +207,8 @@ export default function CompanyInviteScreen() {
         `${selectedCandidate.full_name} receberá o convite para entrar na equipe como ${cleanedRole}.`,
         [
           {
-            text: 'Voltar à equipe',
+            text:
+              'Voltar para a equipe',
             onPress: () =>
               router.back(),
           },
@@ -395,89 +372,55 @@ export default function CompanyInviteScreen() {
               </View>
             )}
 
-          {candidates.map(
-            (candidate) => (
-              <Pressable
-                key={
-                  candidate.user_id
-                }
-                style={({
-                  pressed,
-                }) => [
-                  styles.candidateCard,
+          <View
+            style={
+              styles.candidateList
+            }
+          >
+            {candidates.map(
+              (candidate) => (
+                <Pressable
+                  key={
+                    candidate.user_id
+                  }
+                  style={({
+                    pressed,
+                  }) => [
+                    styles.candidateCard,
 
-                  pressed &&
-                    styles.pressed,
-                ]}
-                onPress={() =>
-                  selectCandidate(
-                    candidate
-                  )
-                }
-              >
-                {candidate.avatar_url ? (
-                  <Image
-                    source={{
-                      uri:
-                        candidate.avatar_url,
-                    }}
-                    style={
-                      styles.avatar
-                    }
-                  />
-                ) : (
-                  <View
-                    style={
-                      styles.avatarPlaceholder
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.avatarInitials
-                      }
-                    >
-                      {getInitials(
-                        candidate.full_name
-                      )}
-                    </Text>
-                  </View>
-                )}
-
-                <View
-                  style={
-                    styles.candidateInfo
+                    pressed &&
+                      styles.pressed,
+                  ]}
+                  onPress={() =>
+                    selectCandidate(
+                      candidate
+                    )
                   }
                 >
-                  <Text
-                    style={
-                      styles.candidateName
-                    }
-                  >
-                    {
+                  <ProfessionalMiniProfile
+                    name={
                       candidate.full_name
                     }
-                  </Text>
+                    avatarUrl={
+                      candidate.avatar_url
+                    }
+                    role={
+                      candidate.job_title ||
+                      'Profissional FIO'
+                    }
+                  />
 
                   <Text
                     style={
-                      styles.candidateJob
+                      styles.selectText
                     }
                   >
-                    {candidate.job_title ||
-                      'Profissional FIO'}
+                    Selecionar ›
                   </Text>
-                </View>
-
-                <Text
-                  style={
-                    styles.openText
-                  }
-                >
-                  ›
-                </Text>
-              </Pressable>
-            )
-          )}
+                </Pressable>
+              )
+            )}
+          </View>
         </>
       ) : (
         <>
@@ -494,58 +437,19 @@ export default function CompanyInviteScreen() {
               styles.selectedCard
             }
           >
-            {selectedCandidate.avatar_url ? (
-              <Image
-                source={{
-                  uri:
-                    selectedCandidate.avatar_url,
-                }}
-                style={
-                  styles.avatar
-                }
-              />
-            ) : (
-              <View
-                style={
-                  styles.avatarPlaceholder
-                }
-              >
-                <Text
-                  style={
-                    styles.avatarInitials
-                  }
-                >
-                  {getInitials(
-                    selectedCandidate.full_name
-                  )}
-                </Text>
-              </View>
-            )}
-
-            <View
-              style={
-                styles.candidateInfo
+            <ProfessionalMiniProfile
+              name={
+                selectedCandidate.full_name
               }
-            >
-              <Text
-                style={
-                  styles.candidateName
-                }
-              >
-                {
-                  selectedCandidate.full_name
-                }
-              </Text>
-
-              <Text
-                style={
-                  styles.candidateJob
-                }
-              >
-                {selectedCandidate.job_title ||
-                  'Profissional FIO'}
-              </Text>
-            </View>
+              avatarUrl={
+                selectedCandidate.avatar_url
+              }
+              role={
+                selectedCandidate.job_title ||
+                'Profissional FIO'
+              }
+              detail="Selecionado"
+            />
 
             <Pressable
               style={
@@ -560,7 +464,7 @@ export default function CompanyInviteScreen() {
                   styles.changeButtonText
                 }
               >
-                Trocar
+                Trocar profissional
               </Text>
             </Pressable>
           </View>
@@ -753,12 +657,14 @@ const styles =
       color: '#858B8F',
     },
 
+    candidateList: {
+      width: '100%',
+    },
+
     candidateCard: {
       marginBottom: 10,
       padding: 14,
-      flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
       borderWidth: 1,
       borderColor: '#E4E7E4',
       borderRadius: 15,
@@ -766,11 +672,16 @@ const styles =
         '#FFFFFF',
     },
 
+    selectText: {
+      marginTop: 9,
+      fontSize: 10,
+      fontWeight: '800',
+      color: '#E07A3A',
+    },
+
     selectedCard: {
-      padding: 14,
-      flexDirection: 'row',
+      padding: 16,
       alignItems: 'center',
-      gap: 12,
       borderWidth: 1,
       borderColor: '#DADFDA',
       borderRadius: 15,
@@ -778,54 +689,9 @@ const styles =
         '#FFFFFF',
     },
 
-    avatar: {
-      width: 48,
-      height: 48,
-      borderRadius: 14,
-      backgroundColor:
-        '#ECEEEC',
-    },
-
-    avatarPlaceholder: {
-      width: 48,
-      height: 48,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 14,
-      backgroundColor:
-        '#2C343A',
-    },
-
-    avatarInitials: {
-      fontSize: 15,
-      fontWeight: '800',
-      color: '#FFFFFF',
-    },
-
-    candidateInfo: {
-      flex: 1,
-    },
-
-    candidateName: {
-      fontSize: 14,
-      fontWeight: '800',
-      color: '#2C343A',
-    },
-
-    candidateJob: {
-      marginTop: 4,
-      fontSize: 11,
-      color: '#727A7E',
-    },
-
-    openText: {
-      fontSize: 24,
-      fontWeight: '400',
-      color: '#E07A3A',
-    },
-
     changeButton: {
-      paddingHorizontal: 11,
+      marginTop: 12,
+      paddingHorizontal: 13,
       paddingVertical: 8,
       borderWidth: 1,
       borderColor: '#D8DCDA',

@@ -1082,73 +1082,73 @@ const styles =
         '#FFFFFF',
     },
 
-    memberHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 13,
-    },
+   memberHeader: {
+  alignItems: 'center',
+  justifyContent: 'center',
+},
 
     avatar: {
-      width: 50,
-      height: 50,
-      borderRadius: 15,
-      backgroundColor:
-        '#ECEEEC',
-    },
+  width: 76,
+  height: 76,
+  borderRadius: 38,
+  backgroundColor: '#ECEEEC',
+},
 
     avatarPlaceholder: {
-      width: 50,
-      height: 50,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 15,
-      backgroundColor:
-        '#2C343A',
-    },
+  width: 76,
+  height: 76,
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: 38,
+  backgroundColor: '#2C343A',
+},
 
-    avatarInitials: {
-      fontSize: 16,
-      fontWeight: '800',
-      color: '#FFFFFF',
-    },
+  avatarInitials: {
+  fontSize: 22,
+  fontWeight: '800',
+  color: '#FFFFFF',
+},
 
-    memberInfo: {
-      flex: 1,
-    },
+memberInfo: {
+  width: '100%',
+  marginTop: 12,
+  alignItems: 'center',
+},
 
-    memberTop: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
+memberTop: {
+  alignItems: 'center',
+  justifyContent: 'center',
+},
 
-    memberName: {
-      flex: 1,
-      fontSize: 15,
-      fontWeight: '800',
-      color: '#2C343A',
-    },
+memberName: {
+  fontSize: 16,
+  fontWeight: '800',
+  textAlign: 'center',
+  color: '#2C343A',
+},
 
-    memberRole: {
-      marginTop: 4,
-      fontSize: 12,
-      fontWeight: '700',
-      color: '#5F7567',
-    },
+   memberRole: {
+  marginTop: 5,
+  fontSize: 12,
+  fontWeight: '700',
+  textAlign: 'center',
+  color: '#5F7567',
+},
 
-    relationshipText: {
-      marginTop: 3,
-      fontSize: 10,
-      color: '#8B9195',
-    },
+   relationshipText: {
+  marginTop: 3,
+  fontSize: 10,
+  textAlign: 'center',
+  color: '#8B9195',
+},
 
-    ownerBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 5,
-      borderRadius: 999,
-      backgroundColor:
-        '#FFF4EC',
-    },
+   ownerBadge: {
+  marginTop: 7,
+  paddingHorizontal: 8,
+  paddingVertical: 5,
+  borderRadius: 999,
+  backgroundColor: '#FFF4EC',
+},
 
     ownerBadgeText: {
       fontSize: 8,

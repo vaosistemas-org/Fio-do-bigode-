@@ -1,5 +1,12 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import {
+  useFocusEffect,
+  useRouter,
+} from 'expo-router';
+
+import {
+  useCallback,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -45,15 +52,32 @@ export default function ProfileScreen() {
   const [
     professionalLinks,
     setProfessionalLinks,
-  ] = useState<ProfessionalLink[]>([]); const [hasAdminCompany, setHasAdminCompany] = useState(false);
+  ] = useState<ProfessionalLink[]>([]);
+
+  const [
+    hasAdminCompany,
+    setHasAdminCompany,
+  ] = useState(false);
+
+  const [
+    pendingLinkRequestsCount,
+    setPendingLinkRequestsCount,
+  ] = useState(0);
+
+  const [
+    companyInvitationsCount,
+    setCompanyInvitationsCount,
+  ] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
+ useFocusEffect(
+  useCallback(() => {
     loadProfile();
-  }, []);
+  }, [])
+);
 
   async function loadProfile() {
     setLoading(true);
@@ -74,6 +98,8 @@ export default function ProfileScreen() {
       adminResult,
       myCompaniesResult,
       professionalLinksResult,
+      pendingRequestsResult,
+      invitationsResult,
     ] = await Promise.all([
       supabase
         .from('profiles')
@@ -93,6 +119,14 @@ export default function ProfileScreen() {
 
       supabase.rpc(
         'get_my_professional_links'
+      ),
+
+      supabase.rpc(
+        'get_pending_company_links'
+      ),
+
+      supabase.rpc(
+        'get_my_company_invitations'
       ),
     ]);
 
@@ -158,6 +192,30 @@ export default function ProfileScreen() {
       setProfessionalLinks(
         (professionalLinksResult.data ??
           []) as ProfessionalLink[]
+      );
+    }
+
+    if (pendingRequestsResult.error) {
+      setPendingLinkRequestsCount(0);
+    } else {
+      setPendingLinkRequestsCount(
+        Array.isArray(
+          pendingRequestsResult.data
+        )
+          ? pendingRequestsResult.data.length
+          : 0
+      );
+    }
+
+    if (invitationsResult.error) {
+      setCompanyInvitationsCount(0);
+    } else {
+      setCompanyInvitationsCount(
+        Array.isArray(
+          invitationsResult.data
+        )
+          ? invitationsResult.data.length
+          : 0
       );
     }
 
@@ -317,8 +375,11 @@ export default function ProfileScreen() {
         >
           <View style={styles.accessTextArea}>
             <Text style={styles.accessTitle}>
-              Solicitações de vínculo
-            </Text>
+  Solicitações de vínculo
+  {pendingLinkRequestsCount > 0
+    ? ` · ${pendingLinkRequestsCount}`
+    : ''}
+</Text>
 
             <Text style={styles.accessSubtitle}>
               Aprovar ou recusar profissionais
@@ -340,8 +401,11 @@ export default function ProfileScreen() {
       >
         <View style={styles.accessTextArea}>
           <Text style={styles.accessTitle}>
-            Convites recebidos
-          </Text>
+  Convites recebidos
+  {companyInvitationsCount > 0
+    ? ` · ${companyInvitationsCount}`
+    : ''}
+</Text>
 
           <Text style={styles.accessSubtitle}>
             Aceitar ou recusar convites de empresas
