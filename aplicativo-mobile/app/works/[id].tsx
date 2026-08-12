@@ -39,11 +39,20 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function WorkDetailsScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
 
-  const [work, setWork] = useState<Work | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
+  const { id } =
+    useLocalSearchParams<{
+      id: string;
+    }>();
+
+  const [work, setWork] =
+    useState<Work | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [message, setMessage] =
+    useState('');
 
   async function loadWork() {
     if (!id) {
@@ -55,23 +64,24 @@ export default function WorkDetailsScreen() {
     setLoading(true);
     setMessage('');
 
-    const { data, error } = await supabase
-      .from('works')
-      .select(`
-        id,
-        code,
-        client_name,
-        client_phone,
-        address,
-        project_order,
-        status,
-        progress,
-        next_visit_at,
-        notes,
-        updated_at
-      `)
-      .eq('id', id)
-      .maybeSingle();
+    const { data, error } =
+      await supabase
+        .from('works')
+        .select(`
+          id,
+          code,
+          client_name,
+          client_phone,
+          address,
+          project_order,
+          status,
+          progress,
+          next_visit_at,
+          notes,
+          updated_at
+        `)
+        .eq('id', id)
+        .maybeSingle();
 
     if (error) {
       setMessage(error.message);
@@ -80,7 +90,9 @@ export default function WorkDetailsScreen() {
     }
 
     if (!data) {
-      setMessage('Você não possui acesso a esta obra.');
+      setMessage(
+        'Você não possui acesso a esta obra.'
+      );
       setLoading(false);
       return;
     }
@@ -110,43 +122,72 @@ export default function WorkDetailsScreen() {
   return (
     <ScrollView
       style={styles.page}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
+      contentContainerStyle={
+        styles.content
+      }
+      showsVerticalScrollIndicator={
+        false
+      }
     >
-      {/* TOPO PRINCIPAL */}
+      {/* TOPO */}
       <View style={styles.topBar}>
         <View>
-          <Text style={styles.brand}>FIO</Text>
+          <Text style={styles.brand}>
+            FIO
+          </Text>
 
-          <Text style={styles.brandSubtitle}>
+          <Text
+            style={
+              styles.brandSubtitle
+            }
+          >
             GESTÃO DE OBRAS
           </Text>
         </View>
 
         <Pressable
-          style={styles.profileButton}
-          onPress={() => router.replace('/profile')}
+          style={
+            styles.profileButton
+          }
+          onPress={() =>
+            router.replace('/profile')
+          }
         >
-          <Text style={styles.profileButtonText}>
+          <Text
+            style={
+              styles.profileButtonText
+            }
+          >
             Meu FIO
           </Text>
         </Pressable>
       </View>
 
-      {/* NAVEGAÇÃO HIERÁRQUICA */}
+      {/* VOLTAR */}
       <Pressable
-        style={styles.worksBackButton}
-        onPress={() => router.replace('/works')}
-        hitSlop={10}
+        style={
+          styles.worksBackButton
+        }
+        onPress={() =>
+          router.replace('/works')
+        }
       >
-        <Text style={styles.worksBackText}>
+        <Text
+          style={
+            styles.worksBackText
+          }
+        >
           ‹ Minhas obras
         </Text>
       </Pressable>
 
       {!!message && !work && (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorText}>
+        <View
+          style={styles.errorCard}
+        >
+          <Text
+            style={styles.errorText}
+          >
             {message}
           </Text>
         </View>
@@ -154,8 +195,10 @@ export default function WorkDetailsScreen() {
 
       {work && (
         <>
-          {/* IDENTIDADE DA OBRA */}
-          <View style={styles.workHeader}>
+          {/* CABEÇALHO DA OBRA */}
+          <View
+            style={styles.workHeader}
+          >
             <Text style={styles.code}>
               {work.code}
             </Text>
@@ -165,26 +208,44 @@ export default function WorkDetailsScreen() {
             </Text>
 
             {!!work.project_order && (
-              <Text style={styles.project}>
+              <Text
+                style={styles.project}
+              >
                 {work.project_order}
               </Text>
             )}
           </View>
 
-          {/* STATUS E PROGRESSO */}
-          <View style={styles.statusRow}>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>
-                {STATUS_LABELS[work.status] ?? work.status}
+          {/* STATUS */}
+          <View
+            style={styles.statusRow}
+          >
+            <View
+              style={styles.statusBadge}
+            >
+              <Text
+                style={styles.statusText}
+              >
+                {STATUS_LABELS[
+                  work.status
+                ] ?? work.status}
               </Text>
             </View>
 
-            <Text style={styles.progressText}>
+            <Text
+              style={
+                styles.progressText
+              }
+            >
               {work.progress}% concluída
             </Text>
           </View>
 
-          <View style={styles.progressBackground}>
+          <View
+            style={
+              styles.progressBackground
+            }
+          >
             <View
               style={[
                 styles.progressValue,
@@ -192,7 +253,10 @@ export default function WorkDetailsScreen() {
                   width:
                     `${Math.max(
                       0,
-                      Math.min(work.progress, 100)
+                      Math.min(
+                        work.progress,
+                        100
+                      )
                     )}%` as `${number}%`,
                 },
               ]}
@@ -201,7 +265,11 @@ export default function WorkDetailsScreen() {
 
           {/* INFORMAÇÕES */}
           <View style={styles.infoCard}>
-            <Text style={styles.sectionTitle}>
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
               INFORMAÇÕES DA OBRA
             </Text>
 
@@ -231,12 +299,18 @@ export default function WorkDetailsScreen() {
 
             {!!work.project_order && (
               <>
-                <Text style={styles.label}>
+                <Text
+                  style={styles.label}
+                >
                   Projeto / pedido
                 </Text>
 
-                <Text style={styles.value}>
-                  {work.project_order}
+                <Text
+                  style={styles.value}
+                >
+                  {
+                    work.project_order
+                  }
                 </Text>
               </>
             )}
@@ -249,115 +323,246 @@ export default function WorkDetailsScreen() {
               {work.next_visit_at
                 ? new Date(
                     work.next_visit_at
-                  ).toLocaleDateString('pt-BR')
+                  ).toLocaleString(
+                    'pt-BR',
+                    {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    }
+                  )
                 : 'Não definida'}
             </Text>
 
             {!!work.notes && (
               <>
-                <Text style={styles.label}>
+                <Text
+                  style={styles.label}
+                >
                   Observações
                 </Text>
 
-                <Text style={styles.value}>
+                <Text
+                  style={styles.value}
+                >
                   {work.notes}
                 </Text>
               </>
             )}
           </View>
 
-          {/* MÓDULOS DA OBRA */}
-          <View style={styles.modulesHeader}>
-            <Text style={styles.sectionHeading}>
+          {/* MÓDULOS */}
+          <View
+            style={styles.modulesHeader}
+          >
+            <Text
+              style={
+                styles.sectionHeading
+              }
+            >
               Gestão da obra
             </Text>
 
-            <Text style={styles.modulesHint}>
-              Os módulos serão ativados conforme forem construídos.
+            <Text
+              style={
+                styles.modulesHint
+              }
+            >
+              Acesse os módulos de
+              acompanhamento desta obra.
             </Text>
           </View>
 
-          <View style={styles.moduleGrid}>
-            <View style={styles.moduleCard}>
-              <Text style={styles.moduleTitle}>
+          <View
+            style={styles.moduleGrid}
+          >
+            {/* AMBIENTES */}
+            <Pressable
+              style={styles.moduleCard}
+              onPress={() =>
+                router.push({
+                  pathname:
+                    '/environments',
+                  params: {
+                    workId: work.id,
+                  },
+                })
+              }
+            >
+              <Text
+                style={
+                  styles.moduleTitle
+                }
+              >
                 Ambientes
               </Text>
 
-              <Text style={styles.moduleText}>
-                Estrutura dos ambientes da obra
+              <Text
+                style={
+                  styles.moduleText
+                }
+              >
+                Acompanhe ambientes,
+                responsáveis e andamento
+                da obra
               </Text>
 
-              <Text style={styles.moduleStatus}>
-                Em breve
+              <Text
+                style={
+                  styles.moduleOpen
+                }
+              >
+                Abrir ambientes ›
               </Text>
-            </View>
+            </Pressable>
 
-            <View style={styles.moduleCard}>
-              <Text style={styles.moduleTitle}>
+            {/* PENDÊNCIAS */}
+            <View
+              style={styles.moduleCard}
+            >
+              <Text
+                style={
+                  styles.moduleTitle
+                }
+              >
                 Pendências
               </Text>
 
-              <Text style={styles.moduleText}>
-                Controle de itens e problemas
+              <Text
+                style={
+                  styles.moduleText
+                }
+              >
+                Controle de itens e
+                problemas
               </Text>
 
-              <Text style={styles.moduleStatus}>
+              <Text
+                style={
+                  styles.moduleStatus
+                }
+              >
                 Em breve
               </Text>
             </View>
 
-            <View style={styles.moduleCard}>
-              <Text style={styles.moduleTitle}>
+            {/* FOTOS */}
+            <View
+              style={styles.moduleCard}
+            >
+              <Text
+                style={
+                  styles.moduleTitle
+                }
+              >
                 Fotos
               </Text>
 
-              <Text style={styles.moduleText}>
-                Registro fotográfico da obra
+              <Text
+                style={
+                  styles.moduleText
+                }
+              >
+                Registro fotográfico da
+                obra
               </Text>
 
-              <Text style={styles.moduleStatus}>
+              <Text
+                style={
+                  styles.moduleStatus
+                }
+              >
                 Em breve
               </Text>
             </View>
 
-            <View style={styles.moduleCard}>
-              <Text style={styles.moduleTitle}>
+            {/* DIÁRIO */}
+            <View
+              style={styles.moduleCard}
+            >
+              <Text
+                style={
+                  styles.moduleTitle
+                }
+              >
                 Diário
               </Text>
 
-              <Text style={styles.moduleText}>
+              <Text
+                style={
+                  styles.moduleText
+                }
+              >
                 Linha do tempo completa
               </Text>
 
-              <Text style={styles.moduleStatus}>
+              <Text
+                style={
+                  styles.moduleStatus
+                }
+              >
                 Em breve
               </Text>
             </View>
 
-            <View style={styles.moduleCard}>
-              <Text style={styles.moduleTitle}>
+            {/* VISITAS */}
+            <View
+              style={styles.moduleCard}
+            >
+              <Text
+                style={
+                  styles.moduleTitle
+                }
+              >
                 Visitas
               </Text>
 
-              <Text style={styles.moduleText}>
-                Histórico de visitas técnicas
+              <Text
+                style={
+                  styles.moduleText
+                }
+              >
+                Histórico de visitas
+                técnicas
               </Text>
 
-              <Text style={styles.moduleStatus}>
+              <Text
+                style={
+                  styles.moduleStatus
+                }
+              >
                 Em breve
               </Text>
             </View>
 
-            <View style={styles.moduleCard}>
-              <Text style={styles.moduleTitle}>
+            {/* DOCUMENTOS */}
+            <View
+              style={styles.moduleCard}
+            >
+              <Text
+                style={
+                  styles.moduleTitle
+                }
+              >
                 Documentos
               </Text>
 
-              <Text style={styles.moduleText}>
-                Projetos, arquivos e versões
+              <Text
+                style={
+                  styles.moduleText
+                }
+              >
+                Projetos, arquivos e
+                versões
               </Text>
 
-              <Text style={styles.moduleStatus}>
+              <Text
+                style={
+                  styles.moduleStatus
+                }
+              >
                 Em breve
               </Text>
             </View>
@@ -398,9 +603,10 @@ const styles = StyleSheet.create({
 
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent:
+      'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 18,
   },
 
   brand: {
@@ -434,21 +640,21 @@ const styles = StyleSheet.create({
   },
 
   worksBackButton: {
-  alignSelf: 'flex-start',
-  marginBottom: 22,
-  borderWidth: 1,
-  borderColor: '#D8DCDA',
-  borderRadius: 999,
-  paddingHorizontal: 14,
-  paddingVertical: 9,
-  backgroundColor: '#FFFFFF',
-},
+    alignSelf: 'flex-start',
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: '#D8DCDA',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    backgroundColor: '#FFFFFF',
+  },
 
-worksBackText: {
-  fontSize: 13,
-  fontWeight: '700',
-  color: '#2C343A',
-},
+  worksBackText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2C343A',
+  },
 
   workHeader: {
     marginBottom: 8,
@@ -479,7 +685,8 @@ worksBackText: {
     marginTop: 22,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent:
+      'space-between',
   },
 
   statusBadge: {
@@ -601,6 +808,14 @@ worksBackText: {
     fontWeight: '800',
     letterSpacing: 0.6,
     color: '#8A9094',
+  },
+
+  moduleOpen: {
+    marginTop: 'auto',
+    paddingTop: 12,
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#E07A3A',
   },
 
   errorCard: {

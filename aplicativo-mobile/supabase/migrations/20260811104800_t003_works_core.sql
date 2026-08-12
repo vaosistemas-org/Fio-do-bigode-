@@ -2,63 +2,74 @@ begin;
 
 -- =========================================================
 -- FIO
--- T003 - NUCLEO DE OBRAS
+-- T005 - AMBIENTES
 -- =========================================================
 --
--- Estrutura central:
---   works
---   work_participants
---   work_companies
---   work_events
---   work_code_counters
---
--- Regras principais:
--- - A obra e o centro do sistema.
--- - Vinculo com empresa nao concede acesso automatico a obra.
--- - O acesso real e controlado por work_participants.
--- - Uma obra pode envolver varias empresas.
--- - Eventos relevantes alimentam o Diario / Linha do Tempo.
+-- Regras:
+-- - Ambiente pertence a uma obra.
+-- - Responsavel deve ser participante ativo da obra.
+-- - Primeiro ambiente ativa progresso automatico da obra.
+-- - Nao iniciado = 0%.
+-- - Concluido = 100%.
+-- - Cancelados nao entram no calculo do progresso da obra.
+-- - Alteracoes relevantes entram em work_events.
+-- - Escritas estruturais acontecem por RPC.
 -- =========================================================
 
 
 -- =========================================================
--- 1. CONTADOR PARA CODIGO DAS OBRAS
--- Exemplo: FIO-2026-001
+-- 1. AMBIENTES
 -- =========================================================
 
-create table public.work_code_counters (
-  work_year integer primary key,
-  last_value integer not null default 0,
-  updated_at timestamptz not null default now()
-);
-
-alter table public.work_code_counters
-enable row level security;
-
-
--- =========================================================
--- 2. OBRAS
--- =========================================================
-
-create table public.works (
+create table public.environments (
   id uuid primary key default gen_random_uuid(),
 
-  code text not null unique,
+  work_id uuid not null
+    references public.works(id)
+    on delete cascade,
 
-  client_name text not null,
-  client_phone text not null,
-  address text not null,
+  category text not null
+    check (
+      category in (
+        'cozinha',
+        'sala_estar',
+        'sala_jantar',
+        'lavabo',
+        'banheiro',
+        'suite',
+        'dormitorio',
+        'closet',
+        'escritorio',
+        'lavanderia',
+        'area_servico',
+        'varanda',
+        'area_gourmet',
+        'hall',
+        'corredor',
+        'garagem',
+        'deposito',
+        'outro_ambiente'
+      )
+    ),
 
-  project_order text,
+  identifier text,
 
-  status text not null default 'agendada'
+  custom_name text,
+
+  name text not null,
+
+  responsible_user_id uuid
+    references auth.users(id)
+    on delete set null,
+
+  status text not null default 'nao_iniciado'
     check (
       status in (
-        'agendada',
+        'nao_iniciado',
         'em_andamento',
-        'aguardando_peca',
-        'aguardando_cliente',
-        'finalizada'
+        'aguardando',
+        'concluido',
+        'cancelado'
       )
     ),
 
@@ -67,229 +78,264 @@ create table public.works (
       progress between 0 and 100
     ),
 
-  automatic_progress boolean not null default false,
+  weight numeric(8,2) not null default 1
+    check (
+      weight > 0
+    ),
 
-  next_visit_at timestamptz,
+  services_notes text,
+
+  missing_items_notes text,
 
   notes text,
+
+  client_visible boolean not null default false,
+
+  preparation_min_photos integer not null default 0
+    check (
+      preparation_min_photos >= 0
+    ),
+
+  active boolean not null default true,
 
   created_by uuid not null
     references auth.users(id)
     on delete restrict,
 
-  archived_at timestamptz,
-
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create index works_status_idx
-  on public.works(status);
-
-create index works_updated_at_idx
-  on public.works(updated_at desc);
-
-alter table public.works
-enable row level security;
-
-
--- =========================================================
--- 3. PARTICIPANTES / ACESSO A OBRA
--- =========================================================
---
--- Estar vinculado a uma empresa NAO significa possuir
--- acesso automatico as obras dessa empresa.
---
--- O acesso real existe nesta tabela.
--- =========================================================
-
-create table public.work_participants (
-  id uuid primary key default gen_random_uuid(),
-
-  work_id uuid not null
-    references public.works(id)
-    on delete cascade,
-
-  user_id uuid not null
-    references auth.users(id)
-    on delete restrict,
-
-  company_id uuid
-    references public.companies(id)
-    on delete set null,
-
-  role_title text,
-
-  access_level text not null default 'collaborator'
-    check (
-      access_level in (
-        'owner',
-        'manager',
-        'collaborator',
-        'viewer'
-      )
-    ),
-
-  status text not null default 'active'
-    check (
-      status in (
-        'active',
-        'removed'
-      )
-    ),
-
-  invited_by uuid
+  updated_by uuid
     references auth.users(id)
     on delete set null,
 
-  joined_at timestamptz not null default now(),
-
-  removed_at timestamptz,
-
   created_at timestamptz not null default now(),
+
   updated_at timestamptz not null default now(),
 
-  unique (
-    work_id,
-    user_id
-  )
+  archived_at timestamptz
 );
 
-create index work_participants_user_idx
-  on public.work_participants(
-    user_id,
-    status
+
+create index environments_work_idx
+  on public.environments(
+    work_id,
+    active
   );
 
-create index work_participants_work_idx
-  on public.work_participants(
+
+create index environments_responsible_idx
+  on public.environments(
+    responsible_user_id
+  );
+
+
+create index environments_status_idx
+  on public.environments(
     work_id,
     status
   );
 
-alter table public.work_participants
-enable row level security;
 
-
--- =========================================================
--- 4. EMPRESAS ENVOLVIDAS NA OBRA
--- =========================================================
+-- Impede nomes duplicados dentro da mesma obra.
+-- Exemplo:
+-- Cozinha
+-- Cozinha
 --
--- Permite que uma mesma obra possua diferentes fornecedores
--- e empresas ao longo do tempo.
+-- nao pode.
 --
--- Exemplos futuros:
--- - Marcenaria
--- - Marmoraria
--- - Arquitetura
--- - Instaladores
--- - Outros fornecedores
--- =========================================================
-
-create table public.work_companies (
-  id uuid primary key default gen_random_uuid(),
-
-  work_id uuid not null
-    references public.works(id)
-    on delete cascade,
-
-  company_id uuid not null
-    references public.companies(id)
-    on delete restrict,
-
-  service_scope text,
-
-  status text not null default 'active'
-    check (
-      status in (
-        'active',
-        'inactive'
-      )
-    ),
-
-  added_by uuid
-    references auth.users(id)
-    on delete set null,
-
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-
-  unique (
+-- Mas:
+-- Dormitorio - Filho
+-- Dormitorio - Casal
+--
+-- pode.
+create unique index environments_unique_active_name_idx
+  on public.environments(
     work_id,
-    company_id
+    lower(name)
   )
-);
+  where active = true;
 
-create index work_companies_company_idx
-  on public.work_companies(company_id);
 
-create index work_companies_work_idx
-  on public.work_companies(work_id);
-
-alter table public.work_companies
+alter table public.environments
 enable row level security;
 
 
 -- =========================================================
--- 5. EVENTOS / DIARIO DA OBRA
--- =========================================================
---
--- Esta tabela sera a espinha dorsal para:
--- - Diario
--- - Linha do tempo
--- - Auditoria
--- - Relatorios
--- - Portal do cliente
--- - Futuras automacoes e IA
+-- 2. EVENTOS PASSAM A PODER APONTAR PARA UM AMBIENTE
 -- =========================================================
 
-create table public.work_events (
-  id uuid primary key default gen_random_uuid(),
+alter table public.work_events
+add column environment_id uuid
+  references public.environments(id)
+  on delete set null;
 
-  work_id uuid not null
-    references public.works(id)
-    on delete cascade,
 
-  event_type text not null,
-
-  title text not null,
-
-  description text,
-
-  actor_user_id uuid
-    references auth.users(id)
-    on delete set null,
-
-  visibility text not null default 'internal'
-    check (
-      visibility in (
-        'internal',
-        'shared',
-        'client'
-      )
-    ),
-
-  metadata jsonb not null default '{}'::jsonb,
-
-  created_at timestamptz not null default now()
-);
-
-create index work_events_work_created_idx
+create index work_events_environment_idx
   on public.work_events(
-    work_id,
+    environment_id,
     created_at desc
   );
 
-alter table public.work_events
-enable row level security;
+
+-- =========================================================
+-- 3. HELPER - NOME DA CATEGORIA
+-- =========================================================
+
+create or replace function public.environment_category_label(
+  p_category text
+)
+returns text
+language plpgsql
+immutable
+set search_path = ''
+as $$
+begin
+
+  return case p_category
+    when 'cozinha'
+      then 'Cozinha'
+
+    when 'sala_estar'
+      then 'Sala de estar'
+
+    when 'sala_jantar'
+      then 'Sala de jantar'
+
+    when 'lavabo'
+      then 'Lavabo'
+
+    when 'banheiro'
+      then 'Banheiro'
+
+    when 'suite'
+      then 'Suite'
+
+    when 'dormitorio'
+      then 'Dormitorio'
+
+    when 'closet'
+      then 'Closet'
+
+    when 'escritorio'
+      then 'Escritorio'
+
+    when 'lavanderia'
+      then 'Lavanderia'
+
+    when 'area_servico'
+      then 'Area de servico'
+
+    when 'varanda'
+      then 'Varanda'
+
+    when 'area_gourmet'
+      then 'Area gourmet'
+
+    when 'hall'
+      then 'Hall'
+
+    when 'corredor'
+      then 'Corredor'
+
+    when 'garagem'
+      then 'Garagem'
+
+    when 'deposito'
+      then 'Deposito'
+
+    when 'outro_ambiente'
+      then 'Outro ambiente'
+
+    else
+      null
+  end;
+
+end;
+$$;
 
 
 -- =========================================================
--- 6. FUNCOES AUXILIARES DE PERMISSAO
+-- 4. HELPER - MONTA NOME DO AMBIENTE
 -- =========================================================
 
-create or replace function public.is_work_participant(
-  p_work_id uuid
+create or replace function public.build_environment_name(
+  p_category text,
+  p_identifier text,
+  p_custom_name text
+)
+returns text
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  v_base_name text;
+  v_identifier text;
+  v_custom_name text;
+begin
+
+  v_identifier :=
+    nullif(
+      btrim(p_identifier),
+      ''
+    );
+
+  v_custom_name :=
+    nullif(
+      btrim(p_custom_name),
+      ''
+    );
+
+
+  if p_category = 'outro_ambiente' then
+
+    if v_custom_name is null then
+      raise exception
+        'Informe o nome do ambiente.';
+    end if;
+
+    return v_custom_name;
+
+  end if;
+
+
+  v_base_name :=
+    public.environment_category_label(
+      p_category
+    );
+
+
+  if v_base_name is null then
+    raise exception
+      'Categoria de ambiente invalida.';
+  end if;
+
+
+  if v_identifier is not null then
+    return
+      v_base_name
+      || ' - '
+      || v_identifier;
+  end if;
+
+
+  return v_base_name;
+
+end;
+$$;
+
+
+-- =========================================================
+-- 5. HELPER - USUARIO PODE ATUALIZAR O AMBIENTE
+-- =========================================================
+--
+-- Owner / Manager:
+-- pode atualizar qualquer ambiente.
+--
+-- Responsavel do ambiente:
+-- pode registrar andamento do proprio ambiente.
+-- =========================================================
+
+create or replace function public.can_update_environment(
+  p_environment_id uuid
 )
 returns boolean
 language sql
@@ -297,170 +343,212 @@ stable
 security definer
 set search_path = ''
 as $$
+
   select exists (
+
     select 1
-    from public.work_participants wp
-    where wp.work_id = p_work_id
-      and wp.user_id = (
-        select auth.uid()
+    from public.environments e
+
+    where e.id = p_environment_id
+
+      and e.active = true
+
+      and (
+
+        public.can_manage_work(
+          e.work_id
+        )
+
+        or
+
+        e.responsible_user_id =
+          (
+            select auth.uid()
+          )
+
       )
-      and wp.status = 'active'
+
   );
+
 $$;
 
 
-create or replace function public.can_manage_work(
+revoke execute
+on function public.can_update_environment(uuid)
+from public, anon;
+
+
+grant execute
+on function public.can_update_environment(uuid)
+to authenticated;
+
+
+-- =========================================================
+-- 6. RECALCULO DO PROGRESSO DA OBRA
+-- =========================================================
+--
+-- Media ponderada:
+--
+-- soma(progress * weight)
+-- -----------------------
+-- soma(weight)
+--
+-- Ambientes:
+-- - ativos
+-- - nao cancelados
+--
+-- entram no calculo.
+-- =========================================================
+
+create or replace function public.recalculate_work_progress(
   p_work_id uuid
 )
-returns boolean
-language sql
-stable
+returns integer
+language plpgsql
 security definer
 set search_path = ''
 as $$
-  select exists (
-    select 1
-    from public.work_participants wp
-    where wp.work_id = p_work_id
-      and wp.user_id = (
-        select auth.uid()
+declare
+  v_progress integer;
+  v_environment_count integer;
+begin
+
+  select count(*)
+  into v_environment_count
+  from public.environments e
+  where e.work_id = p_work_id
+    and e.active = true
+    and e.status <> 'cancelado';
+
+
+  if v_environment_count = 0 then
+
+    update public.works
+    set
+      automatic_progress = false,
+      updated_at = now()
+    where id = p_work_id;
+
+    select progress
+    into v_progress
+    from public.works
+    where id = p_work_id;
+
+    return coalesce(
+      v_progress,
+      0
+    );
+
+  end if;
+
+
+  select
+    round(
+      sum(
+        e.progress * e.weight
       )
-      and wp.status = 'active'
-      and wp.access_level in (
-        'owner',
-        'manager'
+      /
+      nullif(
+        sum(e.weight),
+        0
       )
-  );
+    )::integer
+  into v_progress
+  from public.environments e
+  where e.work_id = p_work_id
+    and e.active = true
+    and e.status <> 'cancelado';
+
+
+  v_progress :=
+    greatest(
+      0,
+      least(
+        coalesce(
+          v_progress,
+          0
+        ),
+        100
+      )
+    );
+
+
+  update public.works
+  set
+    progress = v_progress,
+    automatic_progress = true,
+    updated_at = now()
+  where id = p_work_id;
+
+
+  return v_progress;
+
+end;
 $$;
 
 
 revoke execute
-on function public.is_work_participant(uuid)
-from public, anon;
-
-grant execute
-on function public.is_work_participant(uuid)
-to authenticated;
-
-
-revoke execute
-on function public.can_manage_work(uuid)
-from public, anon;
-
-grant execute
-on function public.can_manage_work(uuid)
-to authenticated;
+on function public.recalculate_work_progress(uuid)
+from public, anon, authenticated;
 
 
 -- =========================================================
--- 7. ROW LEVEL SECURITY
+-- 7. RLS
 -- =========================================================
 
-create policy "works_select_participant"
-on public.works
+create policy "environments_select_participant"
+on public.environments
 for select
 to authenticated
 using (
-  public.is_work_participant(id)
+  public.is_work_participant(
+    work_id
+  )
 );
 
 
-create policy "work_participants_select_participant"
-on public.work_participants
-for select
-to authenticated
-using (
-  public.is_work_participant(work_id)
-);
+-- Sem INSERT / UPDATE / DELETE direto pelo app.
+-- Tudo passa pelas RPCs abaixo.
 
-
-create policy "work_companies_select_participant"
-on public.work_companies
-for select
-to authenticated
-using (
-  public.is_work_participant(work_id)
-);
-
-
-create policy "work_events_select_participant"
-on public.work_events
-for select
-to authenticated
-using (
-  public.is_work_participant(work_id)
-);
-
-
--- =========================================================
--- 8. PRIVILEGIOS
--- =========================================================
---
--- Neste momento o aplicativo pode fazer SELECT.
---
--- Criacoes estruturais importantes sao feitas por RPC
--- para evitar registros pela metade.
--- =========================================================
 
 revoke all privileges
-on table
-  public.work_code_counters,
-  public.works,
-  public.work_participants,
-  public.work_companies,
-  public.work_events
+on table public.environments
 from anon;
 
 
 revoke all privileges
-on table
-  public.work_code_counters,
-  public.works,
-  public.work_participants,
-  public.work_companies,
-  public.work_events
+on table public.environments
 from authenticated;
 
 
 grant select
-on table
-  public.works,
-  public.work_participants,
-  public.work_companies,
-  public.work_events
+on table public.environments
 to authenticated;
 
 
 -- =========================================================
--- 9. RPC - CRIACAO ATOMICA DE OBRA
--- =========================================================
---
--- Ao criar uma obra:
---
--- 1. gera codigo FIO
--- 2. cria a obra
--- 3. cria acesso OWNER para quem criou
--- 4. associa a empresa, quando aplicavel
--- 5. registra OBRA_CRIADA no Diario
---
--- Tudo dentro da mesma transacao.
+-- 8. RPC - CRIAR AMBIENTE
 -- =========================================================
 
-create or replace function public.create_work(
-  p_client_name text,
-  p_client_phone text,
-  p_address text,
-  p_project_order text default null,
-  p_status text default 'agendada',
+create or replace function public.create_environment(
+  p_work_id uuid,
+  p_category text,
+  p_identifier text default null,
+  p_custom_name text default null,
+  p_responsible_user_id uuid default null,
+  p_status text default 'nao_iniciado',
   p_progress integer default 0,
-  p_next_visit_at timestamptz default null,
+  p_weight numeric default 1,
+  p_services_notes text default null,
+  p_missing_items_notes text default null,
   p_notes text default null,
-  p_company_id uuid default null,
-  p_role_title text default null
+  p_client_visible boolean default false,
+  p_preparation_min_photos integer default 0
 )
 returns table (
-  work_id uuid,
-  work_code text
+  environment_id uuid,
+  environment_name text,
+  work_progress integer
 )
 language plpgsql
 security definer
@@ -468,18 +556,15 @@ set search_path = ''
 as $$
 declare
   v_user_id uuid;
-
-  v_work_id uuid;
-  v_code text;
-
-  v_year integer;
-  v_sequence integer;
-
-  v_profile_role text;
-  v_role_title text;
+  v_environment_id uuid;
+  v_name text;
+  v_progress integer;
+  v_responsible_user_id uuid;
+  v_work_progress integer;
 begin
 
-  v_user_id := auth.uid();
+  v_user_id :=
+    auth.uid();
 
 
   if v_user_id is null then
@@ -488,265 +573,565 @@ begin
   end if;
 
 
-  if nullif(
-    btrim(p_client_name),
-    ''
-  ) is null then
-    raise exception
-      'Informe o cliente.';
-  end if;
-
-
-  if nullif(
-    btrim(p_client_phone),
-    ''
-  ) is null then
-    raise exception
-      'Informe o telefone.';
-  end if;
-
-
-  if nullif(
-    btrim(p_address),
-    ''
-  ) is null then
-    raise exception
-      'Informe o endereco.';
-  end if;
-
-
-  if p_status not in (
-    'agendada',
-    'em_andamento',
-    'aguardando_peca',
-    'aguardando_cliente',
-    'finalizada'
+  if not public.can_manage_work(
+    p_work_id
   ) then
     raise exception
-      'Status da obra invalido.';
+      'Voce nao possui permissao para criar ambientes nesta obra.';
   end if;
 
 
-  if coalesce(
-    p_progress,
-    0
-  ) < 0
-  or coalesce(
-    p_progress,
-    0
-  ) > 100 then
+  -- -------------------------------------------------------
+  -- STATUS
+  -- -------------------------------------------------------
+
+  if p_status not in (
+    'nao_iniciado',
+    'em_andamento',
+    'aguardando',
+    'concluido',
+    'cancelado'
+  ) then
     raise exception
-      'Percentual da obra deve estar entre 0 e 100.';
+      'Status do ambiente invalido.';
   end if;
 
 
   -- -------------------------------------------------------
-  -- VALIDACAO DA EMPRESA
+  -- PROGRESSO
   -- -------------------------------------------------------
 
-  if p_company_id is not null then
-
-    if not (
-      exists (
-        select 1
-        from public.company_members cm
-        where cm.company_id = p_company_id
-          and cm.user_id = v_user_id
-          and cm.role in (
-            'owner',
-            'admin'
-          )
-      )
-
-      or
-
-      exists (
-        select 1
-        from public.company_collaborators cc
-        where cc.company_id = p_company_id
-          and cc.user_id = v_user_id
-          and cc.status = 'approved'
-      )
-    ) then
-
-      raise exception
-        'Voce nao possui vinculo ativo com esta empresa.';
-
-    end if;
-
-  end if;
-
-
-  -- -------------------------------------------------------
-  -- FUNCAO / PAPEL DO CRIADOR
-  -- -------------------------------------------------------
-
-  select nullif(
-    btrim(p.job_title),
-    ''
-  )
-  into v_profile_role
-  from public.profiles p
-  where p.id = v_user_id;
-
-
-  v_role_title := coalesce(
-    nullif(
-      btrim(p_role_title),
-      ''
-    ),
-    v_profile_role,
-    'Responsavel pela obra'
-  );
-
-
-  -- -------------------------------------------------------
-  -- GERACAO DO CODIGO
-  -- -------------------------------------------------------
-
-  v_year :=
-    extract(
-      year
-      from timezone(
-        'America/Sao_Paulo',
-        now()
-      )
-    )::integer;
-
-
-  insert into public.work_code_counters as wc (
-    work_year,
-    last_value,
-    updated_at
-  )
-  values (
-    v_year,
-    1,
-    now()
-  )
-  on conflict (
-    work_year
-  )
-  do update
-  set
-    last_value =
-      wc.last_value + 1,
-
-    updated_at =
-      now()
-
-  returning last_value
-  into v_sequence;
-
-
-  v_code :=
-    'FIO-'
-    || v_year::text
-    || '-'
-    || lpad(
-      v_sequence::text,
-      3,
-      '0'
-    );
-
-
-  -- -------------------------------------------------------
-  -- CRIA OBRA
-  -- -------------------------------------------------------
-
-  v_work_id :=
-    gen_random_uuid();
-
-
-  insert into public.works (
-    id,
-    code,
-    client_name,
-    client_phone,
-    address,
-    project_order,
-    status,
-    progress,
-    next_visit_at,
-    notes,
-    created_by
-  )
-  values (
-    v_work_id,
-    v_code,
-    btrim(p_client_name),
-    btrim(p_client_phone),
-    btrim(p_address),
-    nullif(
-      btrim(p_project_order),
-      ''
-    ),
-    p_status,
+  v_progress :=
     coalesce(
       p_progress,
       0
+    );
+
+
+  if p_status = 'nao_iniciado' then
+    v_progress := 0;
+  end if;
+
+
+  if p_status = 'concluido' then
+    v_progress := 100;
+  end if;
+
+
+  if
+    v_progress < 0
+    or
+    v_progress > 100
+  then
+    raise exception
+      'Percentual deve estar entre 0 e 100.';
+  end if;
+
+
+  -- -------------------------------------------------------
+  -- PESO
+  -- -------------------------------------------------------
+
+  if
+    p_weight is null
+    or
+    p_weight <= 0
+  then
+    raise exception
+      'O peso do ambiente deve ser maior que zero.';
+  end if;
+
+
+  -- -------------------------------------------------------
+  -- FOTOS MINIMAS PARA PREPARACAO
+  -- -------------------------------------------------------
+
+  if
+    coalesce(
+      p_preparation_min_photos,
+      0
+    ) < 0
+  then
+    raise exception
+      'Quantidade minima de fotos invalida.';
+  end if;
+
+
+  -- -------------------------------------------------------
+  -- NOME
+  -- -------------------------------------------------------
+
+  v_name :=
+    public.build_environment_name(
+      p_category,
+      p_identifier,
+      p_custom_name
+    );
+
+
+  if exists (
+    select 1
+    from public.environments e
+    where e.work_id = p_work_id
+      and e.active = true
+      and lower(e.name) =
+        lower(v_name)
+  ) then
+
+    raise exception
+      'Ja existe um ambiente chamado "%". Adicione uma identificacao para diferencia-lo.',
+      v_name;
+
+  end if;
+
+
+  -- -------------------------------------------------------
+  -- RESPONSAVEL
+  -- -------------------------------------------------------
+
+  v_responsible_user_id :=
+    coalesce(
+      p_responsible_user_id,
+      v_user_id
+    );
+
+
+  if not exists (
+    select 1
+    from public.work_participants wp
+    where wp.work_id = p_work_id
+      and wp.user_id =
+        v_responsible_user_id
+      and wp.status = 'active'
+  ) then
+
+    raise exception
+      'O responsavel precisa ser participante ativo da obra.';
+
+  end if;
+
+
+  -- -------------------------------------------------------
+  -- CRIA AMBIENTE
+  -- -------------------------------------------------------
+
+  v_environment_id :=
+    gen_random_uuid();
+
+
+  insert into public.environments (
+    id,
+    work_id,
+    category,
+    identifier,
+    custom_name,
+    name,
+    responsible_user_id,
+    status,
+    progress,
+    weight,
+    services_notes,
+    missing_items_notes,
+    notes,
+    client_visible,
+    preparation_min_photos,
+    active,
+    created_by,
+    updated_by
+  )
+  values (
+    v_environment_id,
+    p_work_id,
+    p_category,
+    nullif(
+      btrim(p_identifier),
+      ''
     ),
-    p_next_visit_at,
+    nullif(
+      btrim(p_custom_name),
+      ''
+    ),
+    v_name,
+    v_responsible_user_id,
+    p_status,
+    v_progress,
+    p_weight,
+    nullif(
+      btrim(p_services_notes),
+      ''
+    ),
+    nullif(
+      btrim(p_missing_items_notes),
+      ''
+    ),
     nullif(
       btrim(p_notes),
       ''
     ),
+    coalesce(
+      p_client_visible,
+      false
+    ),
+    coalesce(
+      p_preparation_min_photos,
+      0
+    ),
+    true,
+    v_user_id,
     v_user_id
   );
 
 
   -- -------------------------------------------------------
-  -- CRIADOR RECEBE ACESSO OWNER
-  -- -------------------------------------------------------
-
-  insert into public.work_participants (
-    work_id,
-    user_id,
-    company_id,
-    role_title,
-    access_level,
-    status,
-    joined_at
-  )
-  values (
-    v_work_id,
-    v_user_id,
-    p_company_id,
-    v_role_title,
-    'owner',
-    'active',
-    now()
-  );
-
-
-  -- -------------------------------------------------------
-  -- EMPRESA DA OBRA
-  -- -------------------------------------------------------
-
-  if p_company_id is not null then
-
-    insert into public.work_companies (
-      work_id,
-      company_id,
-      status,
-      added_by
-    )
-    values (
-      v_work_id,
-      p_company_id,
-      'active',
-      v_user_id
-    );
-
-  end if;
-
-
-  -- -------------------------------------------------------
-  -- PRIMEIRO EVENTO DO DIARIO
+  -- EVENTO
   -- -------------------------------------------------------
 
   insert into public.work_events (
     work_id,
+    environment_id,
+    event_type,
+    title,
+    description,
+    actor_user_id,
+    visibility,
+    metadata
+  )
+  values (
+    p_work_id,
+    v_environment_id,
+    'AMBIENTE_CRIADO',
+    'Ambiente criado',
+    v_name,
+    v_user_id,
+    'internal',
+    jsonb_build_object(
+      'environment_id',
+      v_environment_id,
+      'environment_name',
+      v_name,
+      'status',
+      p_status,
+      'progress',
+      v_progress
+    )
+  );
+
+
+  -- -------------------------------------------------------
+  -- RECALCULA OBRA
+  -- -------------------------------------------------------
+
+  v_work_progress :=
+    public.recalculate_work_progress(
+      p_work_id
+    );
+
+
+  return query
+  select
+    v_environment_id,
+    v_name,
+    v_work_progress;
+
+end;
+$$;
+
+
+revoke execute
+on function public.create_environment(
+  uuid,
+  text,
+  text,
+  text,
+  uuid,
+  text,
+  integer,
+  numeric,
+  text,
+  text,
+  text,
+  boolean,
+  integer
+)
+from public, anon;
+
+
+grant execute
+on function public.create_environment(
+  uuid,
+  text,
+  text,
+  text,
+  uuid,
+  text,
+  integer,
+  numeric,
+  text,
+  text,
+  text,
+  boolean,
+  integer
+)
+to authenticated;
+
+
+-- =========================================================
+-- 9. RPC - EDITAR AMBIENTE
+-- =========================================================
+
+create or replace function public.update_environment(
+  p_environment_id uuid,
+  p_category text,
+  p_identifier text default null,
+  p_custom_name text default null,
+  p_responsible_user_id uuid default null,
+  p_status text default 'nao_iniciado',
+  p_progress integer default 0,
+  p_weight numeric default 1,
+  p_services_notes text default null,
+  p_missing_items_notes text default null,
+  p_notes text default null,
+  p_client_visible boolean default false,
+  p_preparation_min_photos integer default 0
+)
+returns table (
+  environment_id uuid,
+  environment_name text,
+  work_progress integer
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user_id uuid;
+  v_work_id uuid;
+  v_old_name text;
+  v_old_status text;
+  v_old_progress integer;
+
+  v_name text;
+  v_progress integer;
+  v_work_progress integer;
+begin
+
+  v_user_id :=
+    auth.uid();
+
+
+  if v_user_id is null then
+    raise exception
+      'Usuario nao autenticado.';
+  end if;
+
+
+  select
+    e.work_id,
+    e.name,
+    e.status,
+    e.progress
+  into
+    v_work_id,
+    v_old_name,
+    v_old_status,
+    v_old_progress
+  from public.environments e
+  where e.id =
+    p_environment_id
+    and e.active = true;
+
+
+  if v_work_id is null then
+    raise exception
+      'Ambiente nao encontrado.';
+  end if;
+
+
+  if not public.can_manage_work(
+    v_work_id
+  ) then
+    raise exception
+      'Voce nao possui permissao para editar este ambiente.';
+  end if;
+
+
+  if p_status not in (
+    'nao_iniciado',
+    'em_andamento',
+    'aguardando',
+    'concluido',
+    'cancelado'
+  ) then
+    raise exception
+      'Status do ambiente invalido.';
+  end if;
+
+
+  v_progress :=
+    coalesce(
+      p_progress,
+      0
+    );
+
+
+  if p_status = 'nao_iniciado' then
+    v_progress := 0;
+  end if;
+
+
+  if p_status = 'concluido' then
+    v_progress := 100;
+  end if;
+
+
+  if
+    v_progress < 0
+    or
+    v_progress > 100
+  then
+    raise exception
+      'Percentual deve estar entre 0 e 100.';
+  end if;
+
+
+  if
+    p_weight is null
+    or
+    p_weight <= 0
+  then
+    raise exception
+      'O peso do ambiente deve ser maior que zero.';
+  end if;
+
+
+  if
+    coalesce(
+      p_preparation_min_photos,
+      0
+    ) < 0
+  then
+    raise exception
+      'Quantidade minima de fotos invalida.';
+  end if;
+
+
+  v_name :=
+    public.build_environment_name(
+      p_category,
+      p_identifier,
+      p_custom_name
+    );
+
+
+  if exists (
+    select 1
+    from public.environments e
+    where e.work_id = v_work_id
+      and e.active = true
+      and e.id <>
+        p_environment_id
+      and lower(e.name) =
+        lower(v_name)
+  ) then
+
+    raise exception
+      'Ja existe um ambiente chamado "%". Adicione uma identificacao para diferencia-lo.',
+      v_name;
+
+  end if;
+
+
+  if p_responsible_user_id is null then
+    raise exception
+      'Informe o responsavel pelo ambiente.';
+  end if;
+
+
+  if not exists (
+    select 1
+    from public.work_participants wp
+    where wp.work_id = v_work_id
+      and wp.user_id =
+        p_responsible_user_id
+      and wp.status = 'active'
+  ) then
+
+    raise exception
+      'O responsavel precisa ser participante ativo da obra.';
+
+  end if;
+
+
+  update public.environments
+  set
+    category = p_category,
+
+    identifier =
+      nullif(
+        btrim(p_identifier),
+        ''
+      ),
+
+    custom_name =
+      nullif(
+        btrim(p_custom_name),
+        ''
+      ),
+
+    name = v_name,
+
+    responsible_user_id =
+      p_responsible_user_id,
+
+    status = p_status,
+
+    progress = v_progress,
+
+    weight = p_weight,
+
+    services_notes =
+      nullif(
+        btrim(p_services_notes),
+        ''
+      ),
+
+    missing_items_notes =
+      nullif(
+        btrim(p_missing_items_notes),
+        ''
+      ),
+
+    notes =
+      nullif(
+        btrim(p_notes),
+        ''
+      ),
+
+    client_visible =
+      coalesce(
+        p_client_visible,
+        false
+      ),
+
+    preparation_min_photos =
+      coalesce(
+        p_preparation_min_photos,
+        0
+      ),
+
+    updated_by =
+      v_user_id,
+
+    updated_at =
+      now()
+
+  where id =
+    p_environment_id;
+
+
+  insert into public.work_events (
+    work_id,
+    environment_id,
     event_type,
     title,
     description,
@@ -756,73 +1141,397 @@ begin
   )
   values (
     v_work_id,
-    'OBRA_CRIADA',
-    'Obra criada',
-
-    case
-      when nullif(
-        btrim(p_project_order),
-        ''
-      ) is not null
-      then
-        'Projeto / pedido: '
-        || btrim(p_project_order)
-
-      else
-        'Cadastro inicial da obra.'
-    end,
-
+    p_environment_id,
+    'AMBIENTE_ATUALIZADO',
+    'Ambiente atualizado',
+    v_name,
     v_user_id,
     'internal',
-
     jsonb_build_object(
-      'cliente',
-      btrim(p_client_name),
-
-      'status',
-      p_status
+      'old_name',
+      v_old_name,
+      'new_name',
+      v_name,
+      'old_status',
+      v_old_status,
+      'new_status',
+      p_status,
+      'old_progress',
+      v_old_progress,
+      'new_progress',
+      v_progress
     )
   );
 
 
+  v_work_progress :=
+    public.recalculate_work_progress(
+      v_work_id
+    );
+
+
   return query
   select
-    v_work_id,
-    v_code;
+    p_environment_id,
+    v_name,
+    v_work_progress;
 
 end;
 $$;
 
 
 revoke execute
-on function public.create_work(
+on function public.update_environment(
+  uuid,
   text,
   text,
-  text,
-  text,
-  text,
-  integer,
-  timestamptz,
   text,
   uuid,
+  text,
+  integer,
+  numeric,
+  text,
+  text,
+  text,
+  boolean,
+  integer
+)
+from public, anon;
+
+
+grant execute
+on function public.update_environment(
+  uuid,
+  text,
+  text,
+  text,
+  uuid,
+  text,
+  integer,
+  numeric,
+  text,
+  text,
+  text,
+  boolean,
+  integer
+)
+to authenticated;
+
+
+-- =========================================================
+-- 10. RPC - REGISTRAR AVANCO DO AMBIENTE
+-- =========================================================
+--
+-- Esta e a acao rapida usada no dia a dia.
+--
+-- Nao exige abrir toda a edicao do ambiente.
+--
+-- Owner / Manager ou responsavel do ambiente.
+-- =========================================================
+
+create or replace function public.record_environment_progress(
+  p_environment_id uuid,
+  p_status text,
+  p_progress integer,
+  p_observation text default null
+)
+returns table (
+  environment_id uuid,
+  environment_progress integer,
+  work_progress integer
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user_id uuid;
+  v_work_id uuid;
+  v_environment_name text;
+
+  v_old_status text;
+  v_old_progress integer;
+
+  v_progress integer;
+  v_work_progress integer;
+begin
+
+  v_user_id :=
+    auth.uid();
+
+
+  if v_user_id is null then
+    raise exception
+      'Usuario nao autenticado.';
+  end if;
+
+
+  select
+    e.work_id,
+    e.name,
+    e.status,
+    e.progress
+  into
+    v_work_id,
+    v_environment_name,
+    v_old_status,
+    v_old_progress
+  from public.environments e
+  where e.id =
+    p_environment_id
+    and e.active = true;
+
+
+  if v_work_id is null then
+    raise exception
+      'Ambiente nao encontrado.';
+  end if;
+
+
+  if not public.can_update_environment(
+    p_environment_id
+  ) then
+    raise exception
+      'Voce nao possui permissao para atualizar este ambiente.';
+  end if;
+
+
+  if p_status not in (
+    'nao_iniciado',
+    'em_andamento',
+    'aguardando',
+    'concluido',
+    'cancelado'
+  ) then
+    raise exception
+      'Status do ambiente invalido.';
+  end if;
+
+
+  v_progress :=
+    coalesce(
+      p_progress,
+      0
+    );
+
+
+  if p_status =
+    'nao_iniciado'
+  then
+    v_progress := 0;
+  end if;
+
+
+  if p_status =
+    'concluido'
+  then
+    v_progress := 100;
+  end if;
+
+
+  if
+    v_progress < 0
+    or
+    v_progress > 100
+  then
+    raise exception
+      'Percentual deve estar entre 0 e 100.';
+  end if;
+
+
+  update public.environments
+  set
+    status = p_status,
+    progress = v_progress,
+    updated_by = v_user_id,
+    updated_at = now()
+  where id =
+    p_environment_id;
+
+
+  insert into public.work_events (
+    work_id,
+    environment_id,
+    event_type,
+    title,
+    description,
+    actor_user_id,
+    visibility,
+    metadata
+  )
+  values (
+    v_work_id,
+    p_environment_id,
+    'AVANCO_AMBIENTE',
+    'Avanco registrado em '
+      || v_environment_name,
+
+    nullif(
+      btrim(p_observation),
+      ''
+    ),
+
+    v_user_id,
+    'internal',
+
+    jsonb_build_object(
+      'old_status',
+      v_old_status,
+      'new_status',
+      p_status,
+      'old_progress',
+      v_old_progress,
+      'new_progress',
+      v_progress
+    )
+  );
+
+
+  v_work_progress :=
+    public.recalculate_work_progress(
+      v_work_id
+    );
+
+
+  return query
+  select
+    p_environment_id,
+    v_progress,
+    v_work_progress;
+
+end;
+$$;
+
+
+revoke execute
+on function public.record_environment_progress(
+  uuid,
+  text,
+  integer,
   text
 )
 from public, anon;
 
 
 grant execute
-on function public.create_work(
-  text,
-  text,
-  text,
-  text,
+on function public.record_environment_progress(
+  uuid,
   text,
   integer,
-  timestamptz,
-  text,
-  uuid,
   text
 )
+to authenticated;
+
+
+-- =========================================================
+-- 11. RPC - ARQUIVAR AMBIENTE
+-- =========================================================
+
+create or replace function public.archive_environment(
+  p_environment_id uuid
+)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user_id uuid;
+  v_work_id uuid;
+  v_environment_name text;
+  v_work_progress integer;
+begin
+
+  v_user_id :=
+    auth.uid();
+
+
+  if v_user_id is null then
+    raise exception
+      'Usuario nao autenticado.';
+  end if;
+
+
+  select
+    e.work_id,
+    e.name
+  into
+    v_work_id,
+    v_environment_name
+  from public.environments e
+  where e.id =
+    p_environment_id
+    and e.active = true;
+
+
+  if v_work_id is null then
+    raise exception
+      'Ambiente nao encontrado.';
+  end if;
+
+
+  if not public.can_manage_work(
+    v_work_id
+  ) then
+    raise exception
+      'Voce nao possui permissao para arquivar este ambiente.';
+  end if;
+
+
+  update public.environments
+  set
+    active = false,
+    archived_at = now(),
+    updated_by = v_user_id,
+    updated_at = now()
+  where id =
+    p_environment_id;
+
+
+  insert into public.work_events (
+    work_id,
+    environment_id,
+    event_type,
+    title,
+    description,
+    actor_user_id,
+    visibility,
+    metadata
+  )
+  values (
+    v_work_id,
+    p_environment_id,
+    'AMBIENTE_ARQUIVADO',
+    'Ambiente arquivado',
+    v_environment_name,
+    v_user_id,
+    'internal',
+    jsonb_build_object(
+      'environment_name',
+      v_environment_name
+    )
+  );
+
+
+  v_work_progress :=
+    public.recalculate_work_progress(
+      v_work_id
+    );
+
+
+  return v_work_progress;
+
+end;
+$$;
+
+
+revoke execute
+on function public.archive_environment(uuid)
+from public, anon;
+
+
+grant execute
+on function public.archive_environment(uuid)
 to authenticated;
 
 
