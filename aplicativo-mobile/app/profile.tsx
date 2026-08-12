@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -38,13 +39,13 @@ export default function ProfileScreen() {
   const [coverageArea, setCoverageArea] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-const [myCompanies, setMyCompanies] =
-  useState<MyCompany[]>([]);
+  const [myCompanies, setMyCompanies] =
+    useState<MyCompany[]>([]);
 
-const [
-  professionalLinks,
-  setProfessionalLinks,
-] = useState<ProfessionalLink[]>([]);  const [hasAdminCompany, setHasAdminCompany] = useState(false);
+  const [
+    professionalLinks,
+    setProfessionalLinks,
+  ] = useState<ProfessionalLink[]>([]); const [hasAdminCompany, setHasAdminCompany] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -55,113 +56,113 @@ const [
   }, []);
 
   async function loadProfile() {
-  setLoading(true);
-  setMessage('');
+    setLoading(true);
+    setMessage('');
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  if (userError || !user) {
-    setLoading(false);
-    return;
-  }
+    if (userError || !user) {
+      setLoading(false);
+      return;
+    }
 
-  const [
-    profileResult,
-    adminResult,
-    myCompaniesResult,
-    professionalLinksResult,
-  ] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select(
-        'full_name, job_title, coverage_area, avatar_url'
-      )
-      .eq('id', user.id)
-      .maybeSingle(),
+    const [
+      profileResult,
+      adminResult,
+      myCompaniesResult,
+      professionalLinksResult,
+    ] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select(
+          'full_name, job_title, coverage_area, avatar_url'
+        )
+        .eq('id', user.id)
+        .maybeSingle(),
 
-    supabase.rpc(
-      'has_admin_company'
-    ),
+      supabase.rpc(
+        'has_admin_company'
+      ),
 
-    supabase.rpc(
-      'get_my_companies'
-    ),
+      supabase.rpc(
+        'get_my_companies'
+      ),
 
-    supabase.rpc(
-      'get_my_professional_links'
-    ),
-  ]);
+      supabase.rpc(
+        'get_my_professional_links'
+      ),
+    ]);
 
-  if (profileResult.error) {
-    setMessage(
-      profileResult.error.message
-    );
-  } else {
-    setFullName(
-      profileResult.data?.full_name ??
+    if (profileResult.error) {
+      setMessage(
+        profileResult.error.message
+      );
+    } else {
+      setFullName(
+        profileResult.data?.full_name ??
         ''
-    );
+      );
 
-    setJobTitle(
-      profileResult.data?.job_title ??
+      setJobTitle(
+        profileResult.data?.job_title ??
         ''
-    );
+      );
 
-    setCoverageArea(
-      profileResult.data
-        ?.coverage_area ?? ''
-    );
+      setCoverageArea(
+        profileResult.data
+          ?.coverage_area ?? ''
+      );
 
-    setAvatarUrl(
-      profileResult.data
-        ?.avatar_url ?? null
-    );
-  }
+      setAvatarUrl(
+        profileResult.data
+          ?.avatar_url ?? null
+      );
+    }
 
-  if (adminResult.error) {
-    setHasAdminCompany(false);
-  } else {
-    setHasAdminCompany(
-      Boolean(adminResult.data)
-    );
-  }
+    if (adminResult.error) {
+      setHasAdminCompany(false);
+    } else {
+      setHasAdminCompany(
+        Boolean(adminResult.data)
+      );
+    }
 
-  if (
-    myCompaniesResult.error
-  ) {
-    setMessage(
-      myCompaniesResult.error.message
-    );
+    if (
+      myCompaniesResult.error
+    ) {
+      setMessage(
+        myCompaniesResult.error.message
+      );
 
-    setMyCompanies([]);
-  } else {
-    setMyCompanies(
-      (myCompaniesResult.data ??
-        []) as MyCompany[]
-    );
-  }
+      setMyCompanies([]);
+    } else {
+      setMyCompanies(
+        (myCompaniesResult.data ??
+          []) as MyCompany[]
+      );
+    }
 
-  if (
-    professionalLinksResult.error
-  ) {
-    setMessage(
+    if (
       professionalLinksResult.error
-        .message
-    );
+    ) {
+      setMessage(
+        professionalLinksResult.error
+          .message
+      );
 
-    setProfessionalLinks([]);
-  } else {
-    setProfessionalLinks(
-      (professionalLinksResult.data ??
-        []) as ProfessionalLink[]
-    );
+      setProfessionalLinks([]);
+    } else {
+      setProfessionalLinks(
+        (professionalLinksResult.data ??
+          []) as ProfessionalLink[]
+      );
+    }
+
+    setLoading(false);
   }
-
-  setLoading(false);
-}
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -328,273 +329,365 @@ const [
         </Pressable>
       )}
 
-     <Text style={styles.sectionTitle}>
-  MINHAS EMPRESAS NO FIO
-</Text>
+      <Pressable
+        style={[
+          styles.accessCard,
+          styles.accessCardSpacing,
+        ]}
+        onPress={() =>
+          router.push('/company-invitations')
+        }
+      >
+        <View style={styles.accessTextArea}>
+          <Text style={styles.accessTitle}>
+            Convites recebidos
+          </Text>
 
-{myCompanies.length === 0 ? (
+          <Text style={styles.accessSubtitle}>
+            Aceitar ou recusar convites de empresas
+          </Text>
+        </View>
+
+        <Text style={styles.chevron}>
+          ›
+        </Text>
+      </Pressable>
+
+      <Text style={styles.sectionTitle}>
+        MINHAS EMPRESAS NO FIO
+      </Text>
+
+      {myCompanies.length === 0 ? (
+        <View
+          style={styles.emptyCompanyCard}
+        >
+          <Text
+            style={styles.emptyCompanyTitle}
+          >
+            Nenhuma empresa própria
+          </Text>
+
+          <Text
+            style={styles.emptyCompanyText}
+          >
+            Empresas que você administra
+            aparecerão aqui.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.companyList}>
+          {myCompanies.map(
+            (company) => (
+              <Pressable
+                key={
+                  company.membership_id
+                }
+                style={({ pressed }) => [
+                  styles.companyCard,
+                  pressed && {
+                    opacity: 0.7,
+                  },
+                ]}
+                onPress={() =>
+                  router.push({
+                    pathname:
+                      '/professional-profile',
+                    params: {
+                      companyId:
+                        company.company_id,
+                    },
+                  })
+                }
+              >
+                <View
+                  style={
+                    styles.companyCardTop
+                  }
+                >
+                  <View
+                    style={
+                      styles.companyInfo
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.companyName
+                      }
+                    >
+                      {
+                        company.company_name
+                      }
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.companyRole
+                      }
+                    >
+                      {company.role ===
+                        'owner'
+                        ? 'Proprietário'
+                        : company.role}
+                    </Text>
+
+                    <Text
+                      style={{
+                        marginTop: 7,
+                        fontSize: 11,
+                        fontWeight: '700',
+                        color: '#E07A3A',
+                      }}
+                    >
+                      Abrir perfil
+                      profissional ›
+                    </Text>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      {
+                        backgroundColor:
+                          company.active
+                            ? '#EEF1ED'
+                            : '#F0ECE8',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={styles.statusText}
+                    >
+                      {company.active
+                        ? 'Ativa'
+                        : 'Inativa'}
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
+            )
+          )}
+        </View>
+      )}
+
+      <Text
+        style={[
+          styles.sectionTitle,
+          {
+            marginTop: 24,
+          },
+        ]}
+      >
+        MEUS VÍNCULOS NO FIO
+      </Text>
+
+      {professionalLinks.length ===
+        0 ? (
+        <View
+          style={styles.emptyCompanyCard}
+        >
+          <Text
+            style={styles.emptyCompanyTitle}
+          >
+            Nenhum vínculo profissional
+          </Text>
+
+          <Text
+            style={styles.emptyCompanyText}
+          >
+            Empresas às quais você estiver
+            vinculado como profissional
+            aparecerão aqui.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.companyList}>
+          {professionalLinks.map(
+            (link) => {
+              const approved =
+                link.status ===
+                'approved';
+
+              return (
   <View
-    style={styles.emptyCompanyCard}
+    key={link.link_id}
   >
-    <Text
-      style={styles.emptyCompanyTitle}
-    >
-      Nenhuma empresa própria
-    </Text>
+    <Pressable
+      style={({ pressed }) => [
+        styles.companyCard,
+        styles.professionalLinkCard,
+        pressed &&
+          approved && {
+            opacity: 0.7,
+          },
+      ]}
+      disabled={!approved}
+      onPress={() => {
+        if (!approved) {
+          return;
+        }
 
-    <Text
-      style={styles.emptyCompanyText}
+        router.push({
+          pathname:
+            '/professional-profile',
+          params: {
+            companyId:
+              link.company_id,
+          },
+        });
+      }}
     >
-      Empresas que você administra
-      aparecerão aqui.
-    </Text>
-  </View>
-) : (
-  <View style={styles.companyList}>
-    {myCompanies.map(
-      (company) => (
-        <Pressable
-          key={
-            company.membership_id
-          }
-          style={({ pressed }) => [
-            styles.companyCard,
-            pressed && {
-              opacity: 0.7,
-            },
-          ]}
-          onPress={() =>
-            router.push({
-              pathname:
-                '/professional-profile',
-              params: {
-                companyId:
-                  company.company_id,
-              },
-            })
+      <View
+        style={
+          styles.companyCardTop
+        }
+      >
+        <View
+          style={
+            styles.companyInfo
           }
         >
-          <View
+          <Text
             style={
-              styles.companyCardTop
+              styles.companyName
             }
           >
-            <View
-              style={
-                styles.companyInfo
-              }
-            >
-              <Text
-                style={
-                  styles.companyName
-                }
-              >
-                {
-                  company.company_name
-                }
-              </Text>
+            {link.company_name}
+          </Text>
 
-              <Text
-                style={
-                  styles.companyRole
-                }
-              >
-                {company.role ===
-                'owner'
-                  ? 'Proprietário'
-                  : company.role}
-              </Text>
-
-              <Text
-                style={{
-                  marginTop: 7,
-                  fontSize: 11,
-                  fontWeight: '700',
-                  color: '#E07A3A',
-                }}
-              >
-                Abrir perfil
-                profissional ›
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.statusBadge,
-                {
-                  backgroundColor:
-                    company.active
-                      ? '#EEF1ED'
-                      : '#F0ECE8',
-                },
-              ]}
-            >
-              <Text
-                style={styles.statusText}
-              >
-                {company.active
-                  ? 'Ativa'
-                  : 'Inativa'}
-              </Text>
-            </View>
-          </View>
-        </Pressable>
-      )
-    )}
-  </View>
-)}
-
-<Text
-  style={[
-    styles.sectionTitle,
-    {
-      marginTop: 24,
-    },
-  ]}
->
-  MEUS VÍNCULOS NO FIO
-</Text>
-
-{professionalLinks.length ===
-0 ? (
-  <View
-    style={styles.emptyCompanyCard}
-  >
-    <Text
-      style={styles.emptyCompanyTitle}
-    >
-      Nenhum vínculo profissional
-    </Text>
-
-    <Text
-      style={styles.emptyCompanyText}
-    >
-      Empresas às quais você estiver
-      vinculado como profissional
-      aparecerão aqui.
-    </Text>
-  </View>
-) : (
-  <View style={styles.companyList}>
-    {professionalLinks.map(
-      (link) => {
-        const approved =
-          link.status ===
-          'approved';
-
-        return (
-          <Pressable
-            key={link.link_id}
-            style={({ pressed }) => [
-              styles.companyCard,
-              pressed &&
-                approved && {
-                  opacity: 0.7,
-                },
-            ]}
-            disabled={!approved}
-            onPress={() => {
-              if (!approved) {
-                return;
-              }
-
-              router.push({
-                pathname:
-                  '/professional-profile',
-                params: {
-                  companyId:
-                    link.company_id,
-                },
-              });
-            }}
+          <Text
+            style={
+              styles.companyRole
+            }
           >
-            <View
-              style={
-                styles.companyCardTop
-              }
+            {link.role_title}
+          </Text>
+
+          {approved && (
+            <Text
+              style={{
+                marginTop: 7,
+                fontSize: 11,
+                fontWeight:
+                  '700',
+                color:
+                  '#E07A3A',
+              }}
             >
-              <View
-                style={
-                  styles.companyInfo
-                }
-              >
-                <Text
-                  style={
-                    styles.companyName
-                  }
-                >
-                  {
-                    link.company_name
-                  }
-                </Text>
+              Abrir perfil
+              profissional ›
+            </Text>
+          )}
+        </View>
 
-                <Text
-                  style={
-                    styles.companyRole
-                  }
-                >
-                  {link.role_title}
-                </Text>
+        <View
+          style={[
+            styles.statusBadge,
+            getStatusStyle(
+              link.status
+            ),
+          ]}
+        >
+          <Text
+            style={
+              styles.statusText
+            }
+          >
+            {getStatusLabel(
+              link.status
+            )}
+          </Text>
+        </View>
+      </View>
+    </Pressable>
 
-                {approved && (
-                  <Text
-                    style={{
-                      marginTop: 7,
-                      fontSize: 11,
-                      fontWeight:
-                        '700',
-                      color:
-                        '#E07A3A',
-                    }}
-                  >
-                    Abrir perfil
-                    profissional ›
-                  </Text>
-                )}
-              </View>
+    {approved && (
+      <Pressable
+        style={({ pressed }) => [
+          styles.leaveLinkButton,
+          pressed && {
+            opacity: 0.65,
+          },
+        ]}
+        onPress={() => {
+          Alert.alert(
+            'Encerrar vínculo?',
+            `Você deixará de fazer parte da equipe de ${link.company_name}. O histórico do vínculo será preservado.`,
+            [
+              {
+                text: 'Cancelar',
+                style: 'cancel',
+              },
+              {
+                text:
+                  'Encerrar vínculo',
+                style:
+                  'destructive',
+                onPress:
+                  async () => {
+                    setMessage('');
 
-              <View
-                style={[
-                  styles.statusBadge,
-                  getStatusStyle(
-                    link.status
-                  ),
-                ]}
-              >
-                <Text
-                  style={
-                    styles.statusText
-                  }
-                >
-                  {getStatusLabel(
-                    link.status
-                  )}
-                </Text>
-              </View>
-            </View>
-          </Pressable>
-        );
-      }
+                    const {
+                      error,
+                    } =
+                      await supabase.rpc(
+                        'leave_company_professional_link',
+                        {
+                          p_link_id:
+                            link.link_id,
+                        }
+                      );
+
+                    if (error) {
+                      setMessage(
+                        error.message
+                      );
+
+                      return;
+                    }
+
+                    setMessage(
+                      'Vínculo encerrado.'
+                    );
+
+                    await loadProfile();
+                  },
+              },
+            ]
+          );
+        }}
+      >
+        <Text
+          style={
+            styles.leaveLinkButtonText
+          }
+        >
+          Encerrar vínculo
+        </Text>
+      </Pressable>
     )}
   </View>
-)}
+);
+            }
+          )}
+        </View>
+      )}
 
-<Pressable
-  style={
-    styles.companySearchButton
-  }
-  onPress={() =>
-    router.push('/company-link')
-  }
->
-  <Text
-    style={
-      styles.companySearchButtonText
-    }
-  >
-    Buscar vínculo profissional
-  </Text>
-</Pressable>
+      <Pressable
+        style={
+          styles.companySearchButton
+        }
+        onPress={() =>
+          router.push('/company-link')
+        }
+      >
+        <Text
+          style={
+            styles.companySearchButtonText
+          }
+        >
+          Buscar vínculo profissional
+        </Text>
+      </Pressable>
       {!!message && (
         <Text style={styles.message}>
           {message}
@@ -791,6 +884,27 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     fontSize: 26,
     color: '#8A9094',
+  },
+
+  professionalLinkCard: {
+    marginBottom: 8,
+  },
+
+  leaveLinkButton: {
+    minHeight: 42,
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E6C8C3',
+    borderRadius: 12,
+    backgroundColor: '#FFF8F7',
+  },
+
+  leaveLinkButtonText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#B42318',
   },
 
   emptyCompanyCard: {

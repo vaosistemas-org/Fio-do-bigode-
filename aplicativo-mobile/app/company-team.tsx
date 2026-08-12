@@ -528,6 +528,30 @@ export default function CompanyTeamScreen() {
         </Text>
       </View>
 
+<Pressable
+  style={({ pressed }) => [
+    styles.addProfessionalButton,
+    pressed &&
+      styles.buttonPressed,
+  ]}
+  onPress={() =>
+    router.push({
+      pathname: '/company-invite',
+      params: {
+        companyId,
+      },
+    })
+  }
+>
+  <Text
+    style={
+      styles.addProfessionalButtonText
+    }
+  >
+    + Adicionar profissional
+  </Text>
+</Pressable>
+
       {!!message && (
         <View
           style={styles.errorCard}
@@ -1280,6 +1304,21 @@ const styles =
     buttonPressed: {
       opacity: 0.6,
     },
+
+addProfessionalButton: {
+  minHeight: 50,
+  marginBottom: 16,
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: 14,
+  backgroundColor: '#E07A3A',
+},
+
+addProfessionalButtonText: {
+  fontSize: 12,
+  fontWeight: '800',
+  color: '#FFFFFF',
+},
 
     infoCard: {
       marginTop: 10,

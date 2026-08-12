@@ -218,6 +218,14 @@ export default function RootLayout() {
           />
 
           <Stack.Screen
+           name="company-invite"
+          />
+
+          <Stack.Screen
+           name="company-invitations"
+          />
+          
+          <Stack.Screen
             name="company-link-requests"
           />
 
