@@ -607,6 +607,7 @@ export default function WorkDetailsScreen() {
                     environments={environments}
                     canWrite={canWrite}
                     newEntryRequest={timelineCreateRequest}
+                    onChanged={() => loadCentral(true)}
                   />
                 </ExpandableWorkSection>
 
