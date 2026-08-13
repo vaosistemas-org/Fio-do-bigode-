@@ -22,6 +22,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExpandableWorkSection } from '@/components/work-central/ExpandableWorkSection';
+import { WorkPendingPanel } from '@/components/work-central/WorkPendingPanel';
 import {
   Work,
   WorkEnvironment,
@@ -137,6 +138,7 @@ export default function WorkDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
+  const [pendingCount, setPendingCount] = useState(0);
 
   const {
     canManage,
@@ -625,10 +627,17 @@ export default function WorkDetailsScreen() {
                   title="Pendências"
                   subtitle="Itens gerais ou vinculados a ambientes"
                   icon="alert-circle-outline"
+                  badge={pendingCount ? String(pendingCount) : undefined}
                   open={openSection === 'pending'}
                   onPress={() => toggle('pending')}
                 >
-                  <Placeholder text="Espaço preparado para o checkpoint de Pendências." />
+                  <WorkPendingPanel
+                    workId={work.id}
+                    environments={environments}
+                    participants={participants}
+                    canWrite={canWrite}
+                    onOpenCountChange={setPendingCount}
+                  />
                 </ExpandableWorkSection>
 
                 <ExpandableWorkSection
