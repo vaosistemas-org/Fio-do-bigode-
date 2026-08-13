@@ -1,23 +1,23 @@
 import {
-  useCallback,
-  useMemo,
-  useState,
+    useCallback,
+    useMemo,
+    useState,
 } from 'react';
 
 import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
+    ActivityIndicator,
+    Pressable,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
 
 import {
-  useFocusEffect,
-  useLocalSearchParams,
-  useRouter,
+    useFocusEffect,
+    useLocalSearchParams,
+    useRouter,
 } from 'expo-router';
 
 import { useWorkAccess } from '@/hooks/use-work-access';
@@ -39,6 +39,7 @@ type Environment = {
   responsible_user_id: string | null;
   status: EnvironmentStatus;
   progress: number;
+  installation_priority: boolean;
   preparation_min_photos: number;
   active: boolean;
   archived_at: string | null;
@@ -58,10 +59,10 @@ const STATUS_LABELS: Record<
   EnvironmentStatus,
   string
 > = {
-  nao_iniciado: 'NÃ£o iniciado',
+  nao_iniciado: 'Não iniciado',
   em_andamento: 'Em andamento',
   aguardando: 'Aguardando',
-  concluido: 'ConcluÃ­do',
+  concluido: 'Concluído',
   cancelado: 'Cancelado',
 };
 
@@ -137,7 +138,7 @@ export default function EnvironmentsScreen() {
   ) {
     if (!workId) {
       setMessage(
-        'Obra nÃ£o encontrada.'
+        'Obra não encontrada.'
       );
 
       setLoading(false);
@@ -179,6 +180,7 @@ export default function EnvironmentsScreen() {
             responsible_user_id,
             status,
             progress,
+            installation_priority,
             preparation_min_photos,
             active,
             archived_at,
@@ -205,7 +207,7 @@ export default function EnvironmentsScreen() {
 
       if (!workResult.data) {
         setMessage(
-          'VocÃª nÃ£o possui acesso a esta obra.'
+          'Você não possui acesso a esta obra.'
         );
         return;
       }
@@ -308,7 +310,7 @@ export default function EnvironmentsScreen() {
       ) {
         names[profile.id] =
           profile.full_name ||
-          'ResponsÃ¡vel';
+          'Responsável';
       }
 
       setResponsibleNames(
@@ -318,7 +320,7 @@ export default function EnvironmentsScreen() {
       setMessage(
         error instanceof Error
           ? error.message
-          : 'NÃ£o foi possÃ­vel carregar os ambientes.'
+          : 'Não foi possível carregar os ambientes.'
       );
     } finally {
       if (isRefresh) {
@@ -341,7 +343,23 @@ export default function EnvironmentsScreen() {
         environments.filter(
           (environment) =>
             environment.active
-        ),
+        ).sort((a, b) => {
+          if (
+            a.installation_priority !==
+            b.installation_priority
+          ) {
+            return a.installation_priority
+              ? -1
+              : 1;
+          }
+
+          return new Date(
+            a.created_at
+          ).getTime() -
+            new Date(
+              b.created_at
+            ).getTime();
+        }),
       [environments]
     );
 
@@ -438,7 +456,7 @@ export default function EnvironmentsScreen() {
       setMessage(
         error instanceof Error
           ? error.message
-          : 'NÃ£o foi possÃ­vel restaurar o ambiente.'
+          : 'Não foi possível restaurar o ambiente.'
       );
     } finally {
       setRestoringId(null);
@@ -506,7 +524,7 @@ export default function EnvironmentsScreen() {
               styles.brandSubtitle
             }
           >
-            GESTÃƒO DE OBRAS
+            GESTÃO DE OBRAS
           </Text>
         </View>
 
@@ -545,7 +563,7 @@ export default function EnvironmentsScreen() {
             styles.backButtonText
           }
         >
-          â€¹ Voltar para obra
+          ‹ Voltar para obra
         </Text>
       </Pressable>
 
@@ -710,7 +728,7 @@ export default function EnvironmentsScreen() {
                 styles.summaryLabel
               }
             >
-              ConcluÃ­dos
+              Concluídos
             </Text>
           </View>
 
@@ -761,7 +779,7 @@ export default function EnvironmentsScreen() {
           >
             Permanecem salvos e
             podem ser restaurados
-            quando necessÃ¡rio.
+            quando necessário.
           </Text>
         </View>
       )}
@@ -804,7 +822,7 @@ export default function EnvironmentsScreen() {
               }
             >
               {showingArchived
-                ? 'Os ambientes arquivados aparecerÃ£o aqui.'
+                ? 'Os ambientes arquivados aparecerão aqui.'
                 : 'Cadastre o primeiro ambiente da obra.'}
             </Text>
 
@@ -853,8 +871,8 @@ export default function EnvironmentsScreen() {
                   environment
                     .responsible_user_id
                 ] ??
-                'ResponsÃ¡vel'
-              : 'Sem responsÃ¡vel';
+                'Responsável'
+              : 'Sem responsável';
 
           const photoCount =
             photoCounts[
@@ -941,7 +959,7 @@ export default function EnvironmentsScreen() {
                       styles.progressLabel
                     }
                   >
-                    Ãšltimo andamento
+                    Último andamento
                   </Text>
 
                   <Text
@@ -1009,7 +1027,7 @@ export default function EnvironmentsScreen() {
                       styles.photoSummaryArrow
                     }
                   >
-                    Abrir fotos â€º
+                    Abrir fotos ›
                   </Text>
                 </Pressable>
 
@@ -1100,22 +1118,42 @@ export default function EnvironmentsScreen() {
                 </View>
 
                 <View
-                  style={
-                    styles.statusBadge
-                  }
+                  style={styles.cardBadges}
                 >
-                  <Text
+                  {environment.installation_priority && (
+                    <View
+                      style={
+                        styles.priorityBadge
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.priorityBadgeText
+                        }
+                      >
+                        Montar primeiro
+                      </Text>
+                    </View>
+                  )}
+
+                  <View
                     style={
-                      styles.statusText
+                      styles.statusBadge
                     }
                   >
-                    {
-                      STATUS_LABELS[
-                        environment
-                          .status
-                      ]
-                    }
-                  </Text>
+                    <Text
+                      style={
+                        styles.statusText
+                      }
+                    >
+                      {
+                        STATUS_LABELS[
+                          environment
+                            .status
+                        ]
+                      }
+                    </Text>
+                  </View>
                 </View>
               </View>
 
@@ -1223,7 +1261,7 @@ export default function EnvironmentsScreen() {
                       styles.photoSummaryArrow
                     }
                   >
-                    Abrir fotos â€º
+                    Abrir fotos ›
                   </Text>
                 </View>
               </Pressable>
@@ -1249,7 +1287,7 @@ export default function EnvironmentsScreen() {
                     styles.openText
                   }
                 >
-                  Abrir ambiente â€º
+                  Abrir ambiente ›
                 </Text>
               </View>
             </Pressable>
@@ -1533,6 +1571,25 @@ const styles =
       marginTop: 4,
       fontSize: 12,
       color: '#7D8488',
+    },
+
+    cardBadges: {
+      alignItems: 'flex-end',
+      gap: 6,
+    },
+
+    priorityBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor:
+        '#FFF0E5',
+    },
+
+    priorityBadgeText: {
+      fontSize: 9,
+      fontWeight: '800',
+      color: '#A65B32',
     },
 
     statusBadge: {

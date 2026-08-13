@@ -1,21 +1,21 @@
 import {
-    useFocusEffect,
-    useLocalSearchParams,
-    useRouter,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
 } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
@@ -38,6 +38,7 @@ type Environment = {
   status: EnvironmentStatus;
   progress: number;
   weight: number;
+  installation_priority: boolean;
   services_notes: string | null;
   missing_items_notes: string | null;
   notes: string | null;
@@ -151,11 +152,13 @@ const [
   const [progress, setProgress] =
     useState(0);
 
-  const [weight, setWeight] =
-    useState(1);
-
   const [servicesNotes, setServicesNotes] =
     useState('');
+
+  const [
+    installationPriority,
+    setInstallationPriority,
+  ] = useState(false);
 
   const [
     missingItemsNotes,
@@ -172,6 +175,9 @@ const [
     preparationMinPhotos,
     setPreparationMinPhotos,
   ] = useState(0);
+
+  const [photoCount, setPhotoCount] =
+    useState(0);
 
   const [loading, setLoading] =
     useState(true);
@@ -223,6 +229,7 @@ const [
           status,
           progress,
           weight,
+          installation_priority,
           services_notes,
           missing_items_notes,
           notes,
@@ -273,10 +280,9 @@ const [
         loadedEnvironment.progress
       );
 
-      setWeight(
-        Number(
-          loadedEnvironment.weight
-        ) || 1
+      setInstallationPriority(
+        loadedEnvironment.installation_priority ??
+          false
       );
 
       setServicesNotes(
@@ -301,6 +307,30 @@ const [
         loadedEnvironment.preparation_min_photos ??
           0
       );
+
+      const {
+        count: loadedPhotoCount,
+        error: photoCountError,
+      } = await supabase
+        .from('work_photos')
+        .select('id', {
+          count: 'exact',
+          head: true,
+        })
+        .eq(
+          'environment_id',
+          loadedEnvironment.id
+        );
+
+      if (photoCountError) {
+        setErrorMessage(
+          photoCountError.message
+        );
+      } else {
+        setPhotoCount(
+          loadedPhotoCount ?? 0
+        );
+      }
 
       setSelectedResponsibleUserId(
          loadedEnvironment.responsible_user_id
@@ -423,19 +453,6 @@ if (participantsError) {
     }
   }
 
-  function changeWeight(
-    amount: number
-  ) {
-    const next =
-      Math.round(
-        (weight + amount) * 10
-      ) / 10;
-
-    setWeight(
-      Math.max(0.5, next)
-    );
-  }
-
   function validate() {
     if (!category) {
       setErrorMessage(
@@ -463,14 +480,6 @@ if (participantsError) {
     ) {
       setErrorMessage(
         'O progresso deve ficar entre 0% e 100%.'
-      );
-
-      return false;
-    }
-
-    if (weight <= 0) {
-      setErrorMessage(
-        'O peso do ambiente deve ser maior que zero.'
       );
 
       return false;
@@ -542,7 +551,7 @@ if (participantsError) {
               progress,
 
             p_weight:
-              weight,
+              1,
 
             p_services_notes:
               servicesNotes.trim() ||
@@ -567,6 +576,26 @@ if (participantsError) {
       if (error) {
         setErrorMessage(
           error.message
+        );
+
+        return;
+      }
+
+      const {
+        error: priorityError,
+      } = await supabase.rpc(
+        'set_environment_installation_priority',
+        {
+          p_environment_id:
+            environment.id,
+          p_priority:
+            installationPriority,
+        }
+      );
+
+      if (priorityError) {
+        setErrorMessage(
+          priorityError.message
         );
 
         return;
@@ -700,6 +729,44 @@ if (participantsError) {
 
   const saving =
     savingAction !== null;
+
+  const hasResponsible =
+    selectedResponsibleUserId !== null;
+
+  const hasInformation =
+    servicesNotes.trim().length > 0 ||
+    missingItemsNotes.trim().length > 0 ||
+    notes.trim().length > 0;
+
+  const photosReady =
+    preparationMinPhotos === 0 ||
+    photoCount >= preparationMinPhotos;
+
+  const preparationItems = [
+    {
+      label: 'Responsável definido',
+      ready: hasResponsible,
+    },
+    {
+      label: 'Informações registradas',
+      ready: hasInformation,
+    },
+    {
+      label:
+        preparationMinPhotos > 0
+          ? `Fotos (${photoCount}/${preparationMinPhotos})`
+          : `Fotos (${photoCount}) · sem mínimo obrigatório`,
+      ready: photosReady,
+    },
+  ];
+
+  const missingPreparationCount =
+    preparationItems.filter(
+      (item) => !item.ready
+    ).length;
+
+  const preparationReady =
+    missingPreparationCount === 0;
 
   return (
     <KeyboardAvoidingView
@@ -1222,82 +1289,78 @@ if (participantsError) {
           </View>
         </View>
 
-        {/* PESO */}
+        {/* PRIORIDADE */}
         <View style={styles.card}>
           <Text
             style={styles.sectionTitle}
           >
-            PESO NO PROGRESSO DA OBRA
+            PRIORIDADE DE MONTAGEM
           </Text>
 
           <Text style={styles.helperTop}>
-            Normalmente deixe em 1.
-            Aumente apenas se este
-            ambiente tiver peso maior
-            no andamento geral.
+            Marque quando este ambiente
+            precisar ser montado antes
+            dos demais, como áreas
+            molhadas ou pontos críticos.
           </Text>
 
-          <View
-            style={styles.stepperRow}
+          <Pressable
+            style={({ pressed }) => [
+              styles.priorityButton,
+              installationPriority &&
+                styles.priorityButtonSelected,
+              pressed &&
+                styles.priorityButtonPressed,
+            ]}
+            onPress={() =>
+              setInstallationPriority(
+                (current) => !current
+              )
+            }
+            disabled={saving}
           >
-            <Pressable
-              style={
-                styles.stepperButton
-              }
-              onPress={() =>
-                changeWeight(-0.5)
-              }
-              disabled={saving}
-            >
+            <View style={styles.priorityText}>
               <Text
-                style={
-                  styles.stepperButtonText
-                }
+                style={[
+                  styles.priorityTitle,
+                  installationPriority &&
+                    styles.priorityTitleSelected,
+                ]}
               >
-                −
-              </Text>
-            </Pressable>
-
-            <View
-              style={
-                styles.weightCenter
-              }
-            >
-              <Text
-                style={
-                  styles.weightValue
-                }
-              >
-                {weight}
+                {installationPriority
+                  ? 'Montar primeiro'
+                  : 'Prioridade normal'}
               </Text>
 
               <Text
-                style={
-                  styles.weightLabel
-                }
+                style={styles.priorityDescription}
               >
-                peso
+                {installationPriority
+                  ? 'Este ambiente aparecerá primeiro na lista.'
+                  : 'Toque para marcar como prioridade.'}
               </Text>
             </View>
 
-            <Pressable
-              style={
-                styles.stepperButton
-              }
-              onPress={() =>
-                changeWeight(0.5)
-              }
-              disabled={saving}
+            <View
+              style={[
+                styles.priorityMarker,
+                installationPriority &&
+                  styles.priorityMarkerSelected,
+              ]}
             >
               <Text
-                style={
-                  styles.stepperButtonText
-                }
+                style={[
+                  styles.priorityMarkerText,
+                  installationPriority &&
+                    styles.priorityMarkerTextSelected,
+                ]}
               >
-                +
+                {installationPriority
+                  ? 'ATIVA'
+                  : 'NORMAL'}
               </Text>
-            </Pressable>
-          </View>
+            </View>
+          </Pressable>
         </View>
 
         {/* SERVIÇOS */}
@@ -1373,6 +1436,78 @@ if (participantsError) {
           </Text>
 
           <View
+            style={[
+              styles.preparationSummary,
+              preparationReady &&
+                styles.preparationSummaryReady,
+            ]}
+          >
+            <Text
+              style={[
+                styles.preparationSummaryTitle,
+                preparationReady &&
+                  styles.preparationSummaryTitleReady,
+              ]}
+            >
+              {preparationReady
+                ? 'Preparação básica completa'
+                : `${missingPreparationCount} ${
+                    missingPreparationCount === 1
+                      ? 'item pendente'
+                      : 'itens pendentes'
+                  }`}
+            </Text>
+
+            <Text
+              style={
+                styles.preparationSummaryText
+              }
+            >
+              Conferência automática com
+              base no responsável, nas
+              informações e nas fotos deste
+              ambiente.
+            </Text>
+          </View>
+
+          <View
+            style={styles.preparationList}
+          >
+            {preparationItems.map(
+              (item) => (
+                <View
+                  key={item.label}
+                  style={
+                    styles.preparationItem
+                  }
+                >
+                  <Text
+                    style={
+                      styles.preparationItemLabel
+                    }
+                  >
+                    {item.label}
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.preparationItemStatus,
+                      item.ready &&
+                        styles.preparationItemStatusReady,
+                    ]}
+                  >
+                    {item.ready
+                      ? 'Pronto'
+                      : 'Pendente'}
+                  </Text>
+                </View>
+              )
+            )}
+          </View>
+
+          <View style={styles.divider} />
+
+          <View
             style={styles.settingRow}
           >
             <View
@@ -1426,6 +1561,10 @@ if (participantsError) {
             Quantidade mínima de fotos
             desejada para considerar a
             preparação visual completa.
+            Atualmente há {photoCount}{' '}
+            {photoCount === 1
+              ? 'foto'
+              : 'fotos'} neste ambiente.
           </Text>
 
           <View
@@ -1473,7 +1612,10 @@ if (participantsError) {
                   styles.weightLabel
                 }
               >
-                fotos
+                {preparationMinPhotos ===
+                1
+                  ? 'foto'
+                  : 'fotos'}
               </Text>
             </View>
 
@@ -1951,10 +2093,140 @@ const styles = StyleSheet.create({
     color: '#8B9195',
   },
 
+  priorityButton: {
+    minHeight: 76,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#DDE1DE',
+    borderRadius: 14,
+    backgroundColor: '#FAFAF8',
+  },
+
+  priorityButtonSelected: {
+    borderColor: '#E07A3A',
+    backgroundColor: '#FFF4EC',
+  },
+
+  priorityButtonPressed: {
+    opacity: 0.68,
+  },
+
+  priorityText: {
+    flex: 1,
+  },
+
+  priorityTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#2C343A',
+  },
+
+  priorityTitleSelected: {
+    color: '#A65B32',
+  },
+
+  priorityDescription: {
+    marginTop: 4,
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#858B8F',
+  },
+
+  priorityMarker: {
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#ECEEEC',
+  },
+
+  priorityMarkerSelected: {
+    backgroundColor: '#E07A3A',
+  },
+
+  priorityMarkerText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#747B80',
+  },
+
+  priorityMarkerTextSelected: {
+    color: '#FFFFFF',
+  },
+
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+  },
+
+  preparationSummary: {
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#F1C7AA',
+    borderRadius: 14,
+    backgroundColor: '#FFF7F1',
+  },
+
+  preparationSummaryReady: {
+    borderColor: '#C8D8CB',
+    backgroundColor: '#F1F6F1',
+  },
+
+  preparationSummaryTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#A65B32',
+  },
+
+  preparationSummaryTitleReady: {
+    color: '#506455',
+  },
+
+  preparationSummaryText: {
+    marginTop: 5,
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#747B80',
+  },
+
+  preparationList: {
+    marginTop: 12,
+    gap: 8,
+  },
+
+  preparationItem: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: '#E7E9E7',
+    borderRadius: 12,
+    backgroundColor: '#FAFAF8',
+  },
+
+  preparationItemLabel: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#596167',
+  },
+
+  preparationItemStatus: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#A65B32',
+  },
+
+  preparationItemStatusReady: {
+    color: '#506455',
   },
 
   settingText: {
