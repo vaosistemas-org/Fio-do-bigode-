@@ -24,6 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ExpandableWorkSection } from '@/components/work-central/ExpandableWorkSection';
 import { WorkPendingPanel } from '@/components/work-central/WorkPendingPanel';
 import { WorkPhotosPanel } from '@/components/work-central/WorkPhotosPanel';
+import { WorkTimelinePanel } from '@/components/work-central/WorkTimelinePanel';
 import {
   Work,
   WorkEnvironment,
@@ -661,7 +662,11 @@ export default function WorkDetailsScreen() {
                   open={openSection === 'fio'}
                   onPress={() => toggle('fio')}
                 >
-                  <Placeholder text="Espaço preparado para o checkpoint do Diário/FIO." />
+                  <WorkTimelinePanel
+                    workId={work.id}
+                    environments={environments}
+                    canWrite={canWrite}
+                  />
                 </ExpandableWorkSection>
 
                 <ExpandableWorkSection
