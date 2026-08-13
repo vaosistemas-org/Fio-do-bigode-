@@ -651,6 +651,8 @@ export default function WorkDetailsScreen() {
                     environments={environments}
                     participants={participants}
                     canWrite={canWrite}
+                    canManage={canManage}
+                    userId={userId}
                     onOpenCountChange={setPendingCount}
                   />
                 </ExpandableWorkSection>

@@ -1,8 +1,12 @@
+import { decode } from 'base64-arraybuffer';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -39,6 +43,18 @@ type PendingItem = {
   updated_at: string;
 };
 
+type PendingPhoto = {
+  id: string;
+  pending_item_id: string;
+  storage_path: string;
+  file_name: string | null;
+  created_by: string | null;
+  created_at: string;
+  signed_url: string | null;
+};
+
+type PhotoSource = 'camera' | 'gallery';
+
 const PRIORITIES: Array<{
   value: Priority;
   label: string;
@@ -74,26 +90,41 @@ function toIsoDate(value: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function makeEvidenceFileName() {
+  return `bo-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 10)}.jpg`;
+}
+
 export function WorkPendingPanel({
   workId,
   environments,
   participants,
   canWrite,
+  canManage,
+  userId,
   onOpenCountChange,
 }: {
   workId: string;
   environments: WorkEnvironment[];
   participants: WorkParticipant[];
   canWrite: boolean;
+  canManage: boolean;
+  userId: string | null;
   onOpenCountChange?: (count: number) => void;
 }) {
   const [items, setItems] = useState<PendingItem[]>([]);
+  const [photos, setPhotos] = useState<PendingPhoto[]>([]);
   const [tab, setTab] = useState<PendingStatus>('open');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [changingId, setChangingId] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
+  const [photoMessage, setPhotoMessage] = useState('');
   const [formVisible, setFormVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
@@ -156,9 +187,55 @@ export function WorkPendingPanel({
     setLoading(false);
   }
 
+  async function loadPhotos() {
+    if (!canWrite) {
+      setPhotos([]);
+      return;
+    }
+
+    setPhotoMessage('');
+    const { data, error } = await supabase
+      .from('work_pending_photos')
+      .select(`
+        id, pending_item_id, storage_path, file_name,
+        created_by, created_at
+      `)
+      .eq('work_id', workId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      setPhotos([]);
+      setPhotoMessage(error.message);
+      return;
+    }
+
+    const rows = (data ?? []) as Array<
+      Omit<PendingPhoto, 'signed_url'>
+    >;
+
+    const withUrls = await Promise.all(
+      rows.map(async (photo) => {
+        const { data: signedData } = await supabase.storage
+          .from('work-pending-photos')
+          .createSignedUrl(photo.storage_path, 60 * 60);
+
+        return {
+          ...photo,
+          signed_url: signedData?.signedUrl ?? null,
+        } as PendingPhoto;
+      })
+    );
+
+    setPhotos(withUrls);
+  }
+
   useEffect(() => {
     loadItems();
   }, [workId]);
+
+  useEffect(() => {
+    loadPhotos();
+  }, [workId, canWrite]);
 
   function resetForm() {
     setEditingId(null);
@@ -270,6 +347,195 @@ export function WorkPendingPanel({
     setChangingId(null);
   }
 
+  async function uploadPhoto(
+    pendingItemId: string,
+    asset: ImagePicker.ImagePickerAsset,
+    source: PhotoSource,
+    createdBy: string
+  ) {
+    if (!asset.base64) {
+      throw new Error('Não foi possível ler a imagem selecionada.');
+    }
+
+    const fileName = makeEvidenceFileName();
+    const storagePath = `${workId}/${pendingItemId}/${fileName}`;
+    const { error: uploadError } = await supabase.storage
+      .from('work-pending-photos')
+      .upload(storagePath, decode(asset.base64), {
+        contentType: 'image/jpeg',
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { error: insertError } = await supabase
+      .from('work_pending_photos')
+      .insert({
+        pending_item_id: pendingItemId,
+        work_id: workId,
+        storage_path: storagePath,
+        file_name: asset.fileName || fileName,
+        mime_type: 'image/jpeg',
+        size_bytes: asset.fileSize ?? null,
+        taken_at:
+          source === 'camera' ? new Date().toISOString() : null,
+        created_by: createdBy,
+      });
+
+    if (insertError) {
+      await supabase.storage
+        .from('work-pending-photos')
+        .remove([storagePath]);
+      throw insertError;
+    }
+  }
+
+  async function uploadPhotos(
+    pendingItemId: string,
+    assets: ImagePicker.ImagePickerAsset[],
+    source: PhotoSource
+  ) {
+    if (!canWrite || uploadingId || assets.length === 0) return;
+
+    setUploadingId(pendingItemId);
+    setPhotoMessage('');
+
+    try {
+      const { data: authData, error: authError } =
+        await supabase.auth.getUser();
+
+      if (authError || !authData.user) {
+        throw new Error('Usuário não autenticado.');
+      }
+
+      for (let index = 0; index < assets.length; index += 1) {
+        setUploadProgress(`Enviando ${index + 1} de ${assets.length}...`);
+        await uploadPhoto(
+          pendingItemId,
+          assets[index],
+          source,
+          authData.user.id
+        );
+      }
+
+      await loadPhotos();
+      setExpandedId(pendingItemId);
+    } catch (error) {
+      setPhotoMessage(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível enviar as fotos de B.O.'
+      );
+    } finally {
+      setUploadingId(null);
+      setUploadProgress('');
+    }
+  }
+
+  async function choosePhotos(
+    pendingItemId: string,
+    source: PhotoSource
+  ) {
+    if (!canWrite || uploadingId) return;
+
+    if (source === 'camera') {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          'Câmera não autorizada',
+          'Permita o acesso à câmera para registrar a evidência.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.75,
+        base64: true,
+        allowsEditing: false,
+      });
+
+      if (!result.canceled) {
+        await uploadPhotos(pendingItemId, result.assets, source);
+      }
+      return;
+    }
+
+    const permission =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        'Fotos não autorizadas',
+        'Permita o acesso às fotos para adicionar as evidências.'
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: 20,
+      orderedSelection: true,
+      allowsEditing: false,
+      quality: 0.75,
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      await uploadPhotos(pendingItemId, result.assets, source);
+    }
+  }
+
+  function canDeletePhoto(photo: PendingPhoto) {
+    return (
+      canManage ||
+      (canWrite && !!userId && photo.created_by === userId)
+    );
+  }
+
+  function confirmDeletePhoto(photo: PendingPhoto) {
+    if (!canDeletePhoto(photo) || deletingPhotoId) return;
+
+    Alert.alert(
+      'Excluir evidência?',
+      'A foto será removida permanentemente da pasta de B.O.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: () => deletePhoto(photo),
+        },
+      ]
+    );
+  }
+
+  async function deletePhoto(photo: PendingPhoto) {
+    setDeletingPhotoId(photo.id);
+    setPhotoMessage('');
+
+    const { error: storageError } = await supabase.storage
+      .from('work-pending-photos')
+      .remove([photo.storage_path]);
+
+    if (storageError) {
+      setPhotoMessage(storageError.message);
+      setDeletingPhotoId(null);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('work_pending_photos')
+      .delete()
+      .eq('id', photo.id);
+
+    if (error) setPhotoMessage(error.message);
+    else await loadPhotos();
+
+    setDeletingPhotoId(null);
+  }
+
   const visibleItems = items
     .filter((item) => item.status === tab)
     .sort((a, b) => {
@@ -346,6 +612,9 @@ export function WorkPendingPanel({
       ) : (
         visibleItems.map((item) => {
           const expanded = expandedId === item.id;
+          const itemPhotos = photos.filter(
+            (photo) => photo.pending_item_id === item.id
+          );
           return (
             <View key={item.id} style={styles.itemCard}>
               <Pressable
@@ -373,6 +642,15 @@ export function WorkPendingPanel({
                     {' · '}
                     {formatDate(item.due_date)}
                   </Text>
+                  {canWrite && itemPhotos.length > 0 && (
+                    <View style={styles.photoCountRow}>
+                      <Ionicons name="lock-closed-outline" size={12} color="#6B5FC7" />
+                      <Text style={styles.photoCountText}>
+                        {itemPhotos.length}{' '}
+                        {itemPhotos.length === 1 ? 'foto no B.O.' : 'fotos no B.O.'}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <Ionicons
                   name={expanded ? 'chevron-up-outline' : 'chevron-down-outline'}
@@ -391,6 +669,91 @@ export function WorkPendingPanel({
                       ? participantNames[item.responsible_user_id] ?? 'Responsável'
                       : 'Não definido'}
                   </Text>
+                  {canWrite && (
+                    <View style={styles.evidenceFolder}>
+                      <View style={styles.evidenceHeader}>
+                        <View style={styles.evidenceIcon}>
+                          <Ionicons name="folder-outline" size={19} color="#4937D8" />
+                        </View>
+                        <View style={styles.evidenceIdentity}>
+                          <Text style={styles.evidenceTitle}>B.O. / Evidências internas</Text>
+                          <Text style={styles.evidenceHelp}>
+                            Oculto para quem está no modo de visualização.
+                          </Text>
+                        </View>
+                        <View style={styles.evidenceCount}>
+                          <Text style={styles.evidenceCountText}>{itemPhotos.length}</Text>
+                        </View>
+                      </View>
+
+                      {itemPhotos.length > 0 && (
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.evidenceGallery}
+                        >
+                          {itemPhotos.map((photo) => (
+                            <View key={photo.id} style={styles.evidencePhotoCard}>
+                              {photo.signed_url ? (
+                                <Image
+                                  source={{ uri: photo.signed_url }}
+                                  style={styles.evidencePhoto}
+                                />
+                              ) : (
+                                <View style={styles.evidencePhotoFallback}>
+                                  <Ionicons name="image-outline" size={22} color="#8A91A0" />
+                                </View>
+                              )}
+                              {canDeletePhoto(photo) && (
+                                <Pressable
+                                  style={styles.deletePhotoButton}
+                                  onPress={() => confirmDeletePhoto(photo)}
+                                  disabled={deletingPhotoId !== null}
+                                >
+                                  {deletingPhotoId === photo.id ? (
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                  ) : (
+                                    <Ionicons name="trash-outline" size={14} color="#FFFFFF" />
+                                  )}
+                                </Pressable>
+                              )}
+                            </View>
+                          ))}
+                        </ScrollView>
+                      )}
+
+                      {uploadingId === item.id ? (
+                        <View style={styles.uploadingRow}>
+                          <ActivityIndicator size="small" color="#4937D8" />
+                          <Text style={styles.uploadingText}>{uploadProgress}</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.evidenceActions}>
+                          <Pressable
+                            style={styles.evidencePrimaryButton}
+                            onPress={() => choosePhotos(item.id, 'camera')}
+                            disabled={uploadingId !== null}
+                          >
+                            <Ionicons name="camera-outline" size={18} color="#FFFFFF" />
+                            <Text style={styles.evidencePrimaryText}>Tirar foto</Text>
+                          </Pressable>
+                          <Pressable
+                            style={styles.evidenceSecondaryButton}
+                            onPress={() => choosePhotos(item.id, 'gallery')}
+                            disabled={uploadingId !== null}
+                          >
+                            <Ionicons name="images-outline" size={18} color="#4937D8" />
+                            <Text style={styles.evidenceSecondaryText}>Escolher fotos</Text>
+                          </Pressable>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                  {canWrite && !!photoMessage && expandedId === item.id && (
+                    <View style={styles.photoErrorCard}>
+                      <Text style={styles.errorText}>{photoMessage}</Text>
+                    </View>
+                  )}
                   {canWrite && (
                     <View style={styles.itemActions}>
                       <Pressable style={styles.editButton} onPress={() => openEdit(item)}>
@@ -605,9 +968,32 @@ const styles = StyleSheet.create({
   blockText: { fontSize: 8, fontWeight: '900', color: '#B42318' },
   itemTitle: { marginTop: 6, fontSize: 13, fontWeight: '800', color: '#202B3D' },
   itemMeta: { marginTop: 3, fontSize: 10, color: '#798294' },
+  photoCountRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  photoCountText: { fontSize: 9, fontWeight: '700', color: '#6B5FC7' },
   itemBody: { padding: 12, paddingTop: 2, borderTopWidth: 1, borderTopColor: '#ECEEF2' },
   description: { marginTop: 9, fontSize: 12, lineHeight: 17, color: '#4F5B70' },
   detail: { marginTop: 8, fontSize: 10, color: '#707A8E' },
+  evidenceFolder: { marginTop: 12, padding: 11, borderWidth: 1, borderColor: '#DCD8F5', borderRadius: 12, backgroundColor: '#F8F7FF' },
+  evidenceHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  evidenceIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#EAE7FF' },
+  evidenceIdentity: { flex: 1 },
+  evidenceTitle: { fontSize: 11, fontWeight: '900', color: '#2C3150' },
+  evidenceHelp: { marginTop: 2, fontSize: 8, lineHeight: 12, color: '#72798A' },
+  evidenceCount: { minWidth: 28, height: 28, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#4937D8' },
+  evidenceCountText: { fontSize: 10, fontWeight: '900', color: '#FFFFFF' },
+  evidenceGallery: { paddingTop: 10, gap: 8 },
+  evidencePhotoCard: { width: 88, height: 88, overflow: 'hidden', borderRadius: 10, backgroundColor: '#E8EAF0' },
+  evidencePhoto: { width: '100%', height: '100%' },
+  evidencePhotoFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  deletePhotoButton: { position: 'absolute', top: 5, right: 5, width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: 'rgba(150, 28, 20, 0.9)' },
+  evidenceActions: { marginTop: 10, flexDirection: 'row', gap: 7 },
+  evidencePrimaryButton: { minHeight: 44, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, backgroundColor: '#4937D8' },
+  evidencePrimaryText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
+  evidenceSecondaryButton: { minHeight: 44, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderColor: '#CFC9F4', borderRadius: 10, backgroundColor: '#FFFFFF' },
+  evidenceSecondaryText: { fontSize: 10, fontWeight: '800', color: '#4937D8' },
+  uploadingRow: { minHeight: 44, marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  uploadingText: { fontSize: 10, fontWeight: '700', color: '#5C6474' },
+  photoErrorCard: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: '#FFF0EE' },
   itemActions: { marginTop: 12, flexDirection: 'row', gap: 8 },
   editButton: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#CDC8F2', borderRadius: 11 },
   editText: { fontSize: 11, fontWeight: '800', color: '#4937D8' },
