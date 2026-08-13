@@ -1,25 +1,26 @@
 import {
-    useCallback,
-    useMemo,
-    useState,
+  useCallback,
+  useMemo,
+  useState,
 } from 'react';
 
 import {
-    ActivityIndicator,
-    Pressable,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 import {
-    useFocusEffect,
-    useLocalSearchParams,
-    useRouter,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
 } from 'expo-router';
 
+import { useWorkAccess } from '@/hooks/use-work-access';
 import { supabase } from '@/lib/supabase';
 
 type EnvironmentStatus =
@@ -57,10 +58,10 @@ const STATUS_LABELS: Record<
   EnvironmentStatus,
   string
 > = {
-  nao_iniciado: 'Não iniciado',
+  nao_iniciado: 'NÃ£o iniciado',
   em_andamento: 'Em andamento',
   aguardando: 'Aguardando',
-  concluido: 'Concluído',
+  concluido: 'ConcluÃ­do',
   cancelado: 'Cancelado',
 };
 
@@ -81,6 +82,12 @@ export default function EnvironmentsScreen() {
     useLocalSearchParams<{
       workId: string;
     }>();
+
+  const {
+    canManage,
+    canWrite,
+    loadingAccess,
+  } = useWorkAccess(workId);
 
   const [work, setWork] =
     useState<Work | null>(null);
@@ -130,7 +137,7 @@ export default function EnvironmentsScreen() {
   ) {
     if (!workId) {
       setMessage(
-        'Obra não encontrada.'
+        'Obra nÃ£o encontrada.'
       );
 
       setLoading(false);
@@ -198,7 +205,7 @@ export default function EnvironmentsScreen() {
 
       if (!workResult.data) {
         setMessage(
-          'Você não possui acesso a esta obra.'
+          'VocÃª nÃ£o possui acesso a esta obra.'
         );
         return;
       }
@@ -301,7 +308,7 @@ export default function EnvironmentsScreen() {
       ) {
         names[profile.id] =
           profile.full_name ||
-          'Responsável';
+          'ResponsÃ¡vel';
       }
 
       setResponsibleNames(
@@ -311,7 +318,7 @@ export default function EnvironmentsScreen() {
       setMessage(
         error instanceof Error
           ? error.message
-          : 'Não foi possível carregar os ambientes.'
+          : 'NÃ£o foi possÃ­vel carregar os ambientes.'
       );
     } finally {
       if (isRefresh) {
@@ -397,7 +404,10 @@ export default function EnvironmentsScreen() {
   async function handleRestore(
     environment: Environment
   ) {
-    if (restoringId) {
+    if (
+      restoringId ||
+      !canManage
+    ) {
       return;
     }
 
@@ -428,14 +438,14 @@ export default function EnvironmentsScreen() {
       setMessage(
         error instanceof Error
           ? error.message
-          : 'Não foi possível restaurar o ambiente.'
+          : 'NÃ£o foi possÃ­vel restaurar o ambiente.'
       );
     } finally {
       setRestoringId(null);
     }
   }
 
-  if (loading) {
+  if (loading || loadingAccess) {
     return (
       <View
         style={styles.loading}
@@ -496,7 +506,7 @@ export default function EnvironmentsScreen() {
               styles.brandSubtitle
             }
           >
-            GESTÃO DE OBRAS
+            GESTÃƒO DE OBRAS
           </Text>
         </View>
 
@@ -535,7 +545,7 @@ export default function EnvironmentsScreen() {
             styles.backButtonText
           }
         >
-          ‹ Voltar para obra
+          â€¹ Voltar para obra
         </Text>
       </Pressable>
 
@@ -576,26 +586,28 @@ export default function EnvironmentsScreen() {
           </Text>
         </View>
 
-        <Pressable
-          style={styles.newButton}
-          onPress={() =>
-            router.push({
-              pathname:
-                '/new-environment',
-              params: {
-                workId,
-              },
-            })
-          }
-        >
-          <Text
-            style={
-              styles.newButtonText
+        {canWrite && (
+          <Pressable
+            style={styles.newButton}
+            onPress={() =>
+              router.push({
+                pathname:
+                  '/new-environment',
+                params: {
+                  workId,
+                },
+              })
             }
           >
-            + Novo
-          </Text>
-        </Pressable>
+            <Text
+              style={
+                styles.newButtonText
+              }
+            >
+              + Novo
+            </Text>
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.tabs}>
@@ -698,7 +710,7 @@ export default function EnvironmentsScreen() {
                 styles.summaryLabel
               }
             >
-              Concluídos
+              ConcluÃ­dos
             </Text>
           </View>
 
@@ -749,7 +761,7 @@ export default function EnvironmentsScreen() {
           >
             Permanecem salvos e
             podem ser restaurados
-            quando necessário.
+            quando necessÃ¡rio.
           </Text>
         </View>
       )}
@@ -792,11 +804,12 @@ export default function EnvironmentsScreen() {
               }
             >
               {showingArchived
-                ? 'Os ambientes arquivados aparecerão aqui.'
+                ? 'Os ambientes arquivados aparecerÃ£o aqui.'
                 : 'Cadastre o primeiro ambiente da obra.'}
             </Text>
 
-            {!showingArchived && (
+            {!showingArchived &&
+              canWrite && (
               <Pressable
                 style={
                   styles.emptyButton
@@ -840,8 +853,8 @@ export default function EnvironmentsScreen() {
                   environment
                     .responsible_user_id
                 ] ??
-                'Responsável'
-              : 'Sem responsável';
+                'ResponsÃ¡vel'
+              : 'Sem responsÃ¡vel';
 
           const photoCount =
             photoCounts[
@@ -928,7 +941,7 @@ export default function EnvironmentsScreen() {
                       styles.progressLabel
                     }
                   >
-                    Último andamento
+                    Ãšltimo andamento
                   </Text>
 
                   <Text
@@ -996,7 +1009,7 @@ export default function EnvironmentsScreen() {
                       styles.photoSummaryArrow
                     }
                   >
-                    Abrir fotos ›
+                    Abrir fotos â€º
                   </Text>
                 </Pressable>
 
@@ -1011,34 +1024,36 @@ export default function EnvironmentsScreen() {
                   )}
                 </Text>
 
-                <Pressable
-                  style={[
-                    styles.restoreButton,
-                    restoringId ===
-                      environment.id &&
-                      styles.restoreButtonDisabled,
-                  ]}
-                  onPress={() =>
-                    handleRestore(
-                      environment
-                    )
-                  }
-                  disabled={
-                    restoringId !==
-                    null
-                  }
-                >
-                  <Text
-                    style={
-                      styles.restoreButtonText
+                {canManage && (
+                  <Pressable
+                    style={[
+                      styles.restoreButton,
+                      restoringId ===
+                        environment.id &&
+                        styles.restoreButtonDisabled,
+                    ]}
+                    onPress={() =>
+                      handleRestore(
+                        environment
+                      )
+                    }
+                    disabled={
+                      restoringId !==
+                      null
                     }
                   >
-                    {restoringId ===
-                    environment.id
-                      ? 'Restaurando...'
-                      : 'Restaurar ambiente'}
-                  </Text>
-                </Pressable>
+                    <Text
+                      style={
+                        styles.restoreButtonText
+                      }
+                    >
+                      {restoringId ===
+                      environment.id
+                        ? 'Restaurando...'
+                        : 'Restaurar ambiente'}
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             );
           }
@@ -1208,7 +1223,7 @@ export default function EnvironmentsScreen() {
                       styles.photoSummaryArrow
                     }
                   >
-                    Abrir fotos ›
+                    Abrir fotos â€º
                   </Text>
                 </View>
               </Pressable>
@@ -1234,7 +1249,7 @@ export default function EnvironmentsScreen() {
                     styles.openText
                   }
                 >
-                  Abrir ambiente ›
+                  Abrir ambiente â€º
                 </Text>
               </View>
             </Pressable>

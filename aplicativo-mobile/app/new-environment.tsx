@@ -1,21 +1,22 @@
 import {
-    useFocusEffect,
-    useLocalSearchParams,
-    useRouter,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
 } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
+import { useWorkAccess } from '@/hooks/use-work-access';
 import { supabase } from '@/lib/supabase';
 
 type CategoryOption = {
@@ -35,18 +36,18 @@ const CATEGORIES: CategoryOption[] = [
   { value: 'sala_jantar', label: 'Sala de jantar' },
   { value: 'lavabo', label: 'Lavabo' },
   { value: 'banheiro', label: 'Banheiro' },
-  { value: 'suite', label: 'Suíte' },
-  { value: 'dormitorio', label: 'Dormitório' },
+  { value: 'suite', label: 'SuÃ­te' },
+  { value: 'dormitorio', label: 'DormitÃ³rio' },
   { value: 'closet', label: 'Closet' },
-  { value: 'escritorio', label: 'Escritório' },
+  { value: 'escritorio', label: 'EscritÃ³rio' },
   { value: 'lavanderia', label: 'Lavanderia' },
-  { value: 'area_servico', label: 'Área de serviço' },
+  { value: 'area_servico', label: 'Ãrea de serviÃ§o' },
   { value: 'varanda', label: 'Varanda' },
-  { value: 'area_gourmet', label: 'Área gourmet' },
+  { value: 'area_gourmet', label: 'Ãrea gourmet' },
   { value: 'hall', label: 'Hall' },
   { value: 'corredor', label: 'Corredor' },
   { value: 'garagem', label: 'Garagem' },
-  { value: 'deposito', label: 'Depósito' },
+  { value: 'deposito', label: 'DepÃ³sito' },
   { value: 'outro_ambiente', label: 'Outro ambiente' },
 ];
 
@@ -57,6 +58,12 @@ export default function NewEnvironmentScreen() {
     useLocalSearchParams<{
       workId: string;
     }>();
+
+  const {
+    canWrite,
+    loadingAccess,
+    accessError,
+  } = useWorkAccess(workId);
 
   const [work, setWork] =
     useState<Work | null>(null);
@@ -81,7 +88,7 @@ export default function NewEnvironmentScreen() {
 
   async function loadWork() {
     if (!workId) {
-      setMessage('Obra não encontrada.');
+      setMessage('Obra nÃ£o encontrada.');
       setLoading(false);
       return;
     }
@@ -108,7 +115,7 @@ export default function NewEnvironmentScreen() {
 
     if (!data) {
       setMessage(
-        'Você não possui acesso a esta obra.'
+        'VocÃª nÃ£o possui acesso a esta obra.'
       );
       setLoading(false);
       return;
@@ -131,8 +138,15 @@ export default function NewEnvironmentScreen() {
 
     setMessage('');
 
+    if (!canWrite) {
+      setMessage(
+        'Seu acesso a esta obra Ã© somente para visualizaÃ§Ã£o.'
+      );
+      return;
+    }
+
     if (!workId) {
-      setMessage('Obra não encontrada.');
+      setMessage('Obra nÃ£o encontrada.');
       return;
     }
 
@@ -215,7 +229,7 @@ export default function NewEnvironmentScreen() {
 
       if (!environmentId) {
         setMessage(
-          'O ambiente foi criado, mas não foi possível abrir o cadastro.'
+          'O ambiente foi criado, mas nÃ£o foi possÃ­vel abrir o cadastro.'
         );
         return;
       }
@@ -231,14 +245,14 @@ export default function NewEnvironmentScreen() {
       setMessage(
         error instanceof Error
           ? error.message
-          : 'Não foi possível criar o ambiente.'
+          : 'NÃ£o foi possÃ­vel criar o ambiente.'
       );
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) {
+  if (loading || loadingAccess) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator />
@@ -246,6 +260,37 @@ export default function NewEnvironmentScreen() {
         <Text style={styles.loadingText}>
           Carregando...
         </Text>
+      </View>
+    );
+  }
+
+  if (accessError || !canWrite) {
+    return (
+      <View style={styles.loading}>
+        <Text style={styles.loadingText}>
+          Seu acesso a esta obra Ã© somente para visualizaÃ§Ã£o.
+        </Text>
+
+        <Pressable
+          style={styles.backButton}
+          onPress={() =>
+            router.replace({
+              pathname:
+                '/environments',
+              params: {
+                workId,
+              },
+            })
+          }
+        >
+          <Text
+            style={
+              styles.backButtonText
+            }
+          >
+            â€¹ Voltar para ambientes
+          </Text>
+        </Pressable>
       </View>
     );
   }
@@ -281,7 +326,7 @@ export default function NewEnvironmentScreen() {
                 styles.brandSubtitle
               }
             >
-              GESTÃO DE OBRAS
+              GESTÃƒO DE OBRAS
             </Text>
           </View>
 
@@ -318,7 +363,7 @@ export default function NewEnvironmentScreen() {
               styles.backButtonText
             }
           >
-            ‹ Ambientes
+            â€¹ Ambientes
           </Text>
         </Pressable>
 
@@ -338,14 +383,14 @@ export default function NewEnvironmentScreen() {
           </>
         )}
 
-        {/* CABEÇALHO */}
+        {/* CABEÃ‡ALHO */}
         <View style={styles.header}>
           <Text style={styles.eyebrow}>
             NOVO AMBIENTE
           </Text>
 
           <Text style={styles.title}>
-            Qual é o ambiente?
+            Qual Ã© o ambiente?
           </Text>
 
           <Text
@@ -354,7 +399,7 @@ export default function NewEnvironmentScreen() {
             Escolha o ambiente. Se
             houver mais de um do mesmo
             tipo, adicione uma
-            identificação.
+            identificaÃ§Ã£o.
           </Text>
         </View>
 
@@ -418,7 +463,7 @@ export default function NewEnvironmentScreen() {
                 <Text
                   style={styles.label}
                 >
-                  Identificação
+                  IdentificaÃ§Ã£o
                 </Text>
 
                 <TextInput
