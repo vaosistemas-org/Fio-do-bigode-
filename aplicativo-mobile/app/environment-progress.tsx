@@ -1,21 +1,22 @@
 import {
-    useFocusEffect,
-    useLocalSearchParams,
-    useRouter,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
 } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
+import { useWorkAccess } from '@/hooks/use-work-access';
 import { supabase } from '@/lib/supabase';
 
 type EnvironmentStatus =
@@ -31,6 +32,7 @@ type Environment = {
   name: string;
   status: EnvironmentStatus;
   progress: number;
+  responsible_user_id: string | null;
 };
 
 type Work = {
@@ -116,6 +118,17 @@ export default function EnvironmentProgressScreen() {
   const [message, setMessage] =
     useState('');
 
+  const {
+    userId,
+    canManage,
+    canWrite,
+    accessLevel,
+    loadingAccess,
+    accessError,
+  } = useWorkAccess(
+    environment?.work_id
+  );
+
   async function loadData() {
     if (!id) {
       setMessage(
@@ -138,7 +151,8 @@ export default function EnvironmentProgressScreen() {
         work_id,
         name,
         status,
-        progress
+        progress,
+        responsible_user_id
       `)
       .eq('id', id)
       .maybeSingle();
@@ -209,9 +223,41 @@ export default function EnvironmentProgressScreen() {
     }, [id])
   );
 
+  const isResponsible =
+    !!environment &&
+    !!userId &&
+    environment.responsible_user_id ===
+      userId;
+
+  const canRegisterProgress =
+    canManage ||
+    (
+      canWrite &&
+      isResponsible
+    );
+
+  function goBack() {
+    if (!environment) {
+      router.back();
+      return;
+    }
+
+    router.replace({
+      pathname:
+        '/environment/[id]',
+      params: {
+        id: environment.id,
+      },
+    });
+  }
+
   function changeStatus(
     newStatus: EnvironmentStatus
   ) {
+    if (!canRegisterProgress) {
+      return;
+    }
+
     setStatus(newStatus);
 
     if (
@@ -239,6 +285,10 @@ export default function EnvironmentProgressScreen() {
   function changeProgress(
     value: number
   ) {
+    if (!canRegisterProgress) {
+      return;
+    }
+
     const nextValue = Math.max(
       0,
       Math.min(value, 100)
@@ -267,7 +317,8 @@ export default function EnvironmentProgressScreen() {
   async function handleSave() {
     if (
       saving ||
-      !environment
+      !environment ||
+      !canRegisterProgress
     ) {
       return;
     }
@@ -299,13 +350,7 @@ export default function EnvironmentProgressScreen() {
         return;
       }
 
-      router.replace({
-        pathname:
-          '/environment/[id]',
-        params: {
-          id: environment.id,
-        },
-      });
+      goBack();
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -317,7 +362,16 @@ export default function EnvironmentProgressScreen() {
     }
   }
 
-  if (loading) {
+  const waitingForAccess =
+    !!environment &&
+    !accessLevel &&
+    !accessError;
+
+  if (
+    loading ||
+    loadingAccess ||
+    waitingForAccess
+  ) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator />
@@ -338,6 +392,68 @@ export default function EnvironmentProgressScreen() {
           {message ||
             'Ambiente não encontrado.'}
         </Text>
+
+        <Pressable
+          style={
+            styles.deniedBackButton
+          }
+          onPress={() =>
+            router.back()
+          }
+        >
+          <Text
+            style={
+              styles.deniedBackButtonText
+            }
+          >
+            Voltar
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (
+    accessError ||
+    !canRegisterProgress
+  ) {
+    return (
+      <View
+        style={styles.deniedPage}
+      >
+        <Text
+          style={styles.deniedEyebrow}
+        >
+          REGISTRAR AVANÇO
+        </Text>
+
+        <Text
+          style={styles.deniedTitle}
+        >
+          Sem permissão para alterar
+        </Text>
+
+        <Text
+          style={styles.deniedText}
+        >
+          {accessError ||
+            'Somente o proprietário, um gestor ou o colaborador responsável por este ambiente pode registrar o andamento.'}
+        </Text>
+
+        <Pressable
+          style={
+            styles.deniedBackButton
+          }
+          onPress={goBack}
+        >
+          <Text
+            style={
+              styles.deniedBackButtonText
+            }
+          >
+            Voltar ao ambiente
+          </Text>
+        </Pressable>
       </View>
     );
   }
@@ -395,15 +511,7 @@ export default function EnvironmentProgressScreen() {
 
         <Pressable
           style={styles.backButton}
-          onPress={() =>
-            router.replace({
-              pathname:
-                '/environment/[id]',
-              params: {
-                id: environment.id,
-              },
-            })
-          }
+          onPress={goBack}
         >
           <Text
             style={
@@ -737,15 +845,7 @@ export default function EnvironmentProgressScreen() {
 
         <Pressable
           style={styles.cancelButton}
-          onPress={() =>
-            router.replace({
-              pathname:
-                '/environment/[id]',
-              params: {
-                id: environment.id,
-              },
-            })
-          }
+          onPress={goBack}
           disabled={saving}
         >
           <Text
@@ -784,6 +884,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 30,
     backgroundColor: '#F7F7F5',
   },
 
@@ -1110,8 +1211,57 @@ const styles = StyleSheet.create({
     color: '#697177',
   },
 
+  deniedPage: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    backgroundColor: '#F7F7F5',
+  },
+
+  deniedEyebrow: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    color: '#E07A3A',
+  },
+
+  deniedTitle: {
+    marginTop: 7,
+    fontSize: 23,
+    lineHeight: 29,
+    fontWeight: '800',
+    textAlign: 'center',
+    color: '#2C343A',
+  },
+
+  deniedText: {
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+    color: '#747B80',
+  },
+
+  deniedBackButton: {
+    marginTop: 20,
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    backgroundColor: '#2C343A',
+  },
+
+  deniedBackButtonText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+
   errorText: {
     fontSize: 13,
+    textAlign: 'center',
     color: '#B42318',
   },
 });

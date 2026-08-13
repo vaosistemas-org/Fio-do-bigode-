@@ -1,23 +1,24 @@
 import {
-    useCallback,
-    useState,
+  useCallback,
+  useState,
 } from 'react';
 
 import {
-    ActivityIndicator,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 import {
-    useFocusEffect,
-    useLocalSearchParams,
-    useRouter,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
 } from 'expo-router';
 
+import { useWorkAccess } from '@/hooks/use-work-access';
 import { supabase } from '@/lib/supabase';
 
 type EnvironmentStatus =
@@ -48,11 +49,11 @@ type Work = {
 
 type WorkEvent = {
   id: string;
-  event_type?: string | null;
-  title?: string | null;
-  description?: string | null;
-  observation?: string | null;
-  notes?: string | null;
+  event_type: string | null;
+  title: string | null;
+  description: string | null;
+  actor_user_id: string | null;
+  actor_full_name: string | null;
   created_at: string;
 };
 
@@ -106,8 +107,6 @@ function getEventDescription(
 ) {
   return (
     event.description ||
-    event.observation ||
-    event.notes ||
     null
   );
 }
@@ -168,6 +167,16 @@ export default function EnvironmentScreen() {
 
   const [message, setMessage] =
     useState('');
+
+  const {
+    userId,
+    canManage,
+    canWrite,
+    isViewer,
+    loadingAccess,
+  } = useWorkAccess(
+    environment?.work_id
+  );
 
   async function loadData() {
     if (!id) {
@@ -242,17 +251,13 @@ export default function EnvironmentScreen() {
           )
           .maybeSingle(),
 
-        supabase
-          .from('work_events')
-          .select('*')
-          .eq(
-            'environment_id',
-            loadedEnvironment.id
-          )
-          .order('created_at', {
-            ascending: false,
-          })
-          .limit(30),
+        supabase.rpc(
+          'get_environment_history',
+          {
+            p_environment_id:
+              loadedEnvironment.id,
+          }
+        ),
 
         supabase
           .from('work_photos')
@@ -282,6 +287,8 @@ export default function EnvironmentScreen() {
         setMessage(
           eventsResult.error.message
         );
+
+        setEvents([]);
       } else {
         setEvents(
           (eventsResult.data ??
@@ -347,6 +354,19 @@ export default function EnvironmentScreen() {
     }, [id])
   );
 
+  const isResponsible =
+    !!environment &&
+    !!userId &&
+    environment.responsible_user_id ===
+      userId;
+
+  const canRegisterProgress =
+    canManage ||
+    (
+      canWrite &&
+      isResponsible
+    );
+
   function handleBack() {
     if (!environment) {
       router.back();
@@ -364,7 +384,10 @@ export default function EnvironmentScreen() {
   }
 
   function handleOpenProgress() {
-    if (!environment) {
+    if (
+      !environment ||
+      !canRegisterProgress
+    ) {
       return;
     }
 
@@ -563,6 +586,34 @@ export default function EnvironmentScreen() {
         </Text>
       </View>
 
+      {!loadingAccess &&
+        isViewer && (
+          <View
+            style={
+              styles.readOnlyCard
+            }
+          >
+            <Text
+              style={
+                styles.readOnlyTitle
+              }
+            >
+              SOMENTE VISUALIZAÇÃO
+            </Text>
+
+            <Text
+              style={
+                styles.readOnlyText
+              }
+            >
+              Você pode consultar este
+              ambiente e suas fotos,
+              mas não pode alterar o
+              andamento ou a ficha.
+            </Text>
+          </View>
+        )}
+
       <View
         style={styles.statusRow}
       >
@@ -687,51 +738,55 @@ export default function EnvironmentScreen() {
           styles.environmentActions
         }
       >
-        <Pressable
-          style={({ pressed }) => [
-            styles.progressButton,
-            styles.actionButton,
-            pressed &&
-              styles.progressButtonPressed,
-          ]}
-          onPress={
-            handleOpenProgress
-          }
-        >
-          <Text
-            style={
-              styles.progressButtonText
+        {canRegisterProgress && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.progressButton,
+              styles.actionButton,
+              pressed &&
+                styles.progressButtonPressed,
+            ]}
+            onPress={
+              handleOpenProgress
             }
           >
-            Registrar avanço
-          </Text>
-        </Pressable>
+            <Text
+              style={
+                styles.progressButtonText
+              }
+            >
+              Registrar avanço
+            </Text>
+          </Pressable>
+        )}
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.editButton,
-            styles.actionButton,
-            pressed &&
-              styles.progressButtonPressed,
-          ]}
-          onPress={() =>
-            router.push({
-              pathname:
-                '/edit-environment',
-              params: {
-                id: environment.id,
-              },
-            })
-          }
-        >
-          <Text
-            style={
-              styles.editButtonText
+        {canManage && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.editButton,
+              styles.actionButton,
+              pressed &&
+                styles.progressButtonPressed,
+            ]}
+            onPress={() =>
+              router.push({
+                pathname:
+                  '/edit-environment',
+                params: {
+                  id: environment.id,
+                },
+              })
             }
           >
-            Editar ambiente
-          </Text>
-        </Pressable>
+            <Text
+              style={
+                styles.editButtonText
+              }
+            >
+              Editar ambiente
+            </Text>
+          </Pressable>
+        )}
 
         <Pressable
           style={({ pressed }) => [
@@ -898,6 +953,16 @@ export default function EnvironmentScreen() {
 
                     <Text
                       style={
+                        styles.eventActor
+                      }
+                    >
+                      Por: {' '}
+                      {event.actor_full_name ||
+                        'Usuário não identificado'}
+                    </Text>
+
+                    <Text
+                      style={
                         styles.eventDate
                       }
                     >
@@ -1059,6 +1124,30 @@ const styles =
       marginTop: 7,
       fontSize: 13,
       color: '#747B80',
+    },
+
+    readOnlyCard: {
+      marginBottom: 18,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: '#DADFDA',
+      borderRadius: 14,
+      backgroundColor:
+        '#EEF1ED',
+    },
+
+    readOnlyTitle: {
+      fontSize: 9,
+      fontWeight: '800',
+      letterSpacing: 1,
+      color: '#506455',
+    },
+
+    readOnlyText: {
+      marginTop: 5,
+      fontSize: 11,
+      lineHeight: 17,
+      color: '#66736B',
     },
 
     statusRow: {
@@ -1303,8 +1392,15 @@ const styles =
       color: '#687177',
     },
 
+    eventActor: {
+      marginTop: 6,
+      fontSize: 11,
+      fontWeight: '700',
+      color: '#5F7567',
+    },
+
     eventDate: {
-      marginTop: 5,
+      marginTop: 3,
       fontSize: 10,
       color: '#969B9E',
     },
