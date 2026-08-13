@@ -775,26 +775,6 @@ export default function EnvironmentScreen() {
             </Text>
           </Pressable>
         )}
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.editButton,
-            styles.actionButton,
-            pressed &&
-              styles.progressButtonPressed,
-          ]}
-          onPress={
-            handleOpenPhotos
-          }
-        >
-          <Text
-            style={
-              styles.editButtonText
-            }
-          >
-            Fotos
-          </Text>
-        </Pressable>
       </View>
 
       <View style={styles.card}>
