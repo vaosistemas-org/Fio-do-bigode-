@@ -1,0 +1,162 @@
+import { Ionicons } from '@expo/vector-icons';
+import { PropsWithChildren } from 'react';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+
+type Props = PropsWithChildren<{
+  title: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  open: boolean;
+  onPress: () => void;
+  badge?: string;
+}>;
+
+export function ExpandableWorkSection({
+  title,
+  subtitle,
+  icon,
+  open,
+  onPress,
+  badge,
+  children,
+}: Props) {
+  return (
+    <View
+      style={[
+        styles.card,
+        open && styles.cardOpen,
+      ]}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        style={({ pressed }) => [
+          styles.header,
+          pressed && styles.pressed,
+        ]}
+        onPress={onPress}
+      >
+        <View style={styles.iconBox}>
+          <Ionicons
+            name={icon}
+            size={22}
+            color="#FFFFFF"
+          />
+        </View>
+
+        <View style={styles.identity}>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>
+              {title}
+            </Text>
+
+            {!!badge && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {badge}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <Text style={styles.subtitle}>
+            {subtitle}
+          </Text>
+        </View>
+
+        <Ionicons
+          name={
+            open
+              ? 'chevron-up-outline'
+              : 'chevron-down-outline'
+          }
+          size={24}
+          color="#202B34"
+        />
+      </Pressable>
+
+      {open && (
+        <View style={styles.content}>
+          {children}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    marginBottom: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#DEE2E8',
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+  },
+  cardOpen: {
+    borderColor: '#C9C3F7',
+  },
+  header: {
+    minHeight: 82,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  iconBox: {
+    width: 46,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 13,
+    backgroundColor: '#4937D8',
+  },
+  identity: {
+    flex: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#152033',
+  },
+  subtitle: {
+    marginTop: 3,
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#697386',
+  },
+  badge: {
+    minWidth: 23,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    alignItems: 'center',
+    borderRadius: 999,
+    backgroundColor: '#F0EEFF',
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#4937D8',
+  },
+  content: {
+    padding: 16,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#ECEEF2',
+  },
+});
