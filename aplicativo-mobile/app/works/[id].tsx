@@ -12,6 +12,7 @@ import {
 import {
   ActivityIndicator,
   Image,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -69,44 +70,6 @@ function initials(value: string) {
     .toUpperCase();
 }
 
-function QuickAction({
-  icon,
-  label,
-  active,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  active?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      style={({ pressed }) => [
-        styles.quickAction,
-        active && styles.quickActionActive,
-        pressed && styles.pressed,
-      ]}
-      onPress={onPress}
-    >
-      <Ionicons
-        name={icon}
-        size={21}
-        color={active ? '#FFFFFF' : '#4937D8'}
-      />
-      <Text
-        style={[
-          styles.quickActionText,
-          active && styles.quickActionTextActive,
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 function Placeholder({ text }: { text: string }) {
   return (
     <View style={styles.placeholder}>
@@ -143,6 +106,9 @@ export default function WorkDetailsScreen() {
   const [pendingCount, setPendingCount] = useState(0);
   const [galleryCount, setGalleryCount] = useState(0);
   const [cameraRequest, setCameraRequest] = useState(0);
+  const [pendingCreateRequest, setPendingCreateRequest] = useState(0);
+  const [timelineCreateRequest, setTimelineCreateRequest] = useState(0);
+  const [actionMenuVisible, setActionMenuVisible] = useState(false);
 
   const {
     canManage,
@@ -282,6 +248,11 @@ export default function WorkDetailsScreen() {
     );
   }
 
+  function runAction(action: () => void) {
+    setActionMenuVisible(false);
+    action();
+  }
+
   if (loading || loadingAccess) {
     return (
       <View style={styles.loading}>
@@ -296,7 +267,7 @@ export default function WorkDetailsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.page}>
-        <WorkSidebar />
+        <WorkSidebar onOpenTimeline={() => setOpenSection('fio')} />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.content}
@@ -318,13 +289,8 @@ export default function WorkDetailsScreen() {
               size={20}
               color="#4937D8"
             />
-            <Text style={styles.backText}>Minhas obras</Text>
+            <Text style={styles.backText}>Central de obras</Text>
           </Pressable>
-
-          <Text style={styles.pageTitle}>Obra</Text>
-          <Text style={styles.pageSubtitle}>
-            Central operacional da obra
-          </Text>
 
           {!!message && !work && (
             <View style={styles.errorCard}>
@@ -350,8 +316,8 @@ export default function WorkDetailsScreen() {
                   )}
 
                   <View style={styles.workIdentity}>
-                    <Text style={styles.workCode}>{work.code}</Text>
-                    <Text style={styles.workTitle}>
+                    <Text numberOfLines={1} style={styles.workCode}>{work.code}</Text>
+                    <Text numberOfLines={2} style={styles.workTitle}>
                       {work.client_name}
                     </Text>
                     <View style={styles.infoLine}>
@@ -360,7 +326,7 @@ export default function WorkDetailsScreen() {
                         size={16}
                         color="#5A6680"
                       />
-                      <Text style={styles.infoText}>
+                      <Text numberOfLines={2} style={styles.infoText}>
                         Responsável: {responsible?.full_name ?? 'Não definido'}
                       </Text>
                     </View>
@@ -370,7 +336,7 @@ export default function WorkDetailsScreen() {
                         size={17}
                         color="#5A6680"
                       />
-                      <Text style={styles.infoText}>{work.address}</Text>
+                      <Text numberOfLines={2} style={styles.infoText}>{work.address}</Text>
                     </View>
                   </View>
                 </View>
@@ -401,8 +367,13 @@ export default function WorkDetailsScreen() {
                 </View>
 
                 <View style={styles.teamRow}>
-                  <View>
-                    <Text style={styles.teamTitle}>Equipe da obra</Text>
+                  <View style={styles.teamIdentity}>
+                    <View style={styles.teamHeading}>
+                      <Text style={styles.teamTitle}>Equipe</Text>
+                      <Text style={styles.teamCount}>
+                        {participants.length} pessoas
+                      </Text>
+                    </View>
                     <View style={styles.avatars}>
                       {participants.slice(0, 5).map((person) => (
                         <View
@@ -438,9 +409,6 @@ export default function WorkDetailsScreen() {
                       </Pressable>
                     </View>
                   </View>
-                  <Text style={styles.teamCount}>
-                    {participants.length} pessoas
-                  </Text>
                 </View>
 
                 {isViewer && (
@@ -455,37 +423,6 @@ export default function WorkDetailsScreen() {
                     </Text>
                   </View>
                 )}
-
-                <View style={styles.quickActions}>
-                  <QuickAction
-                    icon="chatbubble-ellipses-outline"
-                    label="FIO"
-                    active={openSection === 'fio'}
-                    onPress={() => toggle('fio')}
-                  />
-                  <QuickAction
-                    icon="images-outline"
-                    label="Fotos"
-                    active={openSection === 'photos'}
-                    onPress={() => toggle('photos')}
-                  />
-                  {canWrite && (
-                    <QuickAction
-                      icon="camera-outline"
-                      label="Câmera"
-                      onPress={() => {
-                        setOpenSection('photos');
-                        setCameraRequest((current) => current + 1);
-                      }}
-                    />
-                  )}
-                  <QuickAction
-                    icon="add-outline"
-                    label="Mais"
-                    active={openSection === 'more'}
-                    onPress={() => toggle('more')}
-                  />
-                </View>
               </View>
 
               <View style={styles.sections}>
@@ -653,6 +590,7 @@ export default function WorkDetailsScreen() {
                     canWrite={canWrite}
                     canManage={canManage}
                     userId={userId}
+                    newRequest={pendingCreateRequest}
                     onOpenCountChange={setPendingCount}
                   />
                 </ExpandableWorkSection>
@@ -668,6 +606,7 @@ export default function WorkDetailsScreen() {
                     workId={work.id}
                     environments={environments}
                     canWrite={canWrite}
+                    newEntryRequest={timelineCreateRequest}
                   />
                 </ExpandableWorkSection>
 
@@ -736,70 +675,6 @@ export default function WorkDetailsScreen() {
                   <Placeholder text="Área reservada para a implementação de amanhã." />
                 </ExpandableWorkSection>
 
-                <ExpandableWorkSection
-                  title="Mais ações"
-                  subtitle="Ações complementares da obra"
-                  icon="add-outline"
-                  open={openSection === 'more'}
-                  onPress={() => toggle('more')}
-                >
-                  <View style={styles.moreGrid}>
-                    <Pressable
-                      style={styles.moreButton}
-                      onPress={() =>
-                        router.push({
-                          pathname: '/work-participants',
-                          params: { workId: work.id },
-                        })
-                      }
-                    >
-                      <Ionicons
-                        name="people-outline"
-                        size={22}
-                        color="#4937D8"
-                      />
-                      <Text style={styles.moreText}>Equipe</Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.moreButton}
-                      onPress={() =>
-                        router.push({
-                          pathname: '/new-environment',
-                          params: { workId: work.id },
-                        })
-                      }
-                      disabled={!canWrite}
-                    >
-                      <Ionicons
-                        name="grid-outline"
-                        size={22}
-                        color="#4937D8"
-                      />
-                      <Text style={styles.moreText}>Novo ambiente</Text>
-                    </Pressable>
-                    <View style={styles.moreDisabled}>
-                      <Ionicons
-                        name="calendar-outline"
-                        size={22}
-                        color="#9198A7"
-                      />
-                      <Text style={styles.moreDisabledText}>
-                        Visita em breve
-                      </Text>
-                    </View>
-                    <View style={styles.moreDisabled}>
-                      <Ionicons
-                        name="document-outline"
-                        size={22}
-                        color="#9198A7"
-                      />
-                      <Text style={styles.moreDisabledText}>
-                        Documentos amanhã
-                      </Text>
-                    </View>
-                  </View>
-                </ExpandableWorkSection>
-
                 {!!message && (
                   <View style={styles.errorCard}>
                     <Text style={styles.errorText}>{message}</Text>
@@ -816,6 +691,145 @@ export default function WorkDetailsScreen() {
             </>
           )}
         </ScrollView>
+
+        {work && canWrite && (
+          <Pressable
+            accessibilityLabel="Abrir ações da obra"
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.floatingAction,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => setActionMenuVisible(true)}
+          >
+            <Ionicons name="add-outline" size={30} color="#FFFFFF" />
+          </Pressable>
+        )}
+
+        {work && (
+          <Modal
+            visible={actionMenuVisible}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setActionMenuVisible(false)}
+          >
+            <Pressable
+              style={styles.actionBackdrop}
+              onPress={() => setActionMenuVisible(false)}
+            >
+              <Pressable style={styles.actionSheet} onPress={() => undefined}>
+                <View style={styles.actionHandle} />
+                <View style={styles.actionHeader}>
+                  <View style={styles.actionHeaderIdentity}>
+                    <Text style={styles.actionTitle}>Ações da obra</Text>
+                    <Text numberOfLines={1} style={styles.actionSubtitle}>
+                      {work.client_name}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={styles.actionClose}
+                    onPress={() => setActionMenuVisible(false)}
+                  >
+                    <Ionicons name="close-outline" size={23} color="#34405A" />
+                  </Pressable>
+                </View>
+
+                <View style={styles.actionGrid}>
+                  <Pressable
+                    style={styles.actionItem}
+                    onPress={() =>
+                      runAction(() => {
+                        setOpenSection('pending');
+                        setPendingCreateRequest((current) => current + 1);
+                      })
+                    }
+                  >
+                    <View style={styles.actionIcon}>
+                      <Ionicons name="alert-circle-outline" size={21} color="#4937D8" />
+                    </View>
+                    <Text style={styles.actionText}>Nova pendência</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.actionItem}
+                    onPress={() =>
+                      runAction(() => {
+                        setOpenSection('fio');
+                        setTimelineCreateRequest((current) => current + 1);
+                      })
+                    }
+                  >
+                    <View style={styles.actionIcon}>
+                      <Ionicons name="create-outline" size={21} color="#4937D8" />
+                    </View>
+                    <Text style={styles.actionText}>Atualizar FIO</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.actionItem}
+                    onPress={() =>
+                      runAction(() => {
+                        setOpenSection('photos');
+                        setCameraRequest((current) => current + 1);
+                      })
+                    }
+                  >
+                    <View style={styles.actionIcon}>
+                      <Ionicons name="camera-outline" size={21} color="#4937D8" />
+                    </View>
+                    <Text style={styles.actionText}>Câmera</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.actionItem}
+                    onPress={() =>
+                      runAction(() =>
+                        router.push({
+                          pathname: '/new-environment',
+                          params: { workId: work.id },
+                        })
+                      )
+                    }
+                  >
+                    <View style={styles.actionIcon}>
+                      <Ionicons name="grid-outline" size={21} color="#4937D8" />
+                    </View>
+                    <Text style={styles.actionText}>Novo ambiente</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.actionItem}
+                    onPress={() =>
+                      runAction(() =>
+                        router.push({
+                          pathname: '/work-participants',
+                          params: { workId: work.id },
+                        })
+                      )
+                    }
+                  >
+                    <View style={styles.actionIcon}>
+                      <Ionicons name="people-outline" size={21} color="#4937D8" />
+                    </View>
+                    <Text style={styles.actionText}>Equipe</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.actionItem}
+                    onPress={() =>
+                      runAction(() => setOpenSection('documents'))
+                    }
+                  >
+                    <View style={styles.actionIcon}>
+                      <Ionicons name="document-text-outline" size={21} color="#4937D8" />
+                    </View>
+                    <Text style={styles.actionText}>Documentos</Text>
+                  </Pressable>
+                </View>
+              </Pressable>
+            </Pressable>
+          </Modal>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -829,9 +843,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 760,
     alignSelf: 'center',
-    paddingHorizontal: 14,
-    paddingTop: 18,
-    paddingBottom: 70,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 100,
   },
   loading: {
     flex: 1,
@@ -842,76 +856,63 @@ const styles = StyleSheet.create({
   },
   loadingText: { fontSize: 13, color: '#697386' },
   backButton: {
-    minHeight: 44,
+    minHeight: 40,
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  backText: { fontSize: 14, fontWeight: '700', color: '#4937D8' },
-  pageTitle: {
-    marginTop: 6,
-    fontSize: 32,
-    lineHeight: 38,
-    fontWeight: '900',
-    color: '#10192B',
-  },
-  pageSubtitle: {
-    marginTop: 2,
-    marginBottom: 18,
-    fontSize: 14,
-    color: '#64708A',
-  },
+  backText: { fontSize: 13, fontWeight: '800', color: '#4937D8' },
   workCard: {
-    padding: 18,
+    padding: 13,
     borderWidth: 1,
     borderColor: '#DCE1EA',
-    borderRadius: 22,
+    borderRadius: 17,
     backgroundColor: '#FFFFFF',
   },
-  identityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
-  cover: { width: 92, height: 92, borderRadius: 20 },
+  identityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  cover: { width: 72, height: 72, borderRadius: 15 },
   coverPlaceholder: {
-    width: 92,
-    height: 92,
+    width: 72,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
+    borderRadius: 15,
     backgroundColor: '#EFEDFF',
   },
-  coverInitials: { fontSize: 27, fontWeight: '900', color: '#4937D8' },
+  coverInitials: { fontSize: 22, fontWeight: '900', color: '#4937D8' },
   workIdentity: { flex: 1, minWidth: 0 },
   workCode: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.1,
     color: '#4937D8',
   },
   workTitle: {
-    marginTop: 3,
-    marginBottom: 7,
-    fontSize: 22,
-    lineHeight: 27,
+    marginTop: 2,
+    marginBottom: 4,
+    fontSize: 18,
+    lineHeight: 21,
     fontWeight: '900',
     color: '#10192B',
   },
   infoLine: {
-    marginTop: 5,
+    marginTop: 3,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 6,
+    gap: 5,
   },
-  infoText: { flex: 1, fontSize: 12, lineHeight: 17, color: '#5A6680' },
+  infoText: { flex: 1, minWidth: 0, fontSize: 10, lineHeight: 14, color: '#5A6680' },
   statusRow: {
-    marginTop: 18,
+    marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -919,28 +920,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEF8F1',
   },
   statusDot: { width: 8, height: 8, borderRadius: 999, backgroundColor: '#2EA35E' },
-  statusText: { fontSize: 11, fontWeight: '800', color: '#267A48' },
-  progressText: { fontSize: 12, fontWeight: '800', color: '#47536A' },
+  statusText: { fontSize: 10, fontWeight: '800', color: '#267A48' },
+  progressText: { fontSize: 11, fontWeight: '800', color: '#47536A' },
   progressTrack: {
-    height: 8,
-    marginTop: 10,
+    height: 6,
+    marginTop: 8,
     overflow: 'hidden',
     borderRadius: 999,
     backgroundColor: '#E6E8EE',
   },
   progressFill: { height: '100%', borderRadius: 999, backgroundColor: '#4937D8' },
   teamRow: {
-    marginTop: 20,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: 10,
+    marginTop: 13,
   },
-  teamTitle: { marginBottom: 8, fontSize: 12, fontWeight: '800', color: '#34405A' },
+  teamIdentity: { flex: 1 },
+  teamHeading: { marginBottom: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  teamTitle: { fontSize: 11, fontWeight: '800', color: '#34405A' },
   avatars: { flexDirection: 'row', alignItems: 'center' },
   avatar: {
-    width: 38,
-    height: 38,
+    width: 34,
+    height: 34,
     marginRight: -5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -953,16 +952,16 @@ const styles = StyleSheet.create({
   avatarImage: { width: '100%', height: '100%' },
   avatarText: { fontSize: 10, fontWeight: '900', color: '#4937D8' },
   addTeam: {
-    width: 38,
-    height: 38,
-    marginLeft: 8,
+    width: 34,
+    height: 34,
+    marginLeft: 6,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#CBC5F3',
     borderRadius: 999,
   },
-  teamCount: { fontSize: 10, color: '#768096' },
+  teamCount: { fontSize: 9, color: '#768096' },
   readOnly: {
     marginTop: 16,
     padding: 11,
@@ -973,22 +972,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F2F6',
   },
   readOnlyText: { flex: 1, fontSize: 11, color: '#5B657B' },
-  quickActions: { marginTop: 20, flexDirection: 'row', gap: 8 },
-  quickAction: {
-    minHeight: 50,
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#D6D2F6',
-    borderRadius: 14,
-  },
-  quickActionActive: { borderColor: '#4937D8', backgroundColor: '#4937D8' },
-  quickActionText: { fontSize: 12, fontWeight: '800', color: '#4937D8' },
-  quickActionTextActive: { color: '#FFFFFF' },
-  sections: { marginTop: 16 },
+  sections: { marginTop: 10 },
   placeholder: {
     minHeight: 64,
     padding: 13,
@@ -1064,30 +1048,82 @@ const styles = StyleSheet.create({
     backgroundColor: '#4937D8',
   },
   primaryText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
-  moreGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  moreButton: {
-    minHeight: 76,
-    flexGrow: 1,
-    flexBasis: '46%',
+  floatingAction: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    width: 56,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#D9D5F5',
-    borderRadius: 13,
+    borderRadius: 999,
+    backgroundColor: '#4937D8',
+    shadowColor: '#251B7A',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.28,
+    shadowRadius: 9,
+    elevation: 8,
   },
-  moreDisabled: {
-    minHeight: 76,
-    flexGrow: 1,
-    flexBasis: '46%',
+  actionBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(17, 25, 43, 0.42)',
+  },
+  actionSheet: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 28,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: '#FFFFFF',
+  },
+  actionHandle: {
+    width: 38,
+    height: 4,
+    alignSelf: 'center',
+    borderRadius: 999,
+    backgroundColor: '#D9DCE3',
+  },
+  actionHeader: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  actionHeaderIdentity: { flex: 1, minWidth: 0 },
+  actionTitle: { fontSize: 18, fontWeight: '900', color: '#172033' },
+  actionSubtitle: { marginTop: 2, fontSize: 10, color: '#727C8E' },
+  actionClose: {
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    borderRadius: 13,
+    borderRadius: 999,
     backgroundColor: '#F1F2F5',
   },
-  moreText: { fontSize: 11, fontWeight: '800', color: '#4937D8' },
-  moreDisabledText: { fontSize: 11, fontWeight: '700', color: '#9198A7' },
+  actionGrid: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  actionItem: {
+    minHeight: 62,
+    flexGrow: 1,
+    flexBasis: '46%',
+    paddingHorizontal: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    borderWidth: 1,
+    borderColor: '#E0E2E8',
+    borderRadius: 13,
+    backgroundColor: '#FFFFFF',
+  },
+  actionIcon: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: '#EFEDFF',
+  },
+  actionText: { flex: 1, fontSize: 11, lineHeight: 14, fontWeight: '800', color: '#34405A' },
   errorCard: { marginTop: 12, padding: 14, borderRadius: 13, backgroundColor: '#FFF0EE' },
   errorText: { fontSize: 12, lineHeight: 18, color: '#B42318' },
   permissionNote: { marginTop: 5, textAlign: 'center', fontSize: 10, color: '#8991A0' },

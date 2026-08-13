@@ -57,10 +57,12 @@ export function WorkTimelinePanel({
   workId,
   environments,
   canWrite,
+  newEntryRequest = 0,
 }: {
   workId: string;
   environments: WorkEnvironment[];
   canWrite: boolean;
+  newEntryRequest?: number;
 }) {
   const [events, setEvents] = useState<WorkEvent[]>([]);
   const [filter, setFilter] = useState<TimelineFilter>('all');
@@ -91,6 +93,10 @@ export function WorkTimelinePanel({
   useEffect(() => {
     loadEvents();
   }, [workId]);
+
+  useEffect(() => {
+    if (newEntryRequest > 0 && canWrite) openForm();
+  }, [newEntryRequest, canWrite]);
 
   const visibleEvents = useMemo(() => {
     if (filter === 'all') return events;

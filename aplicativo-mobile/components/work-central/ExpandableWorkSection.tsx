@@ -44,7 +44,7 @@ export function ExpandableWorkSection({
         <View style={styles.iconBox}>
           <Ionicons
             name={icon}
-            size={22}
+            size={19}
             color="#FFFFFF"
           />
         </View>
@@ -75,7 +75,7 @@ export function ExpandableWorkSection({
               ? 'chevron-up-outline'
               : 'chevron-down-outline'
           }
-          size={24}
+          size={21}
           color="#202B34"
         />
       </Pressable>
@@ -91,37 +91,38 @@ export function ExpandableWorkSection({
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: 12,
+    marginBottom: 8,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#DEE2E8',
-    borderRadius: 18,
+    borderRadius: 15,
     backgroundColor: '#FFFFFF',
   },
   cardOpen: {
     borderColor: '#C9C3F7',
   },
   header: {
-    minHeight: 82,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
+    minHeight: 66,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   pressed: {
     opacity: 0.7,
   },
   iconBox: {
-    width: 46,
-    height: 46,
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 13,
+    borderRadius: 11,
     backgroundColor: '#4937D8',
   },
   identity: {
     flex: 1,
+    minWidth: 0,
   },
   titleRow: {
     flexDirection: 'row',
@@ -130,14 +131,14 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   title: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '800',
     color: '#152033',
   },
   subtitle: {
-    marginTop: 3,
-    fontSize: 12,
-    lineHeight: 17,
+    marginTop: 2,
+    fontSize: 10,
+    lineHeight: 14,
     color: '#697386',
   },
   badge: {
@@ -154,7 +155,7 @@ const styles = StyleSheet.create({
     color: '#4937D8',
   },
   content: {
-    padding: 16,
+    padding: 12,
     paddingTop: 4,
     borderTopWidth: 1,
     borderTopColor: '#ECEEF2',

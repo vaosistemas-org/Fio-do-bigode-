@@ -103,6 +103,7 @@ export function WorkPendingPanel({
   canWrite,
   canManage,
   userId,
+  newRequest = 0,
   onOpenCountChange,
 }: {
   workId: string;
@@ -111,6 +112,7 @@ export function WorkPendingPanel({
   canWrite: boolean;
   canManage: boolean;
   userId: string | null;
+  newRequest?: number;
   onOpenCountChange?: (count: number) => void;
 }) {
   const [items, setItems] = useState<PendingItem[]>([]);
@@ -236,6 +238,10 @@ export function WorkPendingPanel({
   useEffect(() => {
     loadPhotos();
   }, [workId, canWrite]);
+
+  useEffect(() => {
+    if (newRequest > 0 && canWrite) openNew();
+  }, [newRequest, canWrite]);
 
   function resetForm() {
     setEditingId(null);
@@ -676,9 +682,9 @@ export function WorkPendingPanel({
                           <Ionicons name="folder-outline" size={19} color="#4937D8" />
                         </View>
                         <View style={styles.evidenceIdentity}>
-                          <Text style={styles.evidenceTitle}>B.O. / Evidências internas</Text>
-                          <Text style={styles.evidenceHelp}>
-                            Oculto para quem está no modo de visualização.
+                          <Text numberOfLines={1} style={styles.evidenceTitle}>B.O. interno</Text>
+                          <Text numberOfLines={2} style={styles.evidenceHelp}>
+                            Evidências ocultas na visualização.
                           </Text>
                         </View>
                         <View style={styles.evidenceCount}>
@@ -735,7 +741,7 @@ export function WorkPendingPanel({
                             disabled={uploadingId !== null}
                           >
                             <Ionicons name="camera-outline" size={18} color="#FFFFFF" />
-                            <Text style={styles.evidencePrimaryText}>Tirar foto</Text>
+                            <Text numberOfLines={1} style={styles.evidencePrimaryText}>Câmera</Text>
                           </Pressable>
                           <Pressable
                             style={styles.evidenceSecondaryButton}
@@ -743,7 +749,7 @@ export function WorkPendingPanel({
                             disabled={uploadingId !== null}
                           >
                             <Ionicons name="images-outline" size={18} color="#4937D8" />
-                            <Text style={styles.evidenceSecondaryText}>Escolher fotos</Text>
+                            <Text numberOfLines={1} style={styles.evidenceSecondaryText}>Galeria</Text>
                           </Pressable>
                         </View>
                       )}
@@ -954,8 +960,8 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 11, lineHeight: 16, color: '#B42318' },
   emptyCard: { marginTop: 10, padding: 18, alignItems: 'center', borderRadius: 12, backgroundColor: '#F6F7F9' },
   emptyTitle: { fontSize: 12, fontWeight: '700', color: '#70798B' },
-  itemCard: { marginTop: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E0E3E9', borderRadius: 13, backgroundColor: '#FFFFFF' },
-  itemHeader: { minHeight: 72, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  itemCard: { marginTop: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#E0E3E9', borderRadius: 12, backgroundColor: '#FFFFFF' },
+  itemHeader: { minHeight: 64, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
   itemIdentity: { flex: 1 },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
   priorityBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999 },
@@ -966,30 +972,30 @@ const styles = StyleSheet.create({
   priorityText: { fontSize: 8, fontWeight: '800', color: '#4D5668' },
   blockBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: '#FFE1DD' },
   blockText: { fontSize: 8, fontWeight: '900', color: '#B42318' },
-  itemTitle: { marginTop: 6, fontSize: 13, fontWeight: '800', color: '#202B3D' },
+  itemTitle: { marginTop: 5, fontSize: 12, fontWeight: '800', color: '#202B3D' },
   itemMeta: { marginTop: 3, fontSize: 10, color: '#798294' },
   photoCountRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
   photoCountText: { fontSize: 9, fontWeight: '700', color: '#6B5FC7' },
-  itemBody: { padding: 12, paddingTop: 2, borderTopWidth: 1, borderTopColor: '#ECEEF2' },
+  itemBody: { padding: 10, paddingTop: 2, borderTopWidth: 1, borderTopColor: '#ECEEF2' },
   description: { marginTop: 9, fontSize: 12, lineHeight: 17, color: '#4F5B70' },
   detail: { marginTop: 8, fontSize: 10, color: '#707A8E' },
-  evidenceFolder: { marginTop: 12, padding: 11, borderWidth: 1, borderColor: '#DCD8F5', borderRadius: 12, backgroundColor: '#F8F7FF' },
-  evidenceHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  evidenceIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#EAE7FF' },
-  evidenceIdentity: { flex: 1 },
-  evidenceTitle: { fontSize: 11, fontWeight: '900', color: '#2C3150' },
+  evidenceFolder: { marginTop: 10, padding: 9, borderWidth: 1, borderColor: '#DCD8F5', borderRadius: 11, backgroundColor: '#F8F7FF' },
+  evidenceHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  evidenceIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#EAE7FF' },
+  evidenceIdentity: { flex: 1, minWidth: 0 },
+  evidenceTitle: { fontSize: 10, fontWeight: '900', color: '#2C3150' },
   evidenceHelp: { marginTop: 2, fontSize: 8, lineHeight: 12, color: '#72798A' },
-  evidenceCount: { minWidth: 28, height: 28, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#4937D8' },
+  evidenceCount: { minWidth: 26, height: 26, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#4937D8' },
   evidenceCountText: { fontSize: 10, fontWeight: '900', color: '#FFFFFF' },
   evidenceGallery: { paddingTop: 10, gap: 8 },
-  evidencePhotoCard: { width: 88, height: 88, overflow: 'hidden', borderRadius: 10, backgroundColor: '#E8EAF0' },
+  evidencePhotoCard: { width: 76, height: 76, overflow: 'hidden', borderRadius: 9, backgroundColor: '#E8EAF0' },
   evidencePhoto: { width: '100%', height: '100%' },
   evidencePhotoFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   deletePhotoButton: { position: 'absolute', top: 5, right: 5, width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: 'rgba(150, 28, 20, 0.9)' },
-  evidenceActions: { marginTop: 10, flexDirection: 'row', gap: 7 },
-  evidencePrimaryButton: { minHeight: 44, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, backgroundColor: '#4937D8' },
+  evidenceActions: { marginTop: 9, flexDirection: 'row', gap: 7 },
+  evidencePrimaryButton: { minHeight: 42, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, backgroundColor: '#4937D8' },
   evidencePrimaryText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
-  evidenceSecondaryButton: { minHeight: 44, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderColor: '#CFC9F4', borderRadius: 10, backgroundColor: '#FFFFFF' },
+  evidenceSecondaryButton: { minHeight: 42, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderColor: '#CFC9F4', borderRadius: 10, backgroundColor: '#FFFFFF' },
   evidenceSecondaryText: { fontSize: 10, fontWeight: '800', color: '#4937D8' },
   uploadingRow: { minHeight: 44, marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   uploadingText: { fontSize: 10, fontWeight: '700', color: '#5C6474' },
