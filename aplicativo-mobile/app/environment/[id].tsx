@@ -169,7 +169,6 @@ export default function EnvironmentScreen() {
     useState('');
 
   const {
-    userId,
     canManage,
     canWrite,
     isViewer,
@@ -354,18 +353,7 @@ export default function EnvironmentScreen() {
     }, [id])
   );
 
-  const isResponsible =
-    !!environment &&
-    !!userId &&
-    environment.responsible_user_id ===
-      userId;
-
-  const canRegisterProgress =
-    canManage ||
-    (
-      canWrite &&
-      isResponsible
-    );
+  const canRegisterProgress = canWrite;
 
   function handleBack() {
     if (!environment) {

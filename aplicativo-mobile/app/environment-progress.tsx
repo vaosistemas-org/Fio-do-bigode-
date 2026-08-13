@@ -119,8 +119,6 @@ export default function EnvironmentProgressScreen() {
     useState('');
 
   const {
-    userId,
-    canManage,
     canWrite,
     accessLevel,
     loadingAccess,
@@ -223,18 +221,7 @@ export default function EnvironmentProgressScreen() {
     }, [id])
   );
 
-  const isResponsible =
-    !!environment &&
-    !!userId &&
-    environment.responsible_user_id ===
-      userId;
-
-  const canRegisterProgress =
-    canManage ||
-    (
-      canWrite &&
-      isResponsible
-    );
+  const canRegisterProgress = canWrite;
 
   function goBack() {
     if (!environment) {
