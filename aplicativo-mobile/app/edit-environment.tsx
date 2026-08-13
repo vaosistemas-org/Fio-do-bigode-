@@ -317,6 +317,7 @@ const [
           count: 'exact',
           head: true,
         })
+        .eq('collection', 'work')
         .eq(
           'environment_id',
           loadedEnvironment.id

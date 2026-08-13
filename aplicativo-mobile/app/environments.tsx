@@ -195,7 +195,8 @@ export default function EnvironmentsScreen() {
         supabase
           .from('work_photos')
           .select('environment_id')
-          .eq('work_id', workId),
+          .eq('work_id', workId)
+          .eq('collection', 'work'),
       ]);
 
       if (workResult.error) {

@@ -23,6 +23,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExpandableWorkSection } from '@/components/work-central/ExpandableWorkSection';
 import { WorkPendingPanel } from '@/components/work-central/WorkPendingPanel';
+import { WorkPhotosPanel } from '@/components/work-central/WorkPhotosPanel';
 import {
   Work,
   WorkEnvironment,
@@ -139,11 +140,14 @@ export default function WorkDetailsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
   const [pendingCount, setPendingCount] = useState(0);
+  const [galleryCount, setGalleryCount] = useState(0);
+  const [cameraRequest, setCameraRequest] = useState(0);
 
   const {
     canManage,
     canWrite,
     isViewer,
+    userId,
     loadingAccess,
   } = useWorkAccess(id);
 
@@ -188,6 +192,7 @@ export default function WorkDetailsScreen() {
               .from('work_photos')
               .select('environment_id, storage_path')
               .eq('work_id', id)
+              .eq('collection', 'work')
               .order('created_at', { ascending: false }),
           ]);
 
@@ -210,6 +215,7 @@ export default function WorkDetailsScreen() {
 
         if (photoResult.error) {
           setPhotoCounts({});
+          setGalleryCount(0);
           setCoverUrl(null);
         } else {
           const photos =
@@ -221,6 +227,7 @@ export default function WorkDetailsScreen() {
             counts[key] = (counts[key] ?? 0) + 1;
           }
           setPhotoCounts(counts);
+          setGalleryCount(photos.length);
 
           const cover = photos.find(
             (photo) => !photo.environment_id
@@ -266,10 +273,7 @@ export default function WorkDetailsScreen() {
   const responsible =
     participants.find((person) => person.access_level === 'owner') ??
     participants.find((person) => person.access_level === 'manager');
-  const totalPhotos = Object.values(photoCounts).reduce(
-    (total, count) => total + count,
-    0
-  );
+  const totalPhotos = galleryCount;
 
   function toggle(section: WorkSectionKey) {
     setOpenSection((current) =>
@@ -460,10 +464,20 @@ export default function WorkDetailsScreen() {
                   />
                   <QuickAction
                     icon="images-outline"
-                    label="Galeria"
+                    label="Fotos"
                     active={openSection === 'photos'}
                     onPress={() => toggle('photos')}
                   />
+                  {canWrite && (
+                    <QuickAction
+                      icon="camera-outline"
+                      label="Câmera"
+                      onPress={() => {
+                        setOpenSection('photos');
+                        setCameraRequest((current) => current + 1);
+                      }}
+                    />
+                  )}
                   <QuickAction
                     icon="add-outline"
                     label="Mais"
@@ -658,7 +672,19 @@ export default function WorkDetailsScreen() {
                   open={openSection === 'photos'}
                   onPress={() => toggle('photos')}
                 >
-                  <Placeholder text="Espaço preparado para galeria completa e câmera direta." />
+                  <WorkPhotosPanel
+                    workId={work.id}
+                    environments={environments}
+                    canWrite={canWrite}
+                    canManage={canManage}
+                    userId={userId}
+                    cameraRequest={cameraRequest}
+                    onCameraRequestHandled={() =>
+                      setCameraRequest(0)
+                    }
+                    onCountChange={setGalleryCount}
+                    onChanged={() => loadCentral(true)}
+                  />
                 </ExpandableWorkSection>
 
                 <ExpandableWorkSection

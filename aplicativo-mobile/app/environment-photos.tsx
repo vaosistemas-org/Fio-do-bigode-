@@ -228,6 +228,7 @@ export default function EnvironmentPhotosScreen() {
             'environment_id',
             loadedEnvironment.id
           )
+          .eq('collection', 'work')
           .order('created_at', {
             ascending: false,
           }),
@@ -379,6 +380,9 @@ export default function EnvironmentPhotosScreen() {
 
         environment_id:
           environment.id,
+
+        collection:
+          'work',
 
         storage_path:
           storagePath,

@@ -264,6 +264,7 @@ export default function EnvironmentScreen() {
             count: 'exact',
             head: true,
           })
+          .eq('collection', 'work')
           .eq(
             'environment_id',
             loadedEnvironment.id
