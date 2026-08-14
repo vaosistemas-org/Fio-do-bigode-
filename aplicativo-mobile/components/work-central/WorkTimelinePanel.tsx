@@ -17,11 +17,13 @@ import {
 
 import { WorkEnvironment } from '@/components/work-central/types';
 import { WorkGeneralLinkManager } from '@/components/work-central/WorkGeneralLinkManager';
+import { FioColors } from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
 type TimelineFilter = 'all' | 'general' | string;
 type TimelineCategory = 'all' | 'updates' | 'photos' | 'pending';
 type DiaryVisibility = 'internal' | 'shared' | 'company';
+type FioPriority = 'normal' | 'important' | 'urgent';
 type PhotoSource = 'camera' | 'gallery';
 
 type DraftPhoto = {
@@ -47,6 +49,7 @@ type WorkEvent = {
   actor_user_id: string | null;
   actor_full_name: string | null;
   visibility: DiaryVisibility | null;
+  priority: FioPriority;
   created_at: string;
   photos: TimelinePhoto[];
 };
@@ -156,6 +159,7 @@ export function WorkTimelinePanel({
   const [description, setDescription] = useState('');
   const [environmentId, setEnvironmentId] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<DiaryVisibility>('internal');
+  const [priority, setPriority] = useState<FioPriority>('normal');
   const [selectedPhotos, setSelectedPhotos] = useState<DraftPhoto[]>([]);
 
   async function loadEvents() {
@@ -254,6 +258,7 @@ export function WorkTimelinePanel({
     setDescription('');
     setEnvironmentId(null);
     setVisibility('internal');
+    setPriority('normal');
     setSelectedPhotos([]);
     setUploadProgress('');
     setModalMessage('');
@@ -406,6 +411,7 @@ export function WorkTimelinePanel({
         p_title: title.trim(),
         p_description: description.trim() || null,
         p_visibility: visibility,
+        p_priority: priority,
       });
       if (error) throw error;
 
@@ -461,7 +467,7 @@ export function WorkTimelinePanel({
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#4937D8" />
+        <ActivityIndicator color={FioColors.gold} />
         <Text style={styles.muted}>Carregando o FIO...</Text>
       </View>
     );
@@ -471,13 +477,13 @@ export function WorkTimelinePanel({
     <View>
       <View style={styles.compactSummary}>
         <View style={styles.summaryItem}>
-          <Ionicons name="pulse-outline" size={18} color="#4937D8" />
+          <Ionicons name="pulse-outline" size={18} color={FioColors.green} />
           <Text style={styles.summaryNumber}>{events.length}</Text>
           <Text style={styles.summaryLabel}>registros</Text>
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryItem}>
-          <Ionicons name="create-outline" size={18} color="#4937D8" />
+          <Ionicons name="create-outline" size={18} color={FioColors.green} />
           <Text style={styles.summaryNumber}>
             {events.filter(
               (event) => event.event_type === 'DIARIO_REGISTRO_MANUAL'
@@ -676,9 +682,32 @@ export function WorkTimelinePanel({
                             <Text style={styles.eventTitle}>
                               {event.title || 'Atualização da obra'}
                             </Text>
-                            <Text style={styles.eventTime}>
-                              {formatTime(event.created_at)}
-                            </Text>
+                            <View style={styles.eventTopMeta}>
+                              {event.priority !== 'normal' && (
+                                <View
+                                  style={[
+                                    styles.eventPriority,
+                                    event.priority === 'urgent' &&
+                                      styles.eventPriorityUrgent,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.eventPriorityText,
+                                      event.priority === 'urgent' &&
+                                        styles.eventPriorityTextUrgent,
+                                    ]}
+                                  >
+                                    {event.priority === 'urgent'
+                                      ? 'Urgente'
+                                      : 'Importante'}
+                                  </Text>
+                                </View>
+                              )}
+                              <Text style={styles.eventTime}>
+                                {formatTime(event.created_at)}
+                              </Text>
+                            </View>
                           </View>
 
                           {!!event.description && !hidePhotoFileName && (
@@ -704,7 +733,7 @@ export function WorkTimelinePanel({
                                     <Ionicons
                                       name="image-outline"
                                       size={24}
-                                      color="#8A82D5"
+                                      color={FioColors.gold}
                                     />
                                   )}
                                 </View>
@@ -739,7 +768,7 @@ export function WorkTimelinePanel({
                                     event.visibility === 'shared'
                                       ? '#207A50'
                                       : event.visibility === 'company'
-                                      ? '#4937D8'
+                                      ? FioColors.green
                                       : '#697386'
                                   }
                                 />
@@ -887,7 +916,7 @@ export function WorkTimelinePanel({
                   onPress={() => choosePhotos('gallery')}
                   disabled={saving}
                 >
-                  <Ionicons name="images-outline" size={20} color="#4937D8" />
+                  <Ionicons name="images-outline" size={20} color={FioColors.green} />
                   <Text style={styles.photoActionSecondaryText}>Galeria</Text>
                 </Pressable>
               </View>
@@ -921,6 +950,41 @@ export function WorkTimelinePanel({
                 </ScrollView>
               )}
 
+              <Text style={styles.label}>Prioridade no FIO</Text>
+              <View style={styles.chips}>
+                {([
+                  ['normal', 'Normal'],
+                  ['important', 'Importante'],
+                  ['urgent', 'Urgente'],
+                ] as Array<[FioPriority, string]>).map(([value, label]) => (
+                  <Pressable
+                    key={value}
+                    style={[
+                      styles.chip,
+                      priority === value && styles.chipActive,
+                      priority === value && value === 'urgent' && styles.chipUrgent,
+                    ]}
+                    onPress={() => setPriority(value)}
+                    disabled={saving}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        priority === value && styles.chipTextActive,
+                        priority === value && value === 'urgent' && styles.chipTextUrgent,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              {priority !== 'normal' && (
+                <Text style={styles.priorityHelper}>
+                  Este registro ficará aberto no Meu FIO de quem tiver permissão.
+                </Text>
+              )}
+
               <Text style={styles.label}>Quem pode ver?</Text>
               <Pressable
                 style={[
@@ -931,7 +995,7 @@ export function WorkTimelinePanel({
                 disabled={saving}
               >
                 <View style={styles.visibilityOptionIcon}>
-                  <Ionicons name="lock-closed-outline" size={20} color="#4937D8" />
+                  <Ionicons name="lock-closed-outline" size={20} color={FioColors.green} />
                 </View>
                 <View style={styles.visibilityOptionIdentity}>
                   <Text style={styles.visibilityOptionTitle}>Somente equipe</Text>
@@ -942,7 +1006,7 @@ export function WorkTimelinePanel({
                 <Ionicons
                   name={visibility === 'internal' ? 'radio-button-on' : 'radio-button-off'}
                   size={21}
-                  color={visibility === 'internal' ? '#4937D8' : '#A5ACB8'}
+                  color={visibility === 'internal' ? FioColors.green : '#A5ACB8'}
                 />
               </Pressable>
 
@@ -968,7 +1032,7 @@ export function WorkTimelinePanel({
                 <Ionicons
                   name={visibility === 'shared' ? 'radio-button-on' : 'radio-button-off'}
                   size={21}
-                  color={visibility === 'shared' ? '#4937D8' : '#A5ACB8'}
+                  color={visibility === 'shared' ? FioColors.green : '#A5ACB8'}
                 />
               </Pressable>
 
@@ -1001,17 +1065,17 @@ export function WorkTimelinePanel({
 const styles = StyleSheet.create({
   loading: { minHeight: 90, alignItems: 'center', justifyContent: 'center', gap: 8 },
   muted: { fontSize: 11, color: '#7A8394' },
-  compactSummary: { minHeight: 48, flexDirection: 'row', alignItems: 'center', borderRadius: 12, backgroundColor: '#F3F2FC' },
+  compactSummary: { minHeight: 48, flexDirection: 'row', alignItems: 'center', borderRadius: 12, backgroundColor: '#F8F6F1' },
   summaryItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
-  summaryDivider: { width: 1, height: 24, backgroundColor: '#DDD9F2' },
-  summaryNumber: { fontSize: 17, fontWeight: '900', color: '#4937D8' },
-  summaryLabel: { fontSize: 10, color: '#666180' },
+  summaryDivider: { width: 1, height: 24, backgroundColor: '#D4E2D6' },
+  summaryNumber: { fontSize: 17, fontWeight: '900', color: FioColors.green },
+  summaryLabel: { fontSize: 10, color: '#6F736F' },
   filterLabel: { marginTop: 12, fontSize: 9, fontWeight: '900', letterSpacing: 1, color: '#727B8D' },
   filters: { paddingTop: 7, paddingBottom: 2, gap: 7 },
   filterChip: { minHeight: 38, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 999 },
-  filterChipActive: { borderColor: '#4937D8', backgroundColor: '#ECE9FF' },
+  filterChipActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
   filterText: { fontSize: 10, fontWeight: '700', color: '#717B8E' },
-  filterTextActive: { color: '#4937D8' },
+  filterTextActive: { color: FioColors.green },
   successCard: { marginTop: 10, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 11, backgroundColor: '#EAF8F0' },
   successText: { flex: 1, fontSize: 10, color: '#207A50' },
   errorCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: '#FFF0EE' },
@@ -1019,37 +1083,42 @@ const styles = StyleSheet.create({
   emptyCard: { marginTop: 10, padding: 18, alignItems: 'center', borderRadius: 12, backgroundColor: '#F6F7F9' },
   emptyTitle: { fontSize: 11, fontWeight: '700', color: '#727C8E' },
   dayGroup: { marginTop: 11 },
-  dayHeader: { minHeight: 56, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#DCE0E7', borderRadius: 13, backgroundColor: '#F8F8FC' },
+  dayHeader: { minHeight: 56, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#DCE0E7', borderRadius: 13, backgroundColor: '#F8F6F1' },
   dayIdentity: { flex: 1, minWidth: 0 },
   dayTitle: { fontSize: 11, fontWeight: '900', color: '#34405A' },
   daySummary: { marginTop: 3, fontSize: 9, color: '#7A8394' },
-  dayCount: { minWidth: 26, height: 26, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#EAE7FF' },
-  dayCountText: { fontSize: 10, fontWeight: '900', color: '#4937D8' },
+  dayCount: { minWidth: 26, height: 26, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#F6EDDE' },
+  dayCountText: { fontSize: 10, fontWeight: '900', color: FioColors.green },
   categoryFilters: { paddingTop: 8, paddingBottom: 7, gap: 6 },
   categoryChip: { minHeight: 34, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E0E3E9', borderRadius: 999, backgroundColor: '#FFFFFF' },
-  categoryChipActive: { borderColor: '#7467DB', backgroundColor: '#F0EEFF' },
+  categoryChipActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
   categoryText: { fontSize: 9, fontWeight: '700', color: '#737D8F' },
-  categoryTextActive: { color: '#4937D8' },
+  categoryTextActive: { color: FioColors.green },
   eventRow: { flexDirection: 'row', gap: 8 },
   timelineColumn: { width: 28, alignItems: 'center' },
-  eventIcon: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#4937D8', zIndex: 2 },
-  timelineLine: { width: 2, flex: 1, minHeight: 35, backgroundColor: '#DDD9F6' },
+  eventIcon: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: FioColors.green, zIndex: 2 },
+  timelineLine: { width: 2, flex: 1, minHeight: 35, backgroundColor: '#D4E2D6' },
   eventCard: { flex: 1, minWidth: 0, marginBottom: 8, padding: 10, borderWidth: 1, borderColor: '#E1E4EA', borderRadius: 12, backgroundColor: '#FFFFFF' },
   eventTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
+  eventTopMeta: { alignItems: 'flex-end', gap: 4 },
+  eventPriority: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: FioColors.goldSoft },
+  eventPriorityUrgent: { backgroundColor: FioColors.orange },
+  eventPriorityText: { fontSize: 7, fontWeight: '900', color: '#76571F' },
+  eventPriorityTextUrgent: { color: FioColors.white },
   eventTitle: { flex: 1, fontSize: 11, fontWeight: '800', color: '#263146' },
   eventTime: { fontSize: 9, color: '#8B93A2' },
   eventDescription: { marginTop: 4, fontSize: 10, lineHeight: 15, color: '#5E687B' },
   photoStrip: { paddingTop: 8, gap: 7 },
-  timelinePhotoFrame: { width: 82, height: 68, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 9, backgroundColor: '#EFEDFC' },
+  timelinePhotoFrame: { width: 82, height: 68, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 9, backgroundColor: '#F6EDDE' },
   timelinePhoto: { width: '100%', height: '100%', resizeMode: 'cover' },
   eventMetaRow: { marginTop: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 7 },
-  eventScope: { flex: 1, fontSize: 9, fontWeight: '800', color: '#4937D8' },
+  eventScope: { flex: 1, fontSize: 9, fontWeight: '800', color: FioColors.green },
   visibilityBadge: { minHeight: 22, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, backgroundColor: '#F0F2F5' },
   visibilityBadgeShared: { backgroundColor: '#EAF8F0' },
-  visibilityBadgeCompany: { backgroundColor: '#F0EEFF' },
+  visibilityBadgeCompany: { backgroundColor: '#E7F1E8' },
   visibilityText: { fontSize: 8, fontWeight: '800', color: '#697386' },
   visibilityTextShared: { color: '#207A50' },
-  visibilityTextCompany: { color: '#4937D8' },
+  visibilityTextCompany: { color: FioColors.green },
   actorRow: { marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 4 },
   eventActor: { flex: 1, fontSize: 8, color: '#7C8596' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(17, 25, 43, 0.38)' },
@@ -1065,28 +1134,31 @@ const styles = StyleSheet.create({
   textarea: { minHeight: 96, paddingTop: 12, textAlignVertical: 'top' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   chip: { minHeight: 40, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCE0E7', borderRadius: 999 },
-  chipActive: { borderColor: '#4937D8', backgroundColor: '#ECE9FF' },
+  chipActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
+  chipUrgent: { borderColor: FioColors.orange, backgroundColor: FioColors.orange },
   chipText: { fontSize: 10, fontWeight: '700', color: '#697386' },
-  chipTextActive: { color: '#4937D8' },
+  chipTextActive: { color: FioColors.green },
+  chipTextUrgent: { color: FioColors.white },
+  priorityHelper: { marginTop: 6, fontSize: 8, lineHeight: 12, color: FioColors.green },
   photoLabelRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   photoLimit: { marginBottom: 6, fontSize: 9, color: '#8A92A1' },
   photoActions: { flexDirection: 'row', gap: 8 },
-  photoActionPrimary: { minHeight: 46, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: '#4937D8' },
+  photoActionPrimary: { minHeight: 46, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.ink },
   photoActionPrimaryText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
-  photoActionSecondary: { minHeight: 46, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#BDB6EE', borderRadius: 12, backgroundColor: '#F5F3FF' },
-  photoActionSecondaryText: { fontSize: 11, fontWeight: '800', color: '#4937D8' },
+  photoActionSecondary: { minHeight: 46, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#BFD0C3', borderRadius: 12, backgroundColor: FioColors.greenSoft },
+  photoActionSecondaryText: { fontSize: 11, fontWeight: '800', color: FioColors.green },
   selectedPhotos: { paddingTop: 9, gap: 8 },
-  selectedPhotoFrame: { width: 78, height: 78, overflow: 'visible', borderRadius: 11, backgroundColor: '#EFEDFC' },
+  selectedPhotoFrame: { width: 78, height: 78, overflow: 'visible', borderRadius: 11, backgroundColor: '#F6EDDE' },
   selectedPhoto: { width: '100%', height: '100%', borderRadius: 11, resizeMode: 'cover' },
   removePhoto: { position: 'absolute', top: -5, right: -5, width: 26, height: 26, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 999, backgroundColor: '#263146' },
   visibilityOption: { minHeight: 58, marginBottom: 7, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 12, backgroundColor: '#FFFFFF' },
-  visibilityOptionActive: { borderColor: '#7467DB', backgroundColor: '#F5F3FF' },
-  visibilityOptionIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#ECE9FF' },
+  visibilityOptionActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
+  visibilityOptionIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: FioColors.greenSoft },
   visibilityOptionIdentity: { flex: 1, minWidth: 0 },
   visibilityOptionTitle: { fontSize: 10, fontWeight: '800', color: '#34405A' },
   visibilityOptionSubtitle: { marginTop: 2, fontSize: 8, lineHeight: 12, color: '#7A8394' },
   modalErrorCard: { marginTop: 9, padding: 10, borderRadius: 10, backgroundColor: '#FFF0EE' },
-  saveButton: { minHeight: 50, marginTop: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 13, backgroundColor: '#4937D8' },
+  saveButton: { minHeight: 50, marginTop: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 13, backgroundColor: FioColors.ink },
   disabledButton: { opacity: 0.55 },
   saveText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
 });

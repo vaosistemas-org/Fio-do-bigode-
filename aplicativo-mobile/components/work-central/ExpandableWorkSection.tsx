@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   cardOpen: {
-    borderColor: '#C9C3F7',
+    borderColor: '#BFD0C3',
   },
   header: {
     minHeight: 66,
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 11,
-    backgroundColor: '#4937D8',
+    backgroundColor: '#24583E',
   },
   identity: {
     flex: 1,
@@ -147,12 +147,12 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     alignItems: 'center',
     borderRadius: 999,
-    backgroundColor: '#F0EEFF',
+    backgroundColor: '#E7F1E8',
   },
   badgeText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#4937D8',
+    color: '#24583E',
   },
   content: {
     padding: 12,

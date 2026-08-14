@@ -113,10 +113,10 @@ export default function CompanyLinkRequestsScreen() {
 
         <Pressable
           style={styles.profileButton}
-          onPress={() => router.replace('/profile')}
+          onPress={() => router.replace('/links')}
         >
           <Text style={styles.profileButtonText}>
-            Meu FIO
+            Vínculos
           </Text>
         </Pressable>
       </View>

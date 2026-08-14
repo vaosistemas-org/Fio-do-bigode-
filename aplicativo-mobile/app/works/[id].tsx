@@ -6,6 +6,7 @@ import {
 } from 'expo-router';
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -33,7 +34,7 @@ import {
   WorkParticipant,
   WorkSectionKey,
 } from '@/components/work-central/types';
-import { WorkSidebar } from '@/components/work-central/WorkSidebar';
+import { FioColors } from '@/constants/fio-theme';
 import { useWorkAccess } from '@/hooks/use-work-access';
 import { supabase } from '@/lib/supabase';
 
@@ -77,7 +78,7 @@ function Placeholder({ text }: { text: string }) {
       <Ionicons
         name="construct-outline"
         size={20}
-        color="#6C61CC"
+        color={FioColors.green}
       />
       <Text style={styles.placeholderText}>{text}</Text>
     </View>
@@ -86,8 +87,10 @@ function Placeholder({ text }: { text: string }) {
 
 export default function WorkDetailsScreen() {
   const router = useRouter();
-  const { id } =
-    useLocalSearchParams<{ id: string }>();
+  const { id, section } = useLocalSearchParams<{
+    id: string;
+    section?: string;
+  }>();
   const [work, setWork] = useState<Work | null>(null);
   const [environments, setEnvironments] =
     useState<WorkEnvironment[]>([]);
@@ -111,6 +114,7 @@ export default function WorkDetailsScreen() {
   const [timelineCreateRequest, setTimelineCreateRequest] = useState(0);
   const [documentCreateRequest, setDocumentCreateRequest] = useState(0);
   const [documentCount, setDocumentCount] = useState(0);
+  const [measurementCount, setMeasurementCount] = useState(0);
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
 
   const {
@@ -230,6 +234,19 @@ export default function WorkDetailsScreen() {
     }, [loadCentral])
   );
 
+  useEffect(() => {
+    if (
+      section === 'environments' ||
+      section === 'pending' ||
+      section === 'fio' ||
+      section === 'photos' ||
+      section === 'measurements' ||
+      section === 'documents'
+    ) {
+      setOpenSection(section);
+    }
+  }, [section]);
+
   const names = useMemo(
     () =>
       Object.fromEntries(
@@ -259,7 +276,7 @@ export default function WorkDetailsScreen() {
   if (loading || loadingAccess) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#4937D8" />
+        <ActivityIndicator color={FioColors.gold} />
         <Text style={styles.loadingText}>
           Carregando central da obra...
         </Text>
@@ -270,7 +287,6 @@ export default function WorkDetailsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.page}>
-        <WorkSidebar onOpenTimeline={() => setOpenSection('fio')} />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.content}
@@ -279,7 +295,7 @@ export default function WorkDetailsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => loadCentral(true)}
-              tintColor="#4937D8"
+              tintColor={FioColors.gold}
             />
           }
         >
@@ -290,7 +306,7 @@ export default function WorkDetailsScreen() {
             <Ionicons
               name="chevron-back-outline"
               size={20}
-              color="#4937D8"
+              color={FioColors.green}
             />
             <Text style={styles.backText}>Central de obras</Text>
           </Pressable>
@@ -320,9 +336,26 @@ export default function WorkDetailsScreen() {
 
                   <View style={styles.workIdentity}>
                     <Text numberOfLines={1} style={styles.workCode}>{work.code}</Text>
-                    <Text numberOfLines={2} style={styles.workTitle}>
-                      {work.client_name}
-                    </Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Abrir perfil do cliente"
+                      style={styles.clientProfileLink}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/client-profile',
+                          params: { workId: work.id },
+                        })
+                      }
+                    >
+                      <Text numberOfLines={2} style={styles.workTitle}>
+                        {work.client_name}
+                      </Text>
+                      <Ionicons
+                        name="person-circle-outline"
+                        size={17}
+                        color={FioColors.gold}
+                      />
+                    </Pressable>
                     <View style={styles.infoLine}>
                       <Ionicons
                         name="person-outline"
@@ -407,7 +440,7 @@ export default function WorkDetailsScreen() {
                         <Ionicons
                           name="add-outline"
                           size={21}
-                          color="#4937D8"
+                          color={FioColors.green}
                         />
                       </Pressable>
                     </View>
@@ -519,39 +552,10 @@ export default function WorkDetailsScreen() {
                                   ? `${count}/${minimum} fotos · completa`
                                   : `${count}/${minimum} fotos · faltam ${missing}`}
                               </Text>
-                              <View style={styles.environmentActions}>
-                                <Pressable
-                                  style={styles.secondaryButton}
-                                  onPress={() =>
-                                    router.push({
-                                      pathname: '/environment/[id]',
-                                      params: { id: environment.id },
-                                    })
-                                  }
-                                >
-                                  <Text style={styles.secondaryText}>
-                                    Abrir ambiente
-                                  </Text>
-                                </Pressable>
-                                <Pressable
-                                  style={styles.secondaryButton}
-                                  onPress={() =>
-                                    router.push({
-                                      pathname: '/environment-photos',
-                                      params: { id: environment.id },
-                                    })
-                                  }
-                                >
-                                  <Ionicons
-                                    name="camera-outline"
-                                    size={17}
-                                    color="#4937D8"
-                                  />
-                                  <Text style={styles.secondaryText}>
-                                    Fotos
-                                  </Text>
-                                </Pressable>
-                              </View>
+                              <Text style={styles.environmentCentralNote}>
+                                Fotos e pendências deste ambiente ficam nos
+                                blocos da própria Central da obra.
+                              </Text>
                             </View>
                           )}
                         </View>
@@ -616,7 +620,7 @@ export default function WorkDetailsScreen() {
                 </ExpandableWorkSection>
 
                 <ExpandableWorkSection
-                  title="Fotos da obra"
+                  title="Galeria"
                   subtitle="Galeria geral e separada por ambientes"
                   icon="images-outline"
                   badge={String(totalPhotos)}
@@ -639,35 +643,21 @@ export default function WorkDetailsScreen() {
                 </ExpandableWorkSection>
 
                 <ExpandableWorkSection
-                  title="Peças / Avanço"
-                  subtitle="Acompanhamento operacional por ambiente"
-                  icon="stats-chart-outline"
-                  open={openSection === 'progress'}
-                  onPress={() => toggle('progress')}
-                >
-                  <Pressable
-                    style={styles.secondaryWide}
-                    onPress={() =>
-                      router.push({
-                        pathname: '/environments',
-                        params: { workId: work.id },
-                      })
-                    }
-                  >
-                    <Text style={styles.secondaryText}>
-                      Abrir gestão completa dos ambientes
-                    </Text>
-                  </Pressable>
-                </ExpandableWorkSection>
-
-                <ExpandableWorkSection
-                  title="Medição"
-                  subtitle="Medições vinculadas à obra"
+                  title="Medições"
+                  subtitle="Documentos e registros de medidas"
                   icon="resize-outline"
+                  badge={measurementCount ? String(measurementCount) : undefined}
                   open={openSection === 'measurements'}
                   onPress={() => toggle('measurements')}
                 >
-                  <Placeholder text="Área reservada para o fluxo de medição." />
+                  <WorkDocumentsPanel
+                    workId={work.id}
+                    environments={environments}
+                    canWrite={canWrite}
+                    categoryFilter="measurement"
+                    onCountChange={setMeasurementCount}
+                    onChanged={() => loadCentral(true)}
+                  />
                 </ExpandableWorkSection>
 
                 <ExpandableWorkSection
@@ -683,6 +673,7 @@ export default function WorkDetailsScreen() {
                     environments={environments}
                     canWrite={canWrite}
                     newRequest={documentCreateRequest}
+                    excludeCategory="measurement"
                     onCountChange={setDocumentCount}
                     onChanged={() => loadCentral(true)}
                   />
@@ -758,7 +749,7 @@ export default function WorkDetailsScreen() {
                     }
                   >
                     <View style={styles.actionIcon}>
-                      <Ionicons name="alert-circle-outline" size={21} color="#4937D8" />
+                      <Ionicons name="alert-circle-outline" size={21} color={FioColors.green} />
                     </View>
                     <Text style={styles.actionText}>Nova pendência</Text>
                   </Pressable>
@@ -773,7 +764,7 @@ export default function WorkDetailsScreen() {
                     }
                   >
                     <View style={styles.actionIcon}>
-                      <Ionicons name="create-outline" size={21} color="#4937D8" />
+                      <Ionicons name="create-outline" size={21} color={FioColors.green} />
                     </View>
                     <Text style={styles.actionText}>Atualizar FIO</Text>
                   </Pressable>
@@ -788,7 +779,7 @@ export default function WorkDetailsScreen() {
                     }
                   >
                     <View style={styles.actionIcon}>
-                      <Ionicons name="camera-outline" size={21} color="#4937D8" />
+                      <Ionicons name="camera-outline" size={21} color={FioColors.green} />
                     </View>
                     <Text style={styles.actionText}>Câmera</Text>
                   </Pressable>
@@ -805,7 +796,7 @@ export default function WorkDetailsScreen() {
                     }
                   >
                     <View style={styles.actionIcon}>
-                      <Ionicons name="grid-outline" size={21} color="#4937D8" />
+                      <Ionicons name="grid-outline" size={21} color={FioColors.green} />
                     </View>
                     <Text style={styles.actionText}>Novo ambiente</Text>
                   </Pressable>
@@ -822,7 +813,7 @@ export default function WorkDetailsScreen() {
                     }
                   >
                     <View style={styles.actionIcon}>
-                      <Ionicons name="people-outline" size={21} color="#4937D8" />
+                      <Ionicons name="people-outline" size={21} color={FioColors.green} />
                     </View>
                     <Text style={styles.actionText}>Equipe</Text>
                   </Pressable>
@@ -837,7 +828,7 @@ export default function WorkDetailsScreen() {
                     }
                   >
                     <View style={styles.actionIcon}>
-                      <Ionicons name="document-text-outline" size={21} color="#4937D8" />
+                      <Ionicons name="document-text-outline" size={21} color={FioColors.green} />
                     </View>
                     <Text style={styles.actionText}>Documentos</Text>
                   </Pressable>
@@ -852,12 +843,12 @@ export default function WorkDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F6F7FA' },
-  page: { flex: 1, flexDirection: 'row', backgroundColor: '#F6F7FA' },
+  safeArea: { flex: 1, backgroundColor: FioColors.canvas },
+  page: { flex: 1, backgroundColor: FioColors.canvas },
   scroll: { flex: 1 },
   content: {
     width: '100%',
-    maxWidth: 760,
+    maxWidth: 880,
     alignSelf: 'center',
     paddingHorizontal: 10,
     paddingTop: 8,
@@ -868,7 +859,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#F6F7FA',
+    backgroundColor: FioColors.canvas,
   },
   loadingText: { fontSize: 13, color: '#697386' },
   backButton: {
@@ -878,7 +869,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  backText: { fontSize: 13, fontWeight: '800', color: '#4937D8' },
+  backText: { fontSize: 13, fontWeight: '800', color: FioColors.green },
   workCard: {
     padding: 13,
     borderWidth: 1,
@@ -894,17 +885,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 15,
-    backgroundColor: '#EFEDFF',
+    backgroundColor: FioColors.goldSoft,
   },
-  coverInitials: { fontSize: 22, fontWeight: '900', color: '#4937D8' },
+  coverInitials: { fontSize: 22, fontWeight: '900', color: FioColors.ink },
   workIdentity: { flex: 1, minWidth: 0 },
+  clientProfileLink: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   workCode: {
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.1,
-    color: '#4937D8',
+    color: FioColors.green,
   },
   workTitle: {
+    flex: 1,
     marginTop: 2,
     marginBottom: 4,
     fontSize: 18,
@@ -945,7 +938,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#E6E8EE',
   },
-  progressFill: { height: '100%', borderRadius: 999, backgroundColor: '#4937D8' },
+  progressFill: { height: '100%', borderRadius: 999, backgroundColor: FioColors.green },
   teamRow: {
     marginTop: 13,
   },
@@ -963,10 +956,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFFFFF',
     borderRadius: 999,
-    backgroundColor: '#DCD9FA',
+    backgroundColor: FioColors.greenSoft,
   },
   avatarImage: { width: '100%', height: '100%' },
-  avatarText: { fontSize: 10, fontWeight: '900', color: '#4937D8' },
+  avatarText: { fontSize: 10, fontWeight: '900', color: FioColors.green },
   addTeam: {
     width: 34,
     height: 34,
@@ -974,7 +967,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#CBC5F3',
+    borderColor: '#BFD0C3',
     borderRadius: 999,
   },
   teamCount: { fontSize: 9, color: '#768096' },
@@ -996,9 +989,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     borderRadius: 13,
-    backgroundColor: '#F4F3FC',
+    backgroundColor: FioColors.greenSoft,
   },
-  placeholderText: { flex: 1, fontSize: 12, lineHeight: 18, color: '#5F5A83' },
+  placeholderText: { flex: 1, fontSize: 12, lineHeight: 18, color: FioColors.green },
   environmentCard: {
     marginTop: 10,
     overflow: 'hidden',
@@ -1028,9 +1021,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#E4E7EC',
   },
-  environmentFill: { height: '100%', borderRadius: 999, backgroundColor: '#6151E0' },
+  environmentFill: { height: '100%', borderRadius: 999, backgroundColor: FioColors.green },
   environmentBody: { padding: 13, paddingTop: 3, borderTopWidth: 1, borderTopColor: '#E8EAEE' },
   environmentDetail: { marginTop: 8, fontSize: 12, lineHeight: 17, color: '#5D687C' },
+  environmentCentralNote: { marginTop: 10, fontSize: 10, lineHeight: 15, color: FioColors.green },
   environmentActions: { marginTop: 13, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   secondaryButton: {
     minHeight: 44,
@@ -1041,7 +1035,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderWidth: 1,
-    borderColor: '#CDC8F2',
+    borderColor: '#BFD0C3',
     borderRadius: 12,
   },
   secondaryWide: {
@@ -1049,10 +1043,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#CDC8F2',
+    borderColor: '#BFD0C3',
     borderRadius: 12,
   },
-  secondaryText: { fontSize: 11, fontWeight: '800', color: '#4937D8' },
+  secondaryText: { fontSize: 11, fontWeight: '800', color: FioColors.green },
   primaryButton: {
     minHeight: 48,
     marginTop: 12,
@@ -1061,7 +1055,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 7,
     borderRadius: 13,
-    backgroundColor: '#4937D8',
+    backgroundColor: FioColors.ink,
   },
   primaryText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
   floatingAction: {
@@ -1073,8 +1067,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 999,
-    backgroundColor: '#4937D8',
-    shadowColor: '#251B7A',
+    backgroundColor: FioColors.orange,
+    shadowColor: FioColors.ink,
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.28,
     shadowRadius: 9,
@@ -1137,7 +1131,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
-    backgroundColor: '#EFEDFF',
+    backgroundColor: FioColors.greenSoft,
   },
   actionText: { flex: 1, fontSize: 11, lineHeight: 14, fontWeight: '800', color: '#34405A' },
   errorCard: { marginTop: 12, padding: 14, borderRadius: 13, backgroundColor: '#FFF0EE' },

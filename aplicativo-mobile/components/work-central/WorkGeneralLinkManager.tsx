@@ -150,7 +150,7 @@ export function WorkGeneralLinkManager({
     <View style={styles.card}>
       <Pressable style={styles.header} onPress={() => setExpanded((value) => !value)}>
         <View style={styles.iconBox}>
-          <Ionicons name="qr-code-outline" size={19} color="#4937D8" />
+          <Ionicons name="qr-code-outline" size={19} color="#24583E" />
         </View>
         <View style={styles.identity}>
           <Text style={styles.title}>Leitura por link ou QR</Text>
@@ -159,7 +159,7 @@ export function WorkGeneralLinkManager({
           </Text>
         </View>
         {loading ? (
-          <ActivityIndicator size="small" color="#4937D8" />
+          <ActivityIndicator size="small" color="#24583E" />
         ) : (
           <Ionicons
             name={expanded ? 'chevron-up-outline' : 'chevron-down-outline'}
@@ -202,7 +202,7 @@ export function WorkGeneralLinkManager({
                   style={[styles.secondaryAction, !url && styles.disabled]}
                   onPress={() => setQrVisible(true)}
                 >
-                  <Ionicons name="qr-code-outline" size={17} color="#4937D8" />
+                  <Ionicons name="qr-code-outline" size={17} color="#24583E" />
                   <Text style={styles.secondaryActionText}>Ver QR</Text>
                 </Pressable>
               </View>
@@ -237,7 +237,7 @@ export function WorkGeneralLinkManager({
             onPress={confirmGenerate}
           >
             {saving ? (
-              <ActivityIndicator color="#4937D8" />
+              <ActivityIndicator color="#24583E" />
             ) : (
               <Text style={styles.generateText}>{link ? 'Gerar novo link' : 'Gerar link e QR'}</Text>
             )}
@@ -277,7 +277,7 @@ export function WorkGeneralLinkManager({
 const styles = StyleSheet.create({
   card: { marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#DCD8F5', borderRadius: 13, backgroundColor: '#FAF9FF' },
   header: { minHeight: 62, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  iconBox: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#ECE9FF' },
+  iconBox: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#E7F1E8' },
   identity: { flex: 1, minWidth: 0 },
   title: { fontSize: 11, fontWeight: '800', color: '#34405A' },
   subtitle: { marginTop: 2, fontSize: 8, lineHeight: 12, color: '#7A8394' },
@@ -287,23 +287,23 @@ const styles = StyleSheet.create({
   activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#2D9B65' },
   activeText: { fontSize: 8, fontWeight: '800', color: '#207A50' },
   accessText: { fontSize: 8, color: '#7A8394' },
-  urlText: { marginTop: 8, fontSize: 9, lineHeight: 13, color: '#4937D8' },
+  urlText: { marginTop: 8, fontSize: 9, lineHeight: 13, color: '#24583E' },
   pendingUrlText: { marginTop: 8, fontSize: 9, lineHeight: 13, color: '#A06A24' },
   expiryText: { marginTop: 3, fontSize: 8, color: '#7A8394' },
   actionRow: { marginTop: 9, flexDirection: 'row', gap: 7 },
-  primaryAction: { minHeight: 40, flex: 1, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, backgroundColor: '#4937D8' },
+  primaryAction: { minHeight: 40, flex: 1, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, backgroundColor: '#24583E' },
   primaryActionText: { fontSize: 9, fontWeight: '800', color: '#FFFFFF' },
   secondaryAction: { minHeight: 40, flex: 1, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderColor: '#CBC6F5', borderRadius: 10, backgroundColor: '#FFFFFF' },
-  secondaryActionText: { fontSize: 9, fontWeight: '800', color: '#4937D8' },
+  secondaryActionText: { fontSize: 9, fontWeight: '800', color: '#24583E' },
   explanation: { fontSize: 9, lineHeight: 14, color: '#596274' },
   label: { marginTop: 11, marginBottom: 6, fontSize: 8, fontWeight: '800', color: '#596274' },
   expiryRow: { flexDirection: 'row', gap: 6 },
   expiryChip: { minHeight: 34, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 999, backgroundColor: '#FFFFFF' },
-  expiryChipActive: { borderColor: '#4937D8', backgroundColor: '#F0EEFF' },
+  expiryChipActive: { borderColor: '#24583E', backgroundColor: '#E7F1E8' },
   expiryChipText: { fontSize: 8, fontWeight: '700', color: '#697386' },
-  expiryChipTextActive: { color: '#4937D8' },
+  expiryChipTextActive: { color: '#24583E' },
   generateButton: { minHeight: 42, marginTop: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#CBC6F5', borderRadius: 10, backgroundColor: '#FFFFFF' },
-  generateText: { fontSize: 9, fontWeight: '800', color: '#4937D8' },
+  generateText: { fontSize: 9, fontWeight: '800', color: '#24583E' },
   revokeButton: { minHeight: 38, marginTop: 5, alignItems: 'center', justifyContent: 'center' },
   revokeText: { fontSize: 8, fontWeight: '700', color: '#A34242' },
   errorText: { marginTop: 7, fontSize: 8, lineHeight: 12, color: '#A34242' },
@@ -314,6 +314,6 @@ const styles = StyleSheet.create({
   qrTitle: { marginTop: 14, fontSize: 19, fontWeight: '900', color: '#152033' },
   qrSubtitle: { maxWidth: 280, marginTop: 4, textAlign: 'center', fontSize: 10, lineHeight: 15, color: '#697386' },
   qrFrame: { marginTop: 18, padding: 15, borderWidth: 1, borderColor: '#E0E3E8', borderRadius: 16, backgroundColor: '#FFFFFF' },
-  qrShareButton: { minHeight: 46, width: '100%', marginTop: 18, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#4937D8' },
+  qrShareButton: { minHeight: 46, width: '100%', marginTop: 18, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#24583E' },
   qrShareText: { fontSize: 11, fontWeight: '900', color: '#FFFFFF' },
 });

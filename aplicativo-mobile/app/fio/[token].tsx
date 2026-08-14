@@ -195,7 +195,7 @@ export default function PublicFioScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centered}>
-          <ActivityIndicator color="#4937D8" />
+          <ActivityIndicator color="#24583E" />
           <Text style={styles.loadingText}>Abrindo o FIO da obra...</Text>
         </View>
       </SafeAreaView>
@@ -207,7 +207,7 @@ export default function PublicFioScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centered}>
           <View style={styles.invalidIcon}>
-            <Ionicons name="link-outline" size={30} color="#4937D8" />
+            <Ionicons name="link-outline" size={30} color="#24583E" />
           </View>
           <Text style={styles.invalidTitle}>Link indisponível</Text>
           <Text style={styles.invalidText}>{message}</Text>
@@ -255,7 +255,7 @@ export default function PublicFioScreen() {
         {data.documents.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="document-text-outline" size={21} color="#4937D8" />
+              <Ionicons name="document-text-outline" size={21} color="#24583E" />
               <Text style={styles.sectionTitle}>Documentos da obra</Text>
               <View style={styles.countBadge}>
                 <Text style={styles.countText}>{data.documents.length}</Text>
@@ -295,7 +295,7 @@ export default function PublicFioScreen() {
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="chatbubble-ellipses-outline" size={21} color="#4937D8" />
+            <Ionicons name="chatbubble-ellipses-outline" size={21} color="#24583E" />
             <Text style={styles.sectionTitle}>FIO / Diário</Text>
             <View style={styles.countBadge}>
               <Text style={styles.countText}>{data.events.length}</Text>
@@ -326,7 +326,7 @@ export default function PublicFioScreen() {
                             <Image key={photo.id} source={{ uri: photo.url }} style={styles.photo} />
                           ) : (
                             <View key={photo.id} style={styles.photoFallback}>
-                              <Ionicons name="image-outline" size={24} color="#8A82D5" />
+                              <Ionicons name="image-outline" size={24} color="#C79A45" />
                             </View>
                           )
                         )}
@@ -354,37 +354,37 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 18, paddingBottom: 40 },
   centered: { flex: 1, padding: 28, alignItems: 'center', justifyContent: 'center' },
   loadingText: { marginTop: 10, fontSize: 13, color: '#697386' },
-  invalidIcon: { width: 62, height: 62, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: '#ECE9FF' },
+  invalidIcon: { width: 62, height: 62, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: '#E7F1E8' },
   invalidTitle: { marginTop: 14, fontSize: 21, fontWeight: '900', color: '#152033' },
   invalidText: { maxWidth: 340, marginTop: 6, textAlign: 'center', fontSize: 12, lineHeight: 18, color: '#697386' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  brandMark: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: '#4937D8' },
+  brandMark: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: '#24583E' },
   brandLetter: { fontSize: 21, fontWeight: '900', color: '#FFFFFF' },
   brandName: { fontSize: 16, fontWeight: '900', color: '#152033' },
   readOnly: { marginTop: 1, fontSize: 10, color: '#697386' },
-  workCard: { marginTop: 16, padding: 18, borderWidth: 1, borderColor: '#DCDFF0', borderRadius: 18, backgroundColor: '#FFFFFF' },
-  workCode: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: '#4937D8' },
+  workCard: { marginTop: 16, padding: 18, borderWidth: 1, borderColor: '#E4E0D8', borderRadius: 18, backgroundColor: '#FFFFFF' },
+  workCode: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: '#24583E' },
   workTitle: { marginTop: 4, fontSize: 24, fontWeight: '900', color: '#152033' },
   workMetaRow: { marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   statusBadge: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: '#EAF8F0' },
   statusText: { fontSize: 10, fontWeight: '800', color: '#207A50' },
   progressLabel: { fontSize: 11, fontWeight: '800', color: '#34405A' },
   progressTrack: { height: 7, marginTop: 9, overflow: 'hidden', borderRadius: 999, backgroundColor: '#E3E5EA' },
-  progressFill: { height: '100%', borderRadius: 999, backgroundColor: '#4937D8' },
-  privacyNote: { marginTop: 14, padding: 10, borderRadius: 10, fontSize: 9, lineHeight: 14, color: '#697386', backgroundColor: '#F6F5FD' },
+  progressFill: { height: '100%', borderRadius: 999, backgroundColor: '#24583E' },
+  privacyNote: { marginTop: 14, padding: 10, borderRadius: 10, fontSize: 9, lineHeight: 14, color: '#697386', backgroundColor: '#F8F6F1' },
   errorCard: { marginTop: 12, padding: 11, borderRadius: 11, backgroundColor: '#FFF0F0' },
   errorText: { fontSize: 10, color: '#A34242' },
   section: { marginTop: 14, padding: 13, borderWidth: 1, borderColor: '#E0E3E8', borderRadius: 16, backgroundColor: '#FFFFFF' },
   sectionHeader: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionTitle: { flex: 1, fontSize: 16, fontWeight: '900', color: '#152033' },
-  countBadge: { minWidth: 25, paddingHorizontal: 7, paddingVertical: 4, alignItems: 'center', borderRadius: 999, backgroundColor: '#F0EEFF' },
-  countText: { fontSize: 10, fontWeight: '900', color: '#4937D8' },
+  countBadge: { minWidth: 25, paddingHorizontal: 7, paddingVertical: 4, alignItems: 'center', borderRadius: 999, backgroundColor: '#E7F1E8' },
+  countText: { fontSize: 10, fontWeight: '900', color: '#24583E' },
   documentCard: { marginTop: 8, padding: 11, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, borderWidth: 1, borderColor: '#E6E8ED', borderRadius: 12 },
   documentIdentity: { flex: 1, minWidth: 210 },
   documentTitle: { fontSize: 12, fontWeight: '800', color: '#202A3A' },
   documentMeta: { marginTop: 2, fontSize: 9, color: '#697386' },
   documentDescription: { marginTop: 5, fontSize: 9, lineHeight: 13, color: '#596274' },
-  openButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#4937D8' },
+  openButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#24583E' },
   downloadRule: { width: '100%', fontSize: 8, textAlign: 'right', color: '#7A8394' },
   emptyCard: { minHeight: 80, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 11, color: '#7A8394' },
@@ -396,10 +396,10 @@ const styles = StyleSheet.create({
   eventTime: { fontSize: 9, color: '#8A92A1' },
   eventDescription: { marginTop: 5, fontSize: 10, lineHeight: 15, color: '#596274' },
   photos: { marginTop: 8, gap: 7 },
-  photo: { width: 105, height: 82, borderRadius: 10, backgroundColor: '#E9E9EF' },
-  photoFallback: { width: 105, height: 82, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#F0EEFF' },
+  photo: { width: 105, height: 82, borderRadius: 10, backgroundColor: '#ECE9E2' },
+  photoFallback: { width: 105, height: 82, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#E7F1E8' },
   eventMeta: { marginTop: 8, paddingTop: 7, flexDirection: 'row', justifyContent: 'space-between', gap: 8, borderTopWidth: 1, borderTopColor: '#EFF0F3' },
-  eventScope: { flex: 1, fontSize: 8, fontWeight: '800', color: '#4937D8' },
+  eventScope: { flex: 1, fontSize: 8, fontWeight: '800', color: '#24583E' },
   eventActor: { flex: 1, textAlign: 'right', fontSize: 8, color: '#7A8394' },
   footer: { marginTop: 18, textAlign: 'center', fontSize: 9, color: '#8A92A1' },
 });

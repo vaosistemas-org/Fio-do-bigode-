@@ -1,1953 +1,564 @@
-import {
-  useFocusEffect,
-  useRouter,
-} from 'expo-router';
-
-import {
-  useCallback,
-  useState,
-} from 'react';
-
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
 
+import { FioPageHeader } from '@/components/fio-shell/FioPageHeader';
+import {
+  FioColors,
+  FioRadius,
+  FioShadow,
+} from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
-type MyCompany = {
-  membership_id: string;
-  company_id: string;
-  company_name: string;
-  role: string;
-  active: boolean;
+type OpenSection = 'personal' | 'contact' | 'privacy' | null;
+
+type ProfileData = {
+  fullName: string;
+  phone: string;
+  email: string;
+  jobTitle: string;
+  coverageArea: string;
+  avatarUrl: string | null;
+  professionalEnabled: boolean;
+  activeWorks: number;
+  links: number;
 };
 
-type ProfessionalLink = {
-  link_id: string;
-  company_id: string;
-  company_name: string;
-  role_title: string;
-  status: string;
-  requested_at: string;
-  reviewed_at: string | null;
+const EMPTY_PROFILE: ProfileData = {
+  fullName: '',
+  phone: '',
+  email: '',
+  jobTitle: '',
+  coverageArea: '',
+  avatarUrl: null,
+  professionalEnabled: false,
+  activeWorks: 0,
+  links: 0,
 };
 
-type CompanyContext = {
-  company_id: string;
-  company_name: string;
-  relationship_type:
-    | 'member'
-    | 'collaborator';
-  company_role: string | null;
-  role_title: string | null;
-  is_active: boolean;
-};
+function initials(value: string) {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'F';
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const [profile, setProfile] = useState<ProfileData>(EMPTY_PROFILE);
+  const [openSection, setOpenSection] = useState<OpenSection>('personal');
+  const [loading, setLoading] = useState(true);
+  const [savingToggle, setSavingToggle] = useState(false);
+  const [message, setMessage] = useState('');
 
-  const [
-    fullName,
-    setFullName,
-  ] = useState('');
-
-  const [
-    jobTitle,
-    setJobTitle,
-  ] = useState('');
-
-  const [
-    coverageArea,
-    setCoverageArea,
-  ] = useState('');
-
-  const [
-    avatarUrl,
-    setAvatarUrl,
-  ] = useState<string | null>(
-    null
-  );
-
-  const [
-    myCompanies,
-    setMyCompanies,
-  ] = useState<MyCompany[]>([]);
-
-  const [
-    professionalLinks,
-    setProfessionalLinks,
-  ] = useState<
-    ProfessionalLink[]
-  >([]);
-
-  const [
-    companyContexts,
-    setCompanyContexts,
-  ] = useState<CompanyContext[]>(
-    []
-  );
-
-  const [
-    activeCompanyId,
-    setActiveCompanyId,
-  ] = useState<string | null>(
-    null
-  );
-
-  const [
-    contextModalVisible,
-    setContextModalVisible,
-  ] = useState(false);
-
-  const [
-    changingContext,
-    setChangingContext,
-  ] = useState(false);
-
-  const [
-    hasAdminCompany,
-    setHasAdminCompany,
-  ] = useState(false);
-
-  const [
-    pendingLinkRequestsCount,
-    setPendingLinkRequestsCount,
-  ] = useState(0);
-
-  const [
-    companyInvitationsCount,
-    setCompanyInvitationsCount,
-  ] = useState(0);
-
-  const [
-    loading,
-    setLoading,
-  ] = useState(true);
-
-  const [
-    loggingOut,
-    setLoggingOut,
-  ] = useState(false);
-
-  const [
-    message,
-    setMessage,
-  ] = useState('');
-
-  useFocusEffect(
-    useCallback(() => {
-      loadProfile();
-    }, [])
-  );
-
-  async function loadProfile() {
+  const loadProfile = useCallback(async () => {
     setLoading(true);
     setMessage('');
 
-    const {
-      data: { user },
-      error: userError,
-    } =
-      await supabase.auth.getUser();
-
-    if (
-      userError ||
-      !user
-    ) {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) {
+      setMessage('Não foi possível identificar sua conta.');
       setLoading(false);
       return;
     }
 
-    const [
-      profileResult,
-      adminResult,
-      myCompaniesResult,
-      professionalLinksResult,
-      pendingRequestsResult,
-      invitationsResult,
-      contextsResult,
-    ] = await Promise.all([
+    const [profileResult, worksResult, contextsResult] = await Promise.all([
       supabase
         .from('profiles')
         .select(
-          'full_name, job_title, coverage_area, avatar_url'
+          'full_name, phone, job_title, coverage_area, avatar_url, professional_profile_enabled'
         )
-        .eq('id', user.id)
+        .eq('id', authData.user.id)
         .maybeSingle(),
-
-      supabase.rpc(
-        'has_admin_company'
-      ),
-
-      supabase.rpc(
-        'get_my_companies'
-      ),
-
-      supabase.rpc(
-        'get_my_professional_links'
-      ),
-
-      supabase.rpc(
-        'get_pending_company_links'
-      ),
-
-      supabase.rpc(
-        'get_my_company_invitations'
-      ),
-
-      supabase.rpc(
-        'get_my_company_contexts'
-      ),
+      supabase
+        .from('works')
+        .select('id', { count: 'exact', head: true })
+        .is('archived_at', null)
+        .neq('status', 'finalizada'),
+      supabase.rpc('get_my_company_contexts'),
     ]);
 
-    if (
-      profileResult.error
-    ) {
-      setMessage(
-        profileResult.error.message
-      );
-    } else {
-      setFullName(
-        profileResult.data
-          ?.full_name ?? ''
-      );
-
-      setJobTitle(
-        profileResult.data
-          ?.job_title ?? ''
-      );
-
-      setCoverageArea(
-        profileResult.data
-          ?.coverage_area ?? ''
-      );
-
-      setAvatarUrl(
-        profileResult.data
-          ?.avatar_url ?? null
-      );
-    }
-
-    if (
-      adminResult.error
-    ) {
-      setHasAdminCompany(false);
-    } else {
-      setHasAdminCompany(
-        Boolean(
-          adminResult.data
-        )
-      );
-    }
-
-    if (
-      myCompaniesResult.error
-    ) {
-      setMessage(
-        myCompaniesResult.error.message
-      );
-
-      setMyCompanies([]);
-    } else {
-      setMyCompanies(
-        (myCompaniesResult.data ??
-          []) as MyCompany[]
-      );
-    }
-
-    if (
-      professionalLinksResult.error
-    ) {
-      setMessage(
-        professionalLinksResult.error
-          .message
-      );
-
-      setProfessionalLinks([]);
-    } else {
-      setProfessionalLinks(
-        (professionalLinksResult.data ??
-          []) as ProfessionalLink[]
-      );
-    }
-
-    if (
-      pendingRequestsResult.error
-    ) {
-      setPendingLinkRequestsCount(
-        0
-      );
-    } else {
-      setPendingLinkRequestsCount(
-        Array.isArray(
-          pendingRequestsResult.data
-        )
-          ? pendingRequestsResult
-              .data.length
-          : 0
-      );
-    }
-
-    if (
-      invitationsResult.error
-    ) {
-      setCompanyInvitationsCount(
-        0
-      );
-    } else {
-      setCompanyInvitationsCount(
-        Array.isArray(
-          invitationsResult.data
-        )
-          ? invitationsResult
-              .data.length
-          : 0
-      );
-    }
-
-    if (
-      contextsResult.error
-    ) {
-      setMessage(
-        contextsResult.error.message
-      );
-
-      setCompanyContexts([]);
-      setActiveCompanyId(null);
-    } else {
-      const contexts =
-        (contextsResult.data ??
-          []) as CompanyContext[];
-
-      setCompanyContexts(
-        contexts
-      );
-
-      const activeContext =
-        contexts.find(
-          (context) =>
-            context.is_active
-        );
-
-      setActiveCompanyId(
-        activeContext
-          ?.company_id ?? null
-      );
-    }
-
-    setLoading(false);
-  }
-
-  async function changeCompanyContext(
-    companyId: string | null
-  ) {
-    if (changingContext) {
+    if (profileResult.error) {
+      setMessage(profileResult.error.message);
+      setLoading(false);
       return;
     }
 
-    setChangingContext(true);
+    const data = profileResult.data;
+    setProfile({
+      fullName: data?.full_name ?? '',
+      phone: data?.phone ?? '',
+      email: authData.user.email ?? '',
+      jobTitle: data?.job_title ?? '',
+      coverageArea: data?.coverage_area ?? '',
+      avatarUrl: data?.avatar_url ?? null,
+      professionalEnabled: Boolean(data?.professional_profile_enabled),
+      activeWorks: worksResult.count ?? 0,
+      links: Array.isArray(contextsResult.data) ? contextsResult.data.length : 0,
+    });
+    setLoading(false);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [loadProfile])
+  );
+
+  async function toggleProfessional(value: boolean) {
+    if (savingToggle) return;
+    const previous = profile.professionalEnabled;
+    setProfile((current) => ({ ...current, professionalEnabled: value }));
+    setSavingToggle(true);
     setMessage('');
 
-    try {
-      const { error } =
-        await supabase.rpc(
-          'set_active_company_context',
-          {
-            p_company_id:
-              companyId,
-          }
-        );
-
-      if (error) {
-        setMessage(
-          error.message
-        );
-
-        return;
-      }
-
-      setActiveCompanyId(
-        companyId
-      );
-
-      setCompanyContexts(
-        (current) =>
-          current.map(
-            (context) => ({
-              ...context,
-              is_active:
-                context.company_id ===
-                companyId,
-            })
-          )
-      );
-
-      setContextModalVisible(
-        false
-      );
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível alterar o contexto profissional.'
-      );
-    } finally {
-      setChangingContext(false);
-    }
-  }
-
-  async function handleLogout() {
-    setLoggingOut(true);
-    setMessage('');
-
-    const { error } =
-      await supabase.auth.signOut();
+    const { error } = await supabase.rpc(
+      'set_my_professional_profile_enabled',
+      { p_enabled: value }
+    );
 
     if (error) {
-      setMessage(
-        error.message
-      );
-
-      setLoggingOut(false);
-      return;
+      setProfile((current) => ({
+        ...current,
+        professionalEnabled: previous,
+      }));
+      setMessage(error.message);
     }
-
-    /*
-     * O RootLayout percebe que não existe mais sessão
-     * e libera automaticamente a tela de Login.
-     */
+    setSavingToggle(false);
   }
 
-  function getStatusLabel(
-    status: string
-  ) {
-    switch (status) {
-      case 'approved':
-        return 'Vínculo ativo';
-
-      case 'pending':
-        return 'Aguardando aprovação';
-
-      case 'rejected':
-        return 'Solicitação recusada';
-
-      default:
-        return status;
-    }
+  function toggleSection(section: Exclude<OpenSection, null>) {
+    setOpenSection((current) => (current === section ? null : section));
   }
-
-  function getStatusStyle(
-    status: string
-  ) {
-    switch (status) {
-      case 'approved':
-        return styles.statusApproved;
-
-      case 'pending':
-        return styles.statusPending;
-
-      case 'rejected':
-        return styles.statusRejected;
-
-      default:
-        return styles.statusDefault;
-    }
-  }
-
-  function getCompanyRoleLabel(
-    role: string
-  ) {
-    switch (role) {
-      case 'owner':
-        return 'Proprietário';
-
-      case 'admin':
-        return 'Administrador';
-
-      default:
-        return role;
-    }
-  }
-
-  function getContextSecondaryLabel(
-    context: CompanyContext
-  ) {
-    if (
-      context.company_role ===
-      'owner'
-    ) {
-      return 'Proprietário';
-    }
-
-    if (
-      context.company_role ===
-      'admin'
-    ) {
-      return 'Administrador';
-    }
-
-    if (
-      context.role_title
-    ) {
-      return context.role_title;
-    }
-
-    return 'Vínculo profissional';
-  }
-
-  const activeContext =
-    companyContexts.find(
-      (context) =>
-        context.company_id ===
-        activeCompanyId
-    ) ?? null;
-
-  const approvedLinks =
-    professionalLinks.filter(
-      (link) =>
-        link.status ===
-        'approved'
-    );
-
-  const pendingOrRejectedLinks =
-    professionalLinks.filter(
-      (link) =>
-        link.status !==
-        'approved'
-    );
-
-  const initial =
-    fullName
-      .trim()
-      .charAt(0)
-      .toUpperCase() || 'F';
 
   if (loading) {
     return (
-      <View
-        style={
-          styles.loadingContainer
-        }
-      >
-        <ActivityIndicator />
-
-        <Text
-          style={
-            styles.loadingText
-          }
-        >
-          Carregando Meu FIO...
-        </Text>
+      <View style={styles.loading}>
+        <ActivityIndicator color={FioColors.gold} />
+        <Text style={styles.loadingText}>Carregando seu perfil...</Text>
       </View>
     );
   }
 
   return (
-    <>
+    <View style={styles.page}>
+      <FioPageHeader
+        eyebrow="ÁREA PRIVADA"
+        title="Meu perfil"
+        subtitle="Seus dados, preferências e visão pública."
+      />
+
       <ScrollView
-        style={styles.page}
-        contentContainerStyle={
-          styles.content
-        }
-        showsVerticalScrollIndicator={
-          false
-        }
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
       >
-        <View
-          style={styles.topBar}
-        >
-          <View>
-            <Text
-              style={styles.brand}
-            >
-              FIO
-            </Text>
-
-            <Text
-              style={
-                styles.brandSubtitle
-              }
-            >
-              GESTÃO DE OBRAS
-            </Text>
-          </View>
-        </View>
-
-        <Text
-          style={styles.pageTitle}
-        >
-          Meu FIO
-        </Text>
-
-        <View
-          style={styles.profileCard}
-        >
-          {avatarUrl ? (
-            <Image
-              source={{
-                uri: avatarUrl,
-              }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View
-              style={
-                styles.avatarFallback
-              }
-            >
-              <Text
-                style={
-                  styles.avatarInitial
-                }
-              >
-                {initial}
-              </Text>
-            </View>
-          )}
-
-          <View
-            style={
-              styles.profileInfo
-            }
-          >
-            <Text
-              style={styles.name}
-            >
-              {fullName ||
-                'Usuário do FIO'}
-            </Text>
-
-            {!!jobTitle && (
-              <Text
-                style={
-                  styles.profileDetail
-                }
-              >
-                {jobTitle}
-              </Text>
-            )}
-
-            {!!coverageArea && (
-              <Text
-                style={
-                  styles.profileDetail
-                }
-              >
-                {coverageArea}
-              </Text>
-            )}
-
-            <Pressable
-              style={
-                styles.inlineAction
-              }
-              onPress={() =>
-                router.push(
-                  '/edit-profile'
-                )
-              }
-            >
-              <Text
-                style={
-                  styles.inlineActionText
-                }
-              >
-                Editar perfil
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <Text
-          style={styles.sectionTitle}
-        >
-          ATUANDO POR
-        </Text>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.contextRow,
-            pressed &&
-              styles.buttonPressed,
-          ]}
-          onPress={() =>
-            setContextModalVisible(
-              true
-            )
-          }
-        >
-          <View
-            style={
-              styles.contextTextArea
-            }
-          >
-            <Text
-              style={
-                styles.contextName
-              }
-            >
-              {activeContext
-                ? activeContext.company_name
-                : 'Sem empresa'}
-            </Text>
-
-            <Text
-              style={
-                styles.contextHint
-              }
-            >
-              Toque para alterar
-            </Text>
-          </View>
-
-          <Text
-            style={styles.chevron}
-          >
-            ›
-          </Text>
-        </Pressable>
-
-        <Text
-          style={styles.sectionTitle}
-        >
-          ACESSOS
-        </Text>
-
-        <View
-          style={styles.listGroup}
-        >
-          <Pressable
-            style={styles.listRow}
-            onPress={() =>
-              router.push(
-                '/works'
-              )
-            }
-          >
-            <View
-              style={
-                styles.listTextArea
-              }
-            >
-              <Text
-                style={
-                  styles.listTitle
-                }
-              >
-                Obras
-              </Text>
-
-              <Text
-                style={
-                  styles.listSubtitle
-                }
-              >
-                Acompanhar minhas obras
-              </Text>
-            </View>
-
-            <Text
-              style={
-                styles.chevron
-              }
-            >
-              ›
-            </Text>
-          </Pressable>
-
-          {hasAdminCompany && (
-            <Pressable
-              style={[
-                styles.listRow,
-                styles.listDivider,
-              ]}
-              onPress={() =>
-                router.push(
-                  '/company-link-requests'
-                )
-              }
-            >
-              <View
-                style={
-                  styles.listTextArea
-                }
-              >
-                <Text
-                  style={
-                    styles.listTitle
-                  }
-                >
-                  Solicitações de vínculo
-                  {pendingLinkRequestsCount >
-                  0
-                    ? ` · ${pendingLinkRequestsCount}`
-                    : ''}
+        <View style={styles.profileCard}>
+          <View style={styles.identityRow}>
+            <View style={styles.avatarFrame}>
+              {profile.avatarUrl ? (
+                <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
+              ) : (
+                <Text style={styles.avatarInitials}>
+                  {initials(profile.fullName)}
                 </Text>
-
-                <Text
-                  style={
-                    styles.listSubtitle
-                  }
-                >
-                  Aprovar ou recusar
-                  profissionais
-                </Text>
-              </View>
-
-              <Text
-                style={
-                  styles.chevron
-                }
-              >
-                ›
-              </Text>
-            </Pressable>
-          )}
-
-          <Pressable
-            style={[
-              styles.listRow,
-              styles.listDivider,
-            ]}
-            onPress={() =>
-              router.push(
-                '/company-invitations'
-              )
-            }
-          >
-            <View
-              style={
-                styles.listTextArea
-              }
-            >
-              <Text
-                style={
-                  styles.listTitle
-                }
-              >
-                Convites recebidos
-                {companyInvitationsCount >
-                0
-                  ? ` · ${companyInvitationsCount}`
-                  : ''}
-              </Text>
-
-              <Text
-                style={
-                  styles.listSubtitle
-                }
-              >
-                Aceitar ou recusar
-                convites de empresas
-              </Text>
-            </View>
-
-            <Text
-              style={
-                styles.chevron
-              }
-            >
-              ›
-            </Text>
-          </Pressable>
-        </View>
-
-        <Text
-          style={styles.sectionTitle}
-        >
-          VIDA PROFISSIONAL
-        </Text>
-
-        <Text
-          style={styles.subsectionTitle}
-        >
-          Minhas empresas
-        </Text>
-
-        {myCompanies.length ===
-        0 ? (
-          <View
-            style={
-              styles.emptyRow
-            }
-          >
-            <Text
-              style={
-                styles.emptyTitle
-              }
-            >
-              Nenhuma empresa própria
-            </Text>
-
-            <Text
-              style={
-                styles.emptyText
-              }
-            >
-              Empresas que você
-              administra aparecerão
-              aqui.
-            </Text>
-          </View>
-        ) : (
-          <View
-            style={
-              styles.listGroup
-            }
-          >
-            {myCompanies.map(
-              (
-                company,
-                index
-              ) => (
-                <Pressable
-                  key={
-                    company.membership_id
-                  }
-                  style={[
-                    styles.listRow,
-                    index > 0 &&
-                      styles.listDivider,
-                  ]}
-                  onPress={() =>
-                    router.push({
-                      pathname:
-                        '/professional-profile',
-                      params: {
-                        companyId:
-                          company.company_id,
-                      },
-                    })
-                  }
-                >
-                  <View
-                    style={
-                      styles.listTextArea
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.listTitle
-                      }
-                    >
-                      {
-                        company.company_name
-                      }
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.listSubtitle
-                      }
-                    >
-                      {getCompanyRoleLabel(
-                        company.role
-                      )}
-                    </Text>
-                  </View>
-
-                  <Text
-                    style={
-                      styles.chevron
-                    }
-                  >
-                    ›
-                  </Text>
-                </Pressable>
-              )
-            )}
-          </View>
-        )}
-
-        <Text
-          style={[
-            styles.subsectionTitle,
-            styles.subsectionSpacing,
-          ]}
-        >
-          Meus vínculos
-        </Text>
-
-        {approvedLinks.length ===
-        0 ? (
-          <View
-            style={
-              styles.emptyRow
-            }
-          >
-            <Text
-              style={
-                styles.emptyTitle
-              }
-            >
-              Nenhum vínculo ativo
-            </Text>
-
-            <Text
-              style={
-                styles.emptyText
-              }
-            >
-              Seus vínculos
-              profissionais ativos
-              aparecerão aqui.
-            </Text>
-          </View>
-        ) : (
-          <View
-            style={
-              styles.listGroup
-            }
-          >
-            {approvedLinks.map(
-              (
-                link,
-                index
-              ) => (
-                <View
-                  key={
-                    link.link_id
-                  }
-                >
-                  <Pressable
-                    style={[
-                      styles.listRow,
-                      index > 0 &&
-                        styles.listDivider,
-                    ]}
-                    onPress={() =>
-                      router.push({
-                        pathname:
-                          '/professional-profile',
-                        params: {
-                          companyId:
-                            link.company_id,
-                        },
-                      })
-                    }
-                  >
-                    <View
-                      style={
-                        styles.listTextArea
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.listTitle
-                        }
-                      >
-                        {
-                          link.company_name
-                        }
-                      </Text>
-
-                      <Text
-                        style={
-                          styles.listSubtitle
-                        }
-                      >
-                        {
-                          link.role_title
-                        }
-                      </Text>
-                    </View>
-
-                    <Text
-                      style={
-                        styles.chevron
-                      }
-                    >
-                      ›
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
-                    style={
-                      styles.leaveLinkAction
-                    }
-                    onPress={() => {
-                      Alert.alert(
-                        'Encerrar vínculo?',
-                        `Você deixará de fazer parte da equipe de ${link.company_name}. O histórico do vínculo será preservado.`,
-                        [
-                          {
-                            text:
-                              'Cancelar',
-                            style:
-                              'cancel',
-                          },
-                          {
-                            text:
-                              'Encerrar vínculo',
-                            style:
-                              'destructive',
-                            onPress:
-                              async () => {
-                                setMessage(
-                                  ''
-                                );
-
-                                const {
-                                  error,
-                                } =
-                                  await supabase.rpc(
-                                    'leave_company_professional_link',
-                                    {
-                                      p_link_id:
-                                        link.link_id,
-                                    }
-                                  );
-
-                                if (
-                                  error
-                                ) {
-                                  setMessage(
-                                    error.message
-                                  );
-
-                                  return;
-                                }
-
-                                if (
-                                  activeCompanyId ===
-                                  link.company_id
-                                ) {
-                                  const {
-                                    error:
-                                      contextError,
-                                  } =
-                                    await supabase.rpc(
-                                      'set_active_company_context',
-                                      {
-                                        p_company_id:
-                                          null,
-                                      }
-                                    );
-
-                                  if (
-                                    contextError
-                                  ) {
-                                    setMessage(
-                                      contextError.message
-                                    );
-
-                                    await loadProfile();
-                                    return;
-                                  }
-                                }
-
-                                setMessage(
-                                  'Vínculo encerrado.'
-                                );
-
-                                await loadProfile();
-                              },
-                          },
-                        ]
-                      );
-                    }}
-                  >
-                    <Text
-                      style={
-                        styles.leaveLinkActionText
-                      }
-                    >
-                      Encerrar vínculo
-                    </Text>
-                  </Pressable>
-                </View>
-              )
-            )}
-          </View>
-        )}
-
-        {pendingOrRejectedLinks.length >
-          0 && (
-          <>
-            <Text
-              style={[
-                styles.subsectionTitle,
-                styles.subsectionSpacing,
-              ]}
-            >
-              Outras solicitações
-            </Text>
-
-            <View
-              style={
-                styles.listGroup
-              }
-            >
-              {pendingOrRejectedLinks.map(
-                (
-                  link,
-                  index
-                ) => (
-                  <View
-                    key={
-                      link.link_id
-                    }
-                    style={[
-                      styles.listRow,
-                      index > 0 &&
-                        styles.listDivider,
-                    ]}
-                  >
-                    <View
-                      style={
-                        styles.listTextArea
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.listTitle
-                        }
-                      >
-                        {
-                          link.company_name
-                        }
-                      </Text>
-
-                      <Text
-                        style={
-                          styles.listSubtitle
-                        }
-                      >
-                        {
-                          link.role_title
-                        }
-                      </Text>
-                    </View>
-
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        getStatusStyle(
-                          link.status
-                        ),
-                      ]}
-                    >
-                      <Text
-                        style={
-                          styles.statusText
-                        }
-                      >
-                        {getStatusLabel(
-                          link.status
-                        )}
-                      </Text>
-                    </View>
-                  </View>
-                )
               )}
             </View>
-          </>
-        )}
 
-        <Pressable
-          style={
-            styles.companySearchButton
-          }
-          onPress={() =>
-            router.push(
-              '/company-link'
-            )
-          }
-        >
-          <Text
-            style={
-              styles.companySearchButtonText
-            }
-          >
-            Buscar vínculo profissional
-          </Text>
-        </Pressable>
+            <View style={styles.identity}>
+              <Text numberOfLines={1} style={styles.name}>
+                {profile.fullName || 'Meu perfil'}
+              </Text>
+              <View style={styles.locationRow}>
+                <Ionicons
+                  name="location-outline"
+                  size={14}
+                  color={FioColors.textMuted}
+                />
+                <Text numberOfLines={1} style={styles.location}>
+                  {profile.coverageArea || 'Localização não informada'}
+                </Text>
+              </View>
+              <View style={styles.privateBadge}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={11}
+                  color={FioColors.green}
+                />
+                <Text style={styles.privateBadgeText}>Conta pessoal · privado</Text>
+              </View>
+            </View>
+
+            <View style={styles.counters}>
+              <Counter value={profile.activeWorks} label="Obras ativas" />
+              <View style={styles.counterDivider} />
+              <Counter value={profile.links} label="Vínculos" />
+            </View>
+          </View>
+
+          <View style={styles.actions}>
+            <CompactAction
+              icon="create-outline"
+              label="Editar meus dados"
+              onPress={() => router.push('/edit-profile')}
+            />
+            <CompactAction
+              icon="eye-outline"
+              label="Ver como os outros veem"
+              onPress={() =>
+                router.push({
+                  pathname: '/my-professional-profile',
+                  params: { preview: '1' },
+                })
+              }
+            />
+            <View style={styles.professionalAction}>
+              <Text numberOfLines={2} style={styles.professionalActionText}>
+                Perfil profissional
+              </Text>
+              <Switch
+                accessibilityLabel="Ativar perfil profissional"
+                value={profile.professionalEnabled}
+                onValueChange={toggleProfessional}
+                disabled={savingToggle}
+                trackColor={{ false: '#D7D5CF', true: '#86A792' }}
+                thumbColor={
+                  profile.professionalEnabled ? FioColors.green : '#F7F5EF'
+                }
+              />
+            </View>
+          </View>
+        </View>
 
         {!!message && (
-          <Text
-            style={
-              styles.message
-            }
-          >
-            {message}
-          </Text>
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{message}</Text>
+          </View>
         )}
 
-        <Pressable
-          style={[
-            styles.logoutButton,
-            loggingOut &&
-              styles.buttonDisabled,
-          ]}
-          onPress={
-            handleLogout
-          }
-          disabled={
-            loggingOut
-          }
-        >
-          {loggingOut ? (
-            <ActivityIndicator
-              color="#A65B32"
-            />
-          ) : (
-            <Text
-              style={
-                styles.logoutButtonText
-              }
-            >
-              Sair do FIO
-            </Text>
-          )}
-        </Pressable>
-
-        <Text
-          style={styles.footer}
-        >
-          Segue o fio da sua obra.
-        </Text>
-      </ScrollView>
-
-      <Modal
-        visible={
-          contextModalVisible
-        }
-        transparent
-        animationType="fade"
-        onRequestClose={() =>
-          setContextModalVisible(
-            false
-          )
-        }
-      >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() =>
-            setContextModalVisible(
-              false
-            )
-          }
-        >
-          <Pressable
-            style={styles.modalCard}
-            onPress={() => {}}
+        <View style={styles.sections}>
+          <ProfileSection
+            icon="person-outline"
+            title="Dados pessoais"
+            subtitle="Identidade e tipo de conta"
+            open={openSection === 'personal'}
+            onPress={() => toggleSection('personal')}
           >
-            <Text
-              style={styles.modalTitle}
-            >
-              Atuar por
-            </Text>
-
-            <Text
-              style={
-                styles.modalSubtitle
-              }
-            >
-              Escolha o contexto
-              profissional que o FIO
-              deve usar.
-            </Text>
-
+            <DataRow label="Nome completo" value={profile.fullName || 'Não informado'} />
+            <DataRow label="Localização" value={profile.coverageArea || 'Não informada'} />
+            <DataRow label="Tipo de conta" value="Conta pessoal" />
             <Pressable
-              style={[
-                styles.contextOption,
-                !activeCompanyId &&
-                  styles.contextOptionSelected,
-              ]}
-              onPress={() =>
-                changeCompanyContext(
-                  null
-                )
-              }
-              disabled={
-                changingContext
-              }
+              style={styles.smallEditButton}
+              onPress={() => router.push('/edit-profile')}
             >
-              <View
-                style={
-                  styles.contextOptionTextArea
-                }
-              >
-                <Text
-                  style={
-                    styles.contextOptionTitle
-                  }
-                >
-                  Sem empresa
-                </Text>
-
-                <Text
-                  style={
-                    styles.contextOptionSubtitle
-                  }
-                >
-                  Contexto pessoal
-                </Text>
-              </View>
-
-              {!activeCompanyId && (
-                <Text
-                  style={
-                    styles.contextCheck
-                  }
-                >
-                  ✓
-                </Text>
-              )}
+              <Ionicons name="create-outline" size={15} color={FioColors.ink} />
+              <Text style={styles.smallEditText}>Editar</Text>
             </Pressable>
+          </ProfileSection>
 
-            {companyContexts.map(
-              (context) => {
-                const selected =
-                  context.company_id ===
-                  activeCompanyId;
+          <ProfileSection
+            icon="call-outline"
+            title="Contato"
+            subtitle="Telefone, e-mail e atuação"
+            open={openSection === 'contact'}
+            onPress={() => toggleSection('contact')}
+          >
+            <DataRow label="Telefone" value={profile.phone || 'Não informado'} />
+            <DataRow label="E-mail" value={profile.email || 'Não informado'} />
+            <DataRow label="Atuação" value={profile.jobTitle || 'Não informada'} />
+          </ProfileSection>
 
-                return (
-                  <Pressable
-                    key={
-                      context.company_id
-                    }
-                    style={[
-                      styles.contextOption,
-                      styles.contextOptionDivider,
-                      selected &&
-                        styles.contextOptionSelected,
-                    ]}
-                    onPress={() =>
-                      changeCompanyContext(
-                        context.company_id
-                      )
-                    }
-                    disabled={
-                      changingContext
-                    }
-                  >
-                    <View
-                      style={
-                        styles.contextOptionTextArea
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.contextOptionTitle
-                        }
-                      >
-                        {
-                          context.company_name
-                        }
-                      </Text>
+          <ProfileSection
+            icon="shield-checkmark-outline"
+            title="Privacidade"
+            subtitle="Controle o que aparece publicamente"
+            open={openSection === 'privacy'}
+            onPress={() => toggleSection('privacy')}
+          >
+            <DataRow label="Meu perfil" value="Somente você" />
+            <DataRow
+              label="Perfil profissional"
+              value={profile.professionalEnabled ? 'Ativo' : 'Desativado'}
+            />
+            <Text style={styles.privacyExplanation}>
+              Seus dados privados não aparecem no perfil profissional nem no
+              perfil da empresa.
+            </Text>
+          </ProfileSection>
+        </View>
 
-                      <Text
-                        style={
-                          styles.contextOptionSubtitle
-                        }
-                      >
-                        {getContextSecondaryLabel(
-                          context
-                        )}
-                      </Text>
-                    </View>
-
-                    {selected && (
-                      <Text
-                        style={
-                          styles.contextCheck
-                        }
-                      >
-                        ✓
-                      </Text>
-                    )}
-                  </Pressable>
-                );
-              }
-            )}
-
-            {changingContext && (
-              <View
-                style={
-                  styles.modalLoading
-                }
-              >
-                <ActivityIndicator />
-              </View>
-            )}
-
-            <Pressable
-              style={
-                styles.modalCloseButton
-              }
-              onPress={() =>
-                setContextModalVisible(
-                  false
-                )
-              }
-              disabled={
-                changingContext
-              }
-            >
-              <Text
-                style={
-                  styles.modalCloseButtonText
-                }
-              >
-                Fechar
-              </Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
-    </>
+        <View style={styles.privateNote}>
+          <Ionicons name="information-circle-outline" size={17} color={FioColors.green} />
+          <Text style={styles.privateNoteText}>
+            Esta é a sua visão privada. Para conferir a visão pública, use “Ver
+            como os outros veem”.
+          </Text>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
-const styles =
-  StyleSheet.create({
-    page: {
-      flex: 1,
-      backgroundColor:
-        '#F7F7F5',
-    },
+function Counter({ value, label }: { value: number; label: string }) {
+  return (
+    <View style={styles.counter}>
+      <Text style={styles.counterValue}>{value}</Text>
+      <Text style={styles.counterLabel}>{label}</Text>
+    </View>
+  );
+}
 
-    content: {
-      width: '100%',
-      maxWidth: 620,
-      alignSelf: 'center',
-      paddingHorizontal: 20,
-      paddingTop: 40,
-      paddingBottom: 48,
-    },
+function CompactAction({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.compactAction, pressed && styles.pressed]}
+      onPress={onPress}
+    >
+      <View style={styles.compactActionIcon}>
+        <Ionicons name={icon} size={17} color={FioColors.ink} />
+      </View>
+      <Text numberOfLines={2} style={styles.compactActionText}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
-    loadingContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor:
-        '#F7F7F5',
-    },
+function ProfileSection({
+  icon,
+  title,
+  subtitle,
+  open,
+  onPress,
+  children,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle: string;
+  open: boolean;
+  onPress: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <View style={styles.sectionCard}>
+      <Pressable style={styles.sectionHeader} onPress={onPress}>
+        <View style={styles.sectionIcon}>
+          <Ionicons name={icon} size={19} color={FioColors.green} />
+        </View>
+        <View style={styles.sectionIdentity}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        </View>
+        <Ionicons
+          name={open ? 'chevron-up-outline' : 'chevron-down-outline'}
+          size={19}
+          color={FioColors.textMuted}
+        />
+      </Pressable>
+      {open && <View style={styles.sectionBody}>{children}</View>}
+    </View>
+  );
+}
 
-    loadingText: {
-      marginTop: 10,
-      fontSize: 13,
-      color: '#777D80',
-    },
+function DataRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.dataRow}>
+      <Text style={styles.dataLabel}>{label}</Text>
+      <Text style={styles.dataValue}>{value}</Text>
+    </View>
+  );
+}
 
-    topBar: {
-      marginBottom: 22,
-    },
-
-    brand: {
-      fontSize: 24,
-      fontWeight: '800',
-      letterSpacing: 2,
-      color: '#2C343A',
-    },
-
-    brandSubtitle: {
-      marginTop: 2,
-      fontSize: 9,
-      fontWeight: '700',
-      letterSpacing: 1.6,
-      color: '#5F7567',
-    },
-
-    pageTitle: {
-      marginBottom: 16,
-      fontSize: 32,
-      fontWeight: '700',
-      color: '#2C343A',
-    },
-
-    profileCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 28,
-      paddingVertical: 4,
-    },
-
-    avatar: {
-      width: 58,
-      height: 58,
-      borderRadius: 29,
-    },
-
-    avatarFallback: {
-      width: 58,
-      height: 58,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 29,
-      backgroundColor:
-        '#2C343A',
-    },
-
-    avatarInitial: {
-      fontSize: 23,
-      fontWeight: '800',
-      color: '#FFFFFF',
-    },
-
-    profileInfo: {
-      flex: 1,
-      marginLeft: 15,
-    },
-
-    name: {
-      fontSize: 19,
-      fontWeight: '800',
-      color: '#2C343A',
-    },
-
-    profileDetail: {
-      marginTop: 2,
-      fontSize: 12,
-      color: '#687177',
-    },
-
-    inlineAction: {
-      alignSelf: 'flex-start',
-      marginTop: 6,
-    },
-
-    inlineActionText: {
-      fontSize: 11,
-      fontWeight: '800',
-      color: '#E07A3A',
-    },
-
-    sectionTitle: {
-      marginTop: 4,
-      marginBottom: 9,
-      fontSize: 10,
-      fontWeight: '800',
-      letterSpacing: 1.3,
-      color: '#5F7567',
-    },
-
-    contextRow: {
-      minHeight: 66,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent:
-        'space-between',
-      marginBottom: 28,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderWidth: 1,
-      borderColor: '#E7E9E6',
-      borderRadius: 14,
-      backgroundColor:
-        '#FFFFFF',
-    },
-
-    contextTextArea: {
-      flex: 1,
-    },
-
-    contextName: {
-      fontSize: 15,
-      fontWeight: '800',
-      color: '#2C343A',
-    },
-
-    contextHint: {
-      marginTop: 3,
-      fontSize: 11,
-      color: '#777D80',
-    },
-
-    listGroup: {
-      marginBottom: 26,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: '#E7E9E6',
-      borderRadius: 14,
-      backgroundColor:
-        '#FFFFFF',
-    },
-
-    listRow: {
-      minHeight: 66,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent:
-        'space-between',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      backgroundColor:
-        '#FFFFFF',
-    },
-
-    listDivider: {
-      borderTopWidth: 1,
-      borderTopColor: '#ECEEEC',
-    },
-
-    listTextArea: {
-      flex: 1,
-      paddingRight: 12,
-    },
-
-    listTitle: {
-      fontSize: 14,
-      fontWeight: '800',
-      color: '#2C343A',
-    },
-
-    listSubtitle: {
-      marginTop: 3,
-      fontSize: 11,
-      color: '#777D80',
-    },
-
-    chevron: {
-      marginLeft: 12,
-      fontSize: 24,
-      color: '#8A9094',
-    },
-
-    subsectionTitle: {
-      marginBottom: 8,
-      fontSize: 13,
-      fontWeight: '800',
-      color: '#2C343A',
-    },
-
-    subsectionSpacing: {
-      marginTop: 2,
-    },
-
-    emptyRow: {
-      marginBottom: 24,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: '#E7E9E6',
-      borderRadius: 14,
-      backgroundColor:
-        '#FFFFFF',
-    },
-
-    emptyTitle: {
-      fontSize: 13,
-      fontWeight: '800',
-      color: '#2C343A',
-    },
-
-    emptyText: {
-      marginTop: 4,
-      fontSize: 11,
-      lineHeight: 17,
-      color: '#777D80',
-    },
-
-    leaveLinkAction: {
-      minHeight: 36,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderTopWidth: 1,
-      borderTopColor: '#F0E4DF',
-      backgroundColor:
-        '#FFF8F7',
-    },
-
-    leaveLinkActionText: {
-      fontSize: 10,
-      fontWeight: '800',
-      color: '#B42318',
-    },
-
-    statusBadge: {
-      borderRadius: 999,
-      paddingHorizontal: 9,
-      paddingVertical: 5,
-    },
-
-    statusApproved: {
-      backgroundColor:
-        '#E8EEE9',
-    },
-
-    statusPending: {
-      backgroundColor:
-        '#FFF1E6',
-    },
-
-    statusRejected: {
-      backgroundColor:
-        '#F2F2F0',
-    },
-
-    statusDefault: {
-      backgroundColor:
-        '#F2F2F0',
-    },
-
-    statusText: {
-      fontSize: 9,
-      fontWeight: '800',
-      color: '#2C343A',
-    },
-
-    companySearchButton: {
-      minHeight: 46,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 28,
-      borderWidth: 1,
-      borderColor: '#D8DCDA',
-      borderRadius: 12,
-      backgroundColor:
-        '#FFFFFF',
-    },
-
-    companySearchButtonText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: '#2C343A',
-    },
-
-    message: {
-      marginBottom: 16,
-      textAlign: 'center',
-      fontSize: 12,
-      color: '#A65B32',
-    },
-
-    logoutButton: {
-      minHeight: 48,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: '#E6D6CD',
-      borderRadius: 12,
-      backgroundColor:
-        '#FFFFFF',
-    },
-
-    logoutButtonText: {
-      fontSize: 13,
-      fontWeight: '800',
-      color: '#A65B32',
-    },
-
-    buttonPressed: {
-      opacity: 0.65,
-    },
-
-    buttonDisabled: {
-      opacity: 0.55,
-    },
-
-    footer: {
-      marginTop: 24,
-      textAlign: 'center',
-      fontSize: 12,
-      color: '#8A9094',
-    },
-
-    modalBackdrop: {
-      flex: 1,
-      justifyContent: 'center',
-      paddingHorizontal: 20,
-      backgroundColor:
-        'rgba(44, 52, 58, 0.35)',
-    },
-
-    modalCard: {
-      width: '100%',
-      maxWidth: 560,
-      alignSelf: 'center',
-      padding: 18,
-      borderRadius: 18,
-      backgroundColor:
-        '#FFFFFF',
-    },
-
-    modalTitle: {
-      fontSize: 22,
-      fontWeight: '800',
-      color: '#2C343A',
-    },
-
-    modalSubtitle: {
-      marginTop: 5,
-      marginBottom: 14,
-      fontSize: 12,
-      lineHeight: 18,
-      color: '#777D80',
-    },
-
-    contextOption: {
-      minHeight: 58,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent:
-        'space-between',
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      borderRadius: 11,
-    },
-
-    contextOptionDivider: {
-      borderTopWidth: 1,
-      borderTopColor: '#ECEEEC',
-    },
-
-    contextOptionSelected: {
-      backgroundColor:
-        '#EEF1ED',
-    },
-
-    contextOptionTextArea: {
-      flex: 1,
-      paddingRight: 12,
-    },
-
-    contextOptionTitle: {
-      fontSize: 14,
-      fontWeight: '800',
-      color: '#2C343A',
-    },
-
-    contextOptionSubtitle: {
-      marginTop: 2,
-      fontSize: 10,
-      color: '#777D80',
-    },
-
-    contextCheck: {
-      fontSize: 18,
-      fontWeight: '800',
-      color: '#5F7567',
-    },
-
-    modalLoading: {
-      paddingVertical: 10,
-      alignItems: 'center',
-    },
-
-    modalCloseButton: {
-      minHeight: 44,
-      marginTop: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: '#D8DCDA',
-      borderRadius: 11,
-      backgroundColor:
-        '#FFFFFF',
-    },
-
-    modalCloseButtonText: {
-      fontSize: 12,
-      fontWeight: '800',
-      color: '#2C343A',
-    },
-  });
+const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: FioColors.canvas },
+  scroll: { flex: 1 },
+  content: {
+    width: '100%',
+    maxWidth: 900,
+    alignSelf: 'center',
+    padding: 16,
+    paddingTop: 22,
+    paddingBottom: 70,
+  },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: FioColors.canvas,
+  },
+  loadingText: { marginTop: 10, fontSize: 12, color: FioColors.textMuted },
+  profileCard: {
+    padding: 16,
+    borderWidth: 1,
+    borderColor: FioColors.line,
+    borderRadius: FioRadius.large,
+    backgroundColor: FioColors.surface,
+    ...FioShadow,
+  },
+  identityRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  avatarFrame: {
+    width: 62,
+    height: 62,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: FioColors.goldSoft,
+    borderRadius: 999,
+    backgroundColor: FioColors.gold,
+  },
+  avatar: { width: '100%', height: '100%', resizeMode: 'cover' },
+  avatarInitials: { fontSize: 20, fontWeight: '900', color: FioColors.ink },
+  identity: { flex: 1, minWidth: 0 },
+  name: { fontSize: 19, fontWeight: '900', color: FioColors.text },
+  locationRow: { marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 3 },
+  location: { flex: 1, fontSize: 10, color: FioColors.textMuted },
+  privateBadge: {
+    alignSelf: 'flex-start',
+    minHeight: 24,
+    marginTop: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    borderRadius: FioRadius.pill,
+    backgroundColor: FioColors.greenSoft,
+  },
+  privateBadgeText: { fontSize: 8, fontWeight: '800', color: FioColors.green },
+  counters: {
+    width: 116,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  counter: { flex: 1, alignItems: 'center', paddingHorizontal: 7 },
+  counterValue: { fontSize: 22, fontWeight: '900', color: FioColors.text },
+  counterLabel: { marginTop: 2, textAlign: 'center', fontSize: 8, color: FioColors.textMuted },
+  counterDivider: { width: 1, height: 38, backgroundColor: FioColors.line },
+  actions: { marginTop: 16, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  compactAction: {
+    minHeight: 54,
+    minWidth: 110,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 9,
+    borderWidth: 1,
+    borderColor: FioColors.line,
+    borderRadius: 13,
+    backgroundColor: FioColors.surfaceMuted,
+  },
+  compactActionIcon: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 9,
+    backgroundColor: FioColors.goldSoft,
+  },
+  compactActionText: { flex: 1, fontSize: 9, lineHeight: 12, fontWeight: '800', color: FioColors.text },
+  professionalAction: {
+    minHeight: 54,
+    minWidth: 160,
+    flex: 1.4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#BFD0C3',
+    borderRadius: 13,
+    backgroundColor: FioColors.greenSoft,
+  },
+  professionalActionText: { flex: 1, fontSize: 9, lineHeight: 12, fontWeight: '800', color: FioColors.green },
+  sections: { marginTop: 16, gap: 10 },
+  sectionCard: {
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: FioColors.line,
+    borderRadius: FioRadius.medium,
+    backgroundColor: FioColors.surface,
+  },
+  sectionHeader: {
+    minHeight: 66,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    paddingHorizontal: 13,
+  },
+  sectionIcon: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
+    backgroundColor: FioColors.greenSoft,
+  },
+  sectionIdentity: { flex: 1, minWidth: 0 },
+  sectionTitle: { fontSize: 13, fontWeight: '900', color: FioColors.text },
+  sectionSubtitle: { marginTop: 2, fontSize: 9, color: FioColors.textMuted },
+  sectionBody: {
+    padding: 13,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#EEEAE2',
+  },
+  dataRow: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEAE2',
+  },
+  dataLabel: { width: 118, fontSize: 9, fontWeight: '800', color: FioColors.textMuted },
+  dataValue: { flex: 1, fontSize: 11, fontWeight: '700', color: FioColors.text },
+  smallEditButton: {
+    minHeight: 38,
+    marginTop: 11,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: FioColors.goldSoft,
+  },
+  smallEditText: { fontSize: 10, fontWeight: '900', color: FioColors.ink },
+  privacyExplanation: { marginTop: 12, fontSize: 10, lineHeight: 16, color: FioColors.textMuted },
+  privateNote: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: 13,
+    borderRadius: 13,
+    backgroundColor: FioColors.greenSoft,
+  },
+  privateNoteText: { flex: 1, fontSize: 10, lineHeight: 15, color: FioColors.green },
+  errorCard: { marginTop: 12, padding: 13, borderRadius: 12, backgroundColor: FioColors.dangerSoft },
+  errorText: { fontSize: 11, color: FioColors.danger },
+  pressed: { opacity: 0.68 },
+});

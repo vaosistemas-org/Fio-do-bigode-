@@ -51,7 +51,7 @@ export default function CompanyLinkScreen() {
 
   function handleBack() {
     Keyboard.dismiss();
-    router.replace('/profile');
+    router.replace('/links');
   }
 
   async function handleSearch() {
@@ -188,7 +188,7 @@ export default function CompanyLinkScreen() {
             onPress={handleBack}
           >
             <Text style={styles.profileButtonText}>
-              Meu FIO
+              Vínculos
             </Text>
           </Pressable>
         </View>

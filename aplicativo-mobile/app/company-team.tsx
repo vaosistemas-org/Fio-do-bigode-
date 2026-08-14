@@ -517,7 +517,7 @@ export default function CompanyTeamScreen() {
         <Pressable
           style={styles.profileButton}
           onPress={() =>
-            router.push('/profile')
+            router.push('/company')
           }
         >
           <Text
@@ -525,7 +525,7 @@ export default function CompanyTeamScreen() {
               styles.profileButtonText
             }
           >
-            Meu FIO
+            Empresa
           </Text>
         </Pressable>
       </View>

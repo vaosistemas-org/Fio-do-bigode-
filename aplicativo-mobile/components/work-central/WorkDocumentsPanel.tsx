@@ -180,6 +180,8 @@ export function WorkDocumentsPanel({
   environments,
   canWrite,
   newRequest = 0,
+  categoryFilter,
+  excludeCategory,
   onCountChange,
   onChanged,
 }: {
@@ -187,6 +189,8 @@ export function WorkDocumentsPanel({
   environments: WorkEnvironment[];
   canWrite: boolean;
   newRequest?: number;
+  categoryFilter?: DocumentCategory;
+  excludeCategory?: DocumentCategory;
   onCountChange?: (count: number) => void;
   onChanged?: () => void;
 }) {
@@ -230,7 +234,13 @@ export function WorkDocumentsPanel({
     } else {
       const next = (documentResult.data ?? []) as WorkDocument[];
       setDocuments(next);
-      onCountChange?.(next.length);
+      onCountChange?.(
+        next.filter(
+          (document) =>
+            (!categoryFilter || document.category === categoryFilter) &&
+            (!excludeCategory || document.category !== excludeCategory)
+        ).length
+      );
     }
 
     if (!companyResult.error) {
@@ -248,18 +258,28 @@ export function WorkDocumentsPanel({
     if (newRequest > 0 && canWrite) openCreate();
   }, [newRequest, canWrite]);
 
+  const scopedDocuments = useMemo(
+    () =>
+      documents.filter(
+        (document) =>
+          (!categoryFilter || document.category === categoryFilter) &&
+          (!excludeCategory || document.category !== excludeCategory)
+      ),
+    [categoryFilter, documents, excludeCategory]
+  );
+
   const visibleDocuments = useMemo(() => {
     if (filter === 'referenced') {
-      return documents.filter((document) => document.is_referenced);
+      return scopedDocuments.filter((document) => document.is_referenced);
     }
-    return documents.filter((document) => document.visibility === filter);
-  }, [documents, filter]);
+    return scopedDocuments.filter((document) => document.visibility === filter);
+  }, [filter, scopedDocuments]);
 
   function resetForm() {
     setEditing(null);
     setTitle('');
     setDescription('');
-    setCategory('other');
+    setCategory(categoryFilter ?? 'other');
     setVisibility('fio_general');
     setEnvironmentId(null);
     setAllowDownload(false);
@@ -554,7 +574,7 @@ export function WorkDocumentsPanel({
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#4937D8" />
+        <ActivityIndicator color="#24583E" />
         <Text style={styles.muted}>Carregando documentos...</Text>
       </View>
     );
@@ -564,7 +584,10 @@ export function WorkDocumentsPanel({
     <View>
       <View style={styles.summaryRow}>
         <View style={styles.summaryTextWrap}>
-          <Text style={styles.summaryTitle}>{documents.length} documentos</Text>
+          <Text style={styles.summaryTitle}>
+            {scopedDocuments.length}{' '}
+            {scopedDocuments.length === 1 ? 'documento' : 'documentos'}
+          </Text>
           <Text style={styles.summarySubtitle}>
             Arquivo único, versões preservadas e acesso controlado.
           </Text>
@@ -590,8 +613,8 @@ export function WorkDocumentsPanel({
         ] as Array<[PanelFilter, string]>).map(([key, label]) => {
           const count =
             key === 'referenced'
-              ? documents.filter((document) => document.is_referenced).length
-              : documents.filter((document) => document.visibility === key).length;
+              ? scopedDocuments.filter((document) => document.is_referenced).length
+              : scopedDocuments.filter((document) => document.visibility === key).length;
           return (
             <Pressable
               key={key}
@@ -620,7 +643,7 @@ export function WorkDocumentsPanel({
 
       {visibleDocuments.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Ionicons name="document-text-outline" size={24} color="#8077C9" />
+          <Ionicons name="document-text-outline" size={24} color="#C79A45" />
           <Text style={styles.emptyTitle}>Nenhum documento neste filtro</Text>
           <Text style={styles.emptyText}>
             {canWrite
@@ -632,7 +655,7 @@ export function WorkDocumentsPanel({
         visibleDocuments.map((document) => (
           <View key={document.id} style={styles.documentCard}>
             <View style={styles.documentIcon}>
-              <Ionicons name="document-text-outline" size={21} color="#4937D8" />
+              <Ionicons name="document-text-outline" size={21} color="#24583E" />
             </View>
             <View style={styles.documentIdentity}>
               <Text style={styles.documentTitle}>{document.title}</Text>
@@ -652,7 +675,7 @@ export function WorkDocumentsPanel({
                   <Text style={styles.versionText}>{formatSize(document.size_bytes)}</Text>
                 )}
                 {document.is_referenced && (
-                  <Ionicons name="bookmark" size={13} color="#4937D8" />
+                  <Ionicons name="bookmark" size={13} color="#24583E" />
                 )}
               </View>
               {!!document.description && (
@@ -662,13 +685,13 @@ export function WorkDocumentsPanel({
               )}
               {!!document.reference_note && (
                 <View style={styles.referenceNote}>
-                  <Ionicons name="bookmark-outline" size={13} color="#4937D8" />
+                  <Ionicons name="bookmark-outline" size={13} color="#24583E" />
                   <Text style={styles.referenceNoteText}>{document.reference_note}</Text>
                 </View>
               )}
               <View style={styles.actionRow}>
                 <Pressable style={styles.smallAction} onPress={() => openDocument(document)}>
-                  <Ionicons name="eye-outline" size={16} color="#4937D8" />
+                  <Ionicons name="eye-outline" size={16} color="#24583E" />
                   <Text style={styles.smallActionText}>Visualizar</Text>
                 </Pressable>
                 {canWrite && document.visibility !== 'company_internal' && (
@@ -676,7 +699,7 @@ export function WorkDocumentsPanel({
                     <Ionicons
                       name={document.is_referenced ? 'bookmark' : 'bookmark-outline'}
                       size={16}
-                      color="#4937D8"
+                      color="#24583E"
                     />
                     <Text style={styles.smallActionText}>
                       {document.is_referenced ? 'Referenciado' : 'Referenciar'}
@@ -721,11 +744,11 @@ export function WorkDocumentsPanel({
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.formBody}>
               <View style={styles.fileActions}>
                 <Pressable style={styles.fileButton} onPress={chooseDocument}>
-                  <Ionicons name="attach-outline" size={21} color="#4937D8" />
+                  <Ionicons name="attach-outline" size={21} color="#24583E" />
                   <Text style={styles.fileButtonText}>Escolher arquivo</Text>
                 </Pressable>
                 <Pressable style={styles.fileButton} onPress={takePhoto}>
-                  <Ionicons name="camera-outline" size={21} color="#4937D8" />
+                  <Ionicons name="camera-outline" size={21} color="#24583E" />
                   <Text style={styles.fileButtonText}>Foto rápida</Text>
                 </Pressable>
               </View>
@@ -764,11 +787,14 @@ export function WorkDocumentsPanel({
 
               <Text style={styles.label}>Categoria</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choiceRow}>
-                {CATEGORY_OPTIONS.map((option) => (
+                {CATEGORY_OPTIONS.filter(
+                  (option) => !categoryFilter || option.value === categoryFilter
+                ).map((option) => (
                   <Pressable
                     key={option.value}
                     style={[styles.choiceChip, category === option.value && styles.choiceChipActive]}
                     onPress={() => setCategory(option.value)}
+                    disabled={Boolean(categoryFilter)}
                   >
                     <Text style={[styles.choiceText, category === option.value && styles.choiceTextActive]}>
                       {option.label}
@@ -813,7 +839,7 @@ export function WorkDocumentsPanel({
                   onPress={() => setVisibility(option.value)}
                 >
                   <View style={styles.permissionIcon}>
-                    <Ionicons name={option.icon} size={20} color="#4937D8" />
+                    <Ionicons name={option.icon} size={20} color="#24583E" />
                   </View>
                   <View style={styles.permissionIdentity}>
                     <Text style={styles.permissionTitle}>{option.label}</Text>
@@ -826,7 +852,7 @@ export function WorkDocumentsPanel({
                   <Ionicons
                     name={visibility === option.value ? 'radio-button-on' : 'radio-button-off'}
                     size={20}
-                    color={visibility === option.value ? '#4937D8' : '#A5ACB8'}
+                    color={visibility === option.value ? '#24583E' : '#A5ACB8'}
                   />
                 </Pressable>
               ))}
@@ -843,7 +869,7 @@ export function WorkDocumentsPanel({
                     value={allowDownload}
                     onValueChange={setAllowDownload}
                     trackColor={{ false: '#D9DDE4', true: '#AFA7F4' }}
-                    thumbColor={allowDownload ? '#4937D8' : '#FFFFFF'}
+                    thumbColor={allowDownload ? '#24583E' : '#FFFFFF'}
                   />
                 </View>
               )}
@@ -956,13 +982,13 @@ const styles = StyleSheet.create({
   summaryTextWrap: { flex: 1, minWidth: 0 },
   summaryTitle: { fontSize: 15, fontWeight: '800', color: '#152033' },
   summarySubtitle: { marginTop: 2, fontSize: 10, lineHeight: 14, color: '#697386' },
-  addButton: { minHeight: 40, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 11, backgroundColor: '#4937D8' },
+  addButton: { minHeight: 40, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 11, backgroundColor: '#24583E' },
   addButtonText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
   filters: { paddingVertical: 12, gap: 7 },
   filterChip: { minHeight: 36, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 999, backgroundColor: '#FFFFFF' },
-  filterChipActive: { borderColor: '#4937D8', backgroundColor: '#F1EFFF' },
+  filterChipActive: { borderColor: '#24583E', backgroundColor: '#E7F1E8' },
   filterText: { fontSize: 10, fontWeight: '700', color: '#697386' },
-  filterTextActive: { color: '#4937D8' },
+  filterTextActive: { color: '#24583E' },
   successCard: { marginBottom: 9, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 10, backgroundColor: '#EAF8F0' },
   successText: { flex: 1, fontSize: 10, color: '#207A50' },
   errorCard: { marginTop: 9, padding: 10, borderRadius: 10, backgroundColor: '#FFF0F0' },
@@ -971,20 +997,20 @@ const styles = StyleSheet.create({
   emptyTitle: { marginTop: 7, fontSize: 12, fontWeight: '800', color: '#34405A' },
   emptyText: { maxWidth: 320, marginTop: 4, textAlign: 'center', fontSize: 9, lineHeight: 13, color: '#7A8394' },
   documentCard: { marginBottom: 8, padding: 10, flexDirection: 'row', gap: 9, borderWidth: 1, borderColor: '#E0E3E8', borderRadius: 13, backgroundColor: '#FFFFFF' },
-  documentIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#F0EEFF' },
+  documentIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#E7F1E8' },
   documentIdentity: { flex: 1, minWidth: 0 },
   documentTitle: { fontSize: 12, fontWeight: '800', color: '#202A3A' },
   documentMeta: { marginTop: 2, fontSize: 9, color: '#697386' },
   tagRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  visibilityTag: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: '#F0EEFF' },
-  visibilityTagText: { fontSize: 8, fontWeight: '800', color: '#4937D8' },
+  visibilityTag: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: '#E7F1E8' },
+  visibilityTagText: { fontSize: 8, fontWeight: '800', color: '#24583E' },
   versionText: { fontSize: 8, fontWeight: '700', color: '#7A8394' },
   documentDescription: { marginTop: 6, fontSize: 9, lineHeight: 13, color: '#596274' },
-  referenceNote: { marginTop: 6, padding: 7, flexDirection: 'row', alignItems: 'flex-start', gap: 5, borderRadius: 8, backgroundColor: '#F5F3FF' },
+  referenceNote: { marginTop: 6, padding: 7, flexDirection: 'row', alignItems: 'flex-start', gap: 5, borderRadius: 8, backgroundColor: '#E7F1E8' },
   referenceNoteText: { flex: 1, fontSize: 8, lineHeight: 12, color: '#596274' },
   actionRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   smallAction: { minHeight: 34, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderColor: '#D9D5F8', borderRadius: 9, backgroundColor: '#FAF9FF' },
-  smallActionText: { fontSize: 8, fontWeight: '800', color: '#4937D8' },
+  smallActionText: { fontSize: 8, fontWeight: '800', color: '#24583E' },
   iconAction: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E0E3E8', borderRadius: 9, backgroundColor: '#FFFFFF' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(16, 24, 40, 0.35)' },
   modalSheet: { maxHeight: '94%', overflow: 'hidden', borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#FFFFFF' },
@@ -996,7 +1022,7 @@ const styles = StyleSheet.create({
   formBody: { padding: 18, paddingBottom: 34 },
   fileActions: { flexDirection: 'row', gap: 8 },
   fileButton: { minHeight: 48, flex: 1, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#CBC6F5', borderRadius: 12, backgroundColor: '#F8F7FF' },
-  fileButtonText: { fontSize: 10, fontWeight: '800', color: '#4937D8' },
+  fileButtonText: { fontSize: 10, fontWeight: '800', color: '#24583E' },
   selectedFile: { marginTop: 9, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, backgroundColor: '#EDF8F2' },
   selectedFileIdentity: { flex: 1, minWidth: 0 },
   selectedFileName: { fontSize: 10, fontWeight: '800', color: '#315847' },
@@ -1006,12 +1032,12 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 82, paddingTop: 12, textAlignVertical: 'top' },
   choiceRow: { gap: 7 },
   choiceChip: { minHeight: 38, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 999, backgroundColor: '#FFFFFF' },
-  choiceChipActive: { borderColor: '#4937D8', backgroundColor: '#F1EFFF' },
+  choiceChipActive: { borderColor: '#24583E', backgroundColor: '#E7F1E8' },
   choiceText: { fontSize: 9, fontWeight: '700', color: '#697386' },
-  choiceTextActive: { color: '#4937D8' },
+  choiceTextActive: { color: '#24583E' },
   permissionOption: { minHeight: 68, marginBottom: 7, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 12, backgroundColor: '#FFFFFF' },
-  permissionOptionActive: { borderColor: '#7467DB', backgroundColor: '#F5F3FF' },
-  permissionIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#ECE9FF' },
+  permissionOptionActive: { borderColor: '#24583E', backgroundColor: '#E7F1E8' },
+  permissionIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#E7F1E8' },
   permissionIdentity: { flex: 1, minWidth: 0 },
   permissionTitle: { fontSize: 10, fontWeight: '800', color: '#34405A' },
   permissionDetail: { marginTop: 2, fontSize: 8, lineHeight: 12, color: '#7A8394' },
@@ -1019,8 +1045,8 @@ const styles = StyleSheet.create({
   switchIdentity: { flex: 1, minWidth: 0 },
   switchTitle: { fontSize: 10, fontWeight: '800', color: '#34405A' },
   switchDetail: { marginTop: 2, fontSize: 8, lineHeight: 12, color: '#7A8394' },
-  uploadLabel: { marginTop: 10, textAlign: 'center', fontSize: 10, color: '#4937D8' },
-  saveButton: { minHeight: 52, marginTop: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: '#4937D8' },
+  uploadLabel: { marginTop: 10, textAlign: 'center', fontSize: 10, color: '#24583E' },
+  saveButton: { minHeight: 52, marginTop: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: '#24583E' },
   saveButtonText: { fontSize: 13, fontWeight: '900', color: '#FFFFFF' },
   referenceBackdrop: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(16, 24, 40, 0.4)' },
   referenceCard: { width: '100%', maxWidth: 420, padding: 18, borderRadius: 18, backgroundColor: '#FFFFFF' },
@@ -1030,7 +1056,7 @@ const styles = StyleSheet.create({
   referenceActions: { marginTop: 13, flexDirection: 'row', gap: 8 },
   referenceCancel: { minHeight: 44, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 11 },
   referenceCancelText: { fontSize: 10, fontWeight: '800', color: '#596274' },
-  referenceSave: { minHeight: 44, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#4937D8' },
+  referenceSave: { minHeight: 44, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#24583E' },
   referenceSaveText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
   previewScreen: { flex: 1, backgroundColor: '#101522' },
   previewHeader: { minHeight: 72, paddingTop: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#101522' },

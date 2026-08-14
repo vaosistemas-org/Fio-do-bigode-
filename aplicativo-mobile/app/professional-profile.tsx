@@ -251,7 +251,7 @@ export default function ProfessionalProfileScreen() {
           }
           onPress={() =>
             router.push(
-              '/profile'
+              '/company'
             )
           }
         >
@@ -260,7 +260,7 @@ export default function ProfessionalProfileScreen() {
               styles.profileButtonText
             }
           >
-            Meu FIO
+            Empresa
           </Text>
         </Pressable>
       </View>

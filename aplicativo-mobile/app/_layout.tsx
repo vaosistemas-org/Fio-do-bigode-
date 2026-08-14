@@ -3,14 +3,19 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   useEffect,
   useState,
 } from 'react';
 import 'react-native-reanimated';
+import { StyleSheet, View } from 'react-native';
 
+import {
+  FIO_SIDEBAR_RAIL_WIDTH,
+  FioGlobalSidebar,
+} from '@/components/fio-shell/FioGlobalSidebar';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
 
@@ -19,6 +24,7 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
+  const pathname = usePathname();
   const colorScheme =
     useColorScheme();
 
@@ -133,6 +139,11 @@ export default function RootLayout() {
     return null;
   }
 
+  const showInternalShell =
+    isAuthenticated &&
+    isProfileComplete &&
+    !pathname.startsWith('/fio/');
+
   return (
     <ThemeProvider
       value={
@@ -141,11 +152,18 @@ export default function RootLayout() {
           : DefaultTheme
       }
     >
-      <Stack
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
+      <View style={styles.application}>
+        <View
+          style={[
+            styles.navigator,
+            showInternalShell && styles.navigatorWithSidebar,
+          ]}
+        >
+          <Stack
+            screenOptions={{
+              headerShown: false,
+            }}
+          >
         {/* USUÁRIO LOGADO + PERFIL COMPLETO */}
         <Stack.Protected
           guard={
@@ -160,6 +178,18 @@ export default function RootLayout() {
           <Stack.Screen
             name="profile"
           />
+
+          <Stack.Screen name="messages" />
+
+          <Stack.Screen name="links" />
+
+          <Stack.Screen name="my-professional-profile" />
+
+          <Stack.Screen name="company" />
+
+          <Stack.Screen name="client-profile" />
+
+          <Stack.Screen name="settings" />
 
           <Stack.Screen
             name="works"
@@ -284,9 +314,19 @@ export default function RootLayout() {
         <Stack.Screen
           name="fio/[token]"
         />
-      </Stack>
+          </Stack>
+        </View>
+
+        {showInternalShell && <FioGlobalSidebar />}
+      </View>
 
       <StatusBar style="auto" />
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  application: { flex: 1 },
+  navigator: { flex: 1 },
+  navigatorWithSidebar: { marginLeft: FIO_SIDEBAR_RAIL_WIDTH },
+});

@@ -1,0 +1,53 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { FioPageHeader } from '@/components/fio-shell/FioPageHeader';
+import { FioColors, FioRadius } from '@/constants/fio-theme';
+import { supabase } from '@/lib/supabase';
+
+type CompanyContext = { company_id: string; company_name: string; relationship_type: string; company_role: string | null; role_title: string | null; is_active: boolean };
+
+export default function CompanyScreen() {
+  const router = useRouter();
+  const [companies, setCompanies] = useState<CompanyContext[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true); setMessage('');
+    const { data, error } = await supabase.rpc('get_my_company_contexts');
+    if (error) setMessage(error.message); else setCompanies((data ?? []) as CompanyContext[]);
+    setLoading(false);
+  }, []);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  return (
+    <View style={styles.page}>
+      <FioPageHeader eyebrow="ÁREA EMPRESARIAL" title="Empresa" subtitle="Perfis empresariais separados do seu perfil pessoal." />
+      <ScrollView contentContainerStyle={styles.content}>
+        {loading ? <ActivityIndicator color={FioColors.gold} /> : companies.length === 0 ? (
+          <View style={styles.empty}><Ionicons name="storefront-outline" size={29} color={FioColors.gold} /><Text style={styles.emptyTitle}>Nenhuma empresa vinculada</Text><Text style={styles.emptyText}>Use Vínculos para encontrar uma empresa ou aceitar um convite.</Text><Pressable style={styles.linkButton} onPress={() => router.push('/links')}><Text style={styles.linkButtonText}>Ir para Vínculos</Text></Pressable></View>
+        ) : companies.map((company) => (
+          <Pressable key={company.company_id} style={styles.companyCard} onPress={() => router.push({ pathname: '/professional-profile', params: { companyId: company.company_id } })}>
+            <View style={styles.companyIcon}><Ionicons name="storefront-outline" size={22} color={FioColors.green} /></View>
+            <View style={styles.companyIdentity}><Text style={styles.companyName}>{company.company_name}</Text><Text style={styles.companyRole}>{company.role_title || company.company_role || (company.relationship_type === 'member' ? 'Membro' : 'Colaborador')}</Text></View>
+            {company.is_active && <View style={styles.activeBadge}><Text style={styles.activeText}>Ativa</Text></View>}
+            <Ionicons name="chevron-forward-outline" size={19} color={FioColors.textSoft} />
+          </Pressable>
+        ))}
+        {!!message && <Text style={styles.error}>{message}</Text>}
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: FioColors.canvas }, content: { width: '100%', maxWidth: 780, alignSelf: 'center', padding: 16, paddingTop: 24, gap: 10 },
+  companyCard: { minHeight: 74, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.medium, backgroundColor: FioColors.surface },
+  companyIcon: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: FioColors.greenSoft }, companyIdentity: { flex: 1 }, companyName: { fontSize: 14, fontWeight: '900', color: FioColors.text }, companyRole: { marginTop: 3, fontSize: 9, color: FioColors.textMuted },
+  activeBadge: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999, backgroundColor: FioColors.greenSoft }, activeText: { fontSize: 8, fontWeight: '900', color: FioColors.green },
+  empty: { alignItems: 'center', padding: 30, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.large, backgroundColor: FioColors.surface }, emptyTitle: { marginTop: 11, fontSize: 16, fontWeight: '900', color: FioColors.text }, emptyText: { marginTop: 6, textAlign: 'center', fontSize: 11, lineHeight: 17, color: FioColors.textMuted },
+  linkButton: { minHeight: 42, marginTop: 14, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 11, backgroundColor: FioColors.ink }, linkButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.white }, error: { padding: 12, color: FioColors.danger, backgroundColor: FioColors.dangerSoft },
+});

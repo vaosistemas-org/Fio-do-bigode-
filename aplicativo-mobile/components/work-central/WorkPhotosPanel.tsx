@@ -332,7 +332,7 @@ export function WorkPhotosPanel({
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#4937D8" />
+        <ActivityIndicator color="#24583E" />
         <Text style={styles.muted}>Carregando galeria...</Text>
       </View>
     );
@@ -368,7 +368,7 @@ export function WorkPhotosPanel({
             onPress={() => beginUpload('gallery')}
             disabled={uploading}
           >
-            <Ionicons name="images-outline" size={20} color="#4937D8" />
+            <Ionicons name="images-outline" size={20} color="#24583E" />
             <Text style={styles.galleryText}>Selecionar várias</Text>
           </Pressable>
         </View>
@@ -376,7 +376,7 @@ export function WorkPhotosPanel({
 
       {uploading && (
         <View style={styles.uploadCard}>
-          <ActivityIndicator color="#4937D8" />
+          <ActivityIndicator color="#24583E" />
           <Text style={styles.uploadText}>{uploadProgress}</Text>
         </View>
       )}
@@ -406,7 +406,7 @@ export function WorkPhotosPanel({
                 />
               ) : (
                 <View style={styles.groupPlaceholder}>
-                  <Ionicons name="images-outline" size={22} color="#7368CE" />
+                  <Ionicons name="images-outline" size={22} color="#24583E" />
                 </View>
               )}
               <View style={styles.groupIdentity}>
@@ -494,7 +494,7 @@ export function WorkPhotosPanel({
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <Pressable style={styles.targetButton} onPress={() => chooseTarget(null)}>
-                <Ionicons name="home-outline" size={21} color="#4937D8" />
+                <Ionicons name="home-outline" size={21} color="#24583E" />
                 <Text style={styles.targetText}>Geral da obra</Text>
                 <Ionicons name="chevron-forward-outline" size={20} color="#7B8496" />
               </Pressable>
@@ -504,7 +504,7 @@ export function WorkPhotosPanel({
                   style={styles.targetButton}
                   onPress={() => chooseTarget(environment.id)}
                 >
-                  <Ionicons name="grid-outline" size={21} color="#4937D8" />
+                  <Ionicons name="grid-outline" size={21} color="#24583E" />
                   <Text style={styles.targetText}>{environment.name}</Text>
                   <Ionicons name="chevron-forward-outline" size={20} color="#7B8496" />
                 </Pressable>
@@ -521,16 +521,16 @@ const styles = StyleSheet.create({
   loading: { minHeight: 90, alignItems: 'center', justifyContent: 'center', gap: 8 },
   muted: { fontSize: 11, color: '#7A8394' },
   summaryRow: { flexDirection: 'row', gap: 9 },
-  summaryCard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: '#F3F2FC' },
-  summaryNumber: { fontSize: 22, fontWeight: '900', color: '#4937D8' },
-  summaryLabel: { marginTop: 2, fontSize: 10, color: '#666180' },
+  summaryCard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: '#F8F6F1' },
+  summaryNumber: { fontSize: 22, fontWeight: '900', color: '#24583E' },
+  summaryLabel: { marginTop: 2, fontSize: 10, color: '#6F736F' },
   actions: { marginTop: 11, flexDirection: 'row', gap: 8 },
-  cameraButton: { minHeight: 47, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: '#4937D8' },
+  cameraButton: { minHeight: 47, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: '#24583E' },
   cameraText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
-  galleryButton: { minHeight: 47, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#CDC8F2', borderRadius: 12 },
-  galleryText: { fontSize: 11, fontWeight: '800', color: '#4937D8' },
-  uploadCard: { marginTop: 10, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 11, backgroundColor: '#F2F1FC' },
-  uploadText: { fontSize: 11, fontWeight: '700', color: '#5E5883' },
+  galleryButton: { minHeight: 47, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#BFD0C3', borderRadius: 12 },
+  galleryText: { fontSize: 11, fontWeight: '800', color: '#24583E' },
+  uploadCard: { marginTop: 10, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 11, backgroundColor: '#F8F6F1' },
+  uploadText: { fontSize: 11, fontWeight: '700', color: '#24583E' },
   errorCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: '#FFF0EE' },
   errorText: { fontSize: 11, color: '#B42318' },
   successCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: '#EEF8F1' },
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   groupCard: { marginTop: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E0E3E9', borderRadius: 13, backgroundColor: '#FFFFFF' },
   groupHeader: { minHeight: 68, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   groupCover: { width: 52, height: 52, borderRadius: 10 },
-  groupPlaceholder: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#EFEDFF' },
+  groupPlaceholder: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#E7F1E8' },
   groupIdentity: { flex: 1 },
   groupTitle: { fontSize: 13, fontWeight: '800', color: '#202B3D' },
   groupCount: { marginTop: 3, fontSize: 10, color: '#778194' },

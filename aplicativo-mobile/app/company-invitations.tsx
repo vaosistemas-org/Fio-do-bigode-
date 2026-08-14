@@ -148,7 +148,7 @@ export default function CompanyInvitationsScreen() {
           `Agora você possui vínculo profissional com ${invitation.company_name}.`,
           [
             {
-              text: 'Voltar ao Meu FIO',
+              text: 'Voltar aos Vínculos',
               onPress: () =>
                 router.back(),
             },
@@ -264,7 +264,7 @@ export default function CompanyInvitationsScreen() {
             styles.backButtonText
           }
         >
-          ‹ Meu FIO
+          ‹ Vínculos
         </Text>
       </Pressable>
 

@@ -22,6 +22,7 @@ import {
   WorkEnvironment,
   WorkParticipant,
 } from '@/components/work-central/types';
+import { FioColors } from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
 type Priority = 'low' | 'normal' | 'high' | 'urgent';
@@ -59,9 +60,8 @@ const PRIORITIES: Array<{
   value: Priority;
   label: string;
 }> = [
-  { value: 'low', label: 'Baixa' },
   { value: 'normal', label: 'Normal' },
-  { value: 'high', label: 'Alta' },
+  { value: 'high', label: 'Importante' },
   { value: 'urgent', label: 'Urgente' },
 ];
 
@@ -556,7 +556,7 @@ export function WorkPendingPanel({
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#4937D8" />
+        <ActivityIndicator color={FioColors.gold} />
         <Text style={styles.muted}>Carregando pendências...</Text>
       </View>
     );
@@ -631,7 +631,7 @@ export function WorkPendingPanel({
                   <View style={styles.badgeRow}>
                     <View style={[styles.priorityBadge, styles[`priority_${item.priority}`]]}>
                       <Text style={styles.priorityText}>
-                        {PRIORITIES.find((option) => option.value === item.priority)?.label}
+                        {PRIORITIES.find((option) => option.value === item.priority)?.label ?? 'Normal'}
                       </Text>
                     </View>
                     {item.blocks_delivery && (
@@ -679,7 +679,7 @@ export function WorkPendingPanel({
                     <View style={styles.evidenceFolder}>
                       <View style={styles.evidenceHeader}>
                         <View style={styles.evidenceIcon}>
-                          <Ionicons name="folder-outline" size={19} color="#4937D8" />
+                          <Ionicons name="folder-outline" size={19} color="#24583E" />
                         </View>
                         <View style={styles.evidenceIdentity}>
                           <Text numberOfLines={1} style={styles.evidenceTitle}>B.O. interno</Text>
@@ -730,7 +730,7 @@ export function WorkPendingPanel({
 
                       {uploadingId === item.id ? (
                         <View style={styles.uploadingRow}>
-                          <ActivityIndicator size="small" color="#4937D8" />
+                          <ActivityIndicator size="small" color="#24583E" />
                           <Text style={styles.uploadingText}>{uploadProgress}</Text>
                         </View>
                       ) : (
@@ -748,7 +748,7 @@ export function WorkPendingPanel({
                             onPress={() => choosePhotos(item.id, 'gallery')}
                             disabled={uploadingId !== null}
                           >
-                            <Ionicons name="images-outline" size={18} color="#4937D8" />
+                            <Ionicons name="images-outline" size={18} color="#24583E" />
                             <Text numberOfLines={1} style={styles.evidenceSecondaryText}>Galeria</Text>
                           </Pressable>
                         </View>
@@ -847,7 +847,6 @@ export function WorkPendingPanel({
                   </Pressable>
                 ))}
               </View>
-
               <Text style={styles.label}>Prioridade</Text>
               <View style={styles.chips}>
                 {PRIORITIES.map((option) => (
@@ -861,6 +860,17 @@ export function WorkPendingPanel({
                     </Text>
                   </Pressable>
                 ))}
+              </View>
+              <View style={styles.priorityInfo}>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={15}
+                  color={FioColors.green}
+                />
+                <Text style={styles.priorityInfoText}>
+                  Importante e Urgente ficam abertos no Meu FIO de quem tiver
+                  permissão para ver esta pendência.
+                </Text>
               </View>
 
               <Text style={styles.label}>Responsável</Text>
@@ -889,7 +899,7 @@ export function WorkPendingPanel({
               <Text style={styles.label}>Prazo</Text>
               <View style={styles.dateRow}>
                 <Pressable style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-                  <Ionicons name="calendar-outline" size={18} color="#4937D8" />
+                  <Ionicons name="calendar-outline" size={18} color="#24583E" />
                   <Text style={styles.dateText}>{formatDate(dueDate)}</Text>
                 </Pressable>
                 {!!dueDate && (
@@ -921,7 +931,7 @@ export function WorkPendingPanel({
                   value={blocksDelivery}
                   onValueChange={setBlocksDelivery}
                   trackColor={{ false: '#D6DAE2', true: '#BEB7F4' }}
-                  thumbColor={blocksDelivery ? '#4937D8' : '#FFFFFF'}
+                  thumbColor={blocksDelivery ? '#24583E' : '#FFFFFF'}
                 />
               </View>
 
@@ -946,16 +956,16 @@ const styles = StyleSheet.create({
   loading: { minHeight: 90, alignItems: 'center', justifyContent: 'center', gap: 8 },
   muted: { fontSize: 11, color: '#7A8394' },
   summaryRow: { flexDirection: 'row', gap: 9 },
-  summaryCard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: '#F3F2FC' },
-  summaryNumber: { fontSize: 22, fontWeight: '900', color: '#4937D8' },
-  summaryLabel: { marginTop: 2, fontSize: 10, color: '#666180' },
-  newButton: { minHeight: 46, marginTop: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: '#4937D8' },
+  summaryCard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: '#F8F6F1' },
+  summaryNumber: { fontSize: 22, fontWeight: '900', color: FioColors.green },
+  summaryLabel: { marginTop: 2, fontSize: 10, color: '#6F736F' },
+  newButton: { minHeight: 46, marginTop: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.ink },
   newButtonText: { fontSize: 12, fontWeight: '800', color: '#FFFFFF' },
   tabs: { marginTop: 13, flexDirection: 'row', gap: 8 },
   tab: { minHeight: 40, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#F0F2F5' },
-  tabActive: { backgroundColor: '#ECE9FF' },
+  tabActive: { backgroundColor: FioColors.greenSoft },
   tabText: { fontSize: 10, fontWeight: '700', color: '#737C8D' },
-  tabTextActive: { color: '#4937D8' },
+  tabTextActive: { color: FioColors.green },
   errorCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: '#FFF0EE' },
   errorText: { fontSize: 11, lineHeight: 16, color: '#B42318' },
   emptyCard: { marginTop: 10, padding: 18, alignItems: 'center', borderRadius: 12, backgroundColor: '#F6F7F9' },
@@ -966,9 +976,9 @@ const styles = StyleSheet.create({
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
   priorityBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999 },
   priority_low: { backgroundColor: '#EEF4F8' },
-  priority_normal: { backgroundColor: '#F0EEFF' },
-  priority_high: { backgroundColor: '#FFF0E6' },
-  priority_urgent: { backgroundColor: '#FFE9E6' },
+  priority_normal: { backgroundColor: FioColors.greenSoft },
+  priority_high: { backgroundColor: FioColors.goldSoft },
+  priority_urgent: { backgroundColor: FioColors.orangeSoft },
   priorityText: { fontSize: 8, fontWeight: '800', color: '#4D5668' },
   blockBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: '#FFE1DD' },
   blockText: { fontSize: 8, fontWeight: '900', color: '#B42318' },
@@ -981,11 +991,11 @@ const styles = StyleSheet.create({
   detail: { marginTop: 8, fontSize: 10, color: '#707A8E' },
   evidenceFolder: { marginTop: 10, padding: 9, borderWidth: 1, borderColor: '#DCD8F5', borderRadius: 11, backgroundColor: '#F8F7FF' },
   evidenceHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  evidenceIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#EAE7FF' },
+  evidenceIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#F6EDDE' },
   evidenceIdentity: { flex: 1, minWidth: 0 },
   evidenceTitle: { fontSize: 10, fontWeight: '900', color: '#2C3150' },
   evidenceHelp: { marginTop: 2, fontSize: 8, lineHeight: 12, color: '#72798A' },
-  evidenceCount: { minWidth: 26, height: 26, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#4937D8' },
+  evidenceCount: { minWidth: 26, height: 26, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#24583E' },
   evidenceCountText: { fontSize: 10, fontWeight: '900', color: '#FFFFFF' },
   evidenceGallery: { paddingTop: 10, gap: 8 },
   evidencePhotoCard: { width: 76, height: 76, overflow: 'hidden', borderRadius: 9, backgroundColor: '#E8EAF0' },
@@ -993,17 +1003,17 @@ const styles = StyleSheet.create({
   evidencePhotoFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   deletePhotoButton: { position: 'absolute', top: 5, right: 5, width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: 'rgba(150, 28, 20, 0.9)' },
   evidenceActions: { marginTop: 9, flexDirection: 'row', gap: 7 },
-  evidencePrimaryButton: { minHeight: 42, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, backgroundColor: '#4937D8' },
+  evidencePrimaryButton: { minHeight: 42, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, backgroundColor: '#24583E' },
   evidencePrimaryText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
   evidenceSecondaryButton: { minHeight: 42, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderColor: '#CFC9F4', borderRadius: 10, backgroundColor: '#FFFFFF' },
-  evidenceSecondaryText: { fontSize: 10, fontWeight: '800', color: '#4937D8' },
+  evidenceSecondaryText: { fontSize: 10, fontWeight: '800', color: '#24583E' },
   uploadingRow: { minHeight: 44, marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   uploadingText: { fontSize: 10, fontWeight: '700', color: '#5C6474' },
   photoErrorCard: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: '#FFF0EE' },
   itemActions: { marginTop: 12, flexDirection: 'row', gap: 8 },
-  editButton: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#CDC8F2', borderRadius: 11 },
-  editText: { fontSize: 11, fontWeight: '800', color: '#4937D8' },
-  finishButton: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#4937D8' },
+  editButton: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#BFD0C3', borderRadius: 11 },
+  editText: { fontSize: 11, fontWeight: '800', color: '#24583E' },
+  finishButton: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#24583E' },
   finishText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(17, 25, 43, 0.38)' },
   modalCard: { maxHeight: '92%', padding: 18, paddingBottom: 26, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#FFFFFF' },
@@ -1015,19 +1025,21 @@ const styles = StyleSheet.create({
   textarea: { minHeight: 90, paddingTop: 12, textAlignVertical: 'top' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   chip: { minHeight: 38, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCE0E7', borderRadius: 999, backgroundColor: '#FFFFFF' },
-  chipActive: { borderColor: '#4937D8', backgroundColor: '#ECE9FF' },
+  chipActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
   chipText: { fontSize: 10, fontWeight: '700', color: '#697386' },
-  chipTextActive: { color: '#4937D8' },
+  chipTextActive: { color: FioColors.green },
+  priorityInfo: { marginTop: 8, flexDirection: 'row', alignItems: 'flex-start', gap: 5 },
+  priorityInfoText: { flex: 1, fontSize: 8, lineHeight: 12, color: FioColors.green },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dateButton: { minHeight: 44, flex: 1, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderColor: '#DCE0E7', borderRadius: 11 },
   dateText: { fontSize: 11, fontWeight: '700', color: '#4F5B70' },
   clearDateButton: { minHeight: 44, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
   clearDateText: { fontSize: 10, fontWeight: '800', color: '#B42318' },
-  switchRow: { marginTop: 17, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, backgroundColor: '#F4F3FC' },
+  switchRow: { marginTop: 17, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, backgroundColor: '#E7F1E8' },
   switchIdentity: { flex: 1 },
   switchTitle: { fontSize: 12, fontWeight: '800', color: '#2B3548' },
   switchHelp: { marginTop: 3, fontSize: 10, lineHeight: 15, color: '#70798C' },
-  saveButton: { minHeight: 50, marginTop: 18, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: '#4937D8' },
+  saveButton: { minHeight: 50, marginTop: 18, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: FioColors.ink },
   disabledButton: { opacity: 0.55 },
   saveText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
 });

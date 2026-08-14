@@ -55,7 +55,5 @@ export type WorkSectionKey =
   | 'pending'
   | 'fio'
   | 'photos'
-  | 'progress'
   | 'measurements'
-  | 'documents'
-  | 'more';
+  | 'documents';
