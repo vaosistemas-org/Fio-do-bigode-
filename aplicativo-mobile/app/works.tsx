@@ -1,7 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,6 +13,11 @@ import {
   View,
 } from 'react-native';
 
+import {
+  FioColors,
+  FioRadius,
+  FioShadow,
+} from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
 type WorkStatus =
@@ -34,11 +41,35 @@ type Work = {
   updated_at: string;
 };
 
-type FilterType =
-  | 'total'
-  | 'em_andamento'
-  | 'aguardando'
-  | 'finalizada';
+type FilterType = 'total' | 'em_andamento' | 'aguardando' | 'finalizada';
+
+type WorkAuxiliaryData = {
+  pending: number;
+  environments: number;
+  photos: number;
+};
+
+type ProfileSummary = {
+  fullName: string;
+  avatarUrl: string | null;
+};
+
+type WorkRelatedRecord = {
+  id: string;
+  work_id: string;
+};
+
+type StatusStyle = {
+  backgroundColor: string;
+  color: string;
+  progressColor: string;
+};
+
+const EMPTY_AUXILIARY_DATA: WorkAuxiliaryData = {
+  pending: 0,
+  environments: 0,
+  photos: 0,
+};
 
 const STATUS_LABELS: Record<WorkStatus, string> = {
   agendada: 'Agendada',
@@ -48,121 +79,179 @@ const STATUS_LABELS: Record<WorkStatus, string> = {
   finalizada: 'Finalizada',
 };
 
-function formatDate(value: string | null) {
-  if (!value) {
-    return 'Não definida';
-  }
+const STATUS_STYLES: Record<WorkStatus, StatusStyle> = {
+  agendada: {
+    backgroundColor: '#ECEDE9',
+    color: '#565C57',
+    progressColor: '#717772',
+  },
+  em_andamento: {
+    backgroundColor: FioColors.greenSoft,
+    color: FioColors.green,
+    progressColor: FioColors.green,
+  },
+  aguardando_peca: {
+    backgroundColor: FioColors.orangeSoft,
+    color: '#A35E00',
+    progressColor: FioColors.orange,
+  },
+  aguardando_cliente: {
+    backgroundColor: FioColors.orangeSoft,
+    color: '#A35E00',
+    progressColor: FioColors.orange,
+  },
+  finalizada: {
+    backgroundColor: FioColors.goldSoft,
+    color: '#76571F',
+    progressColor: FioColors.gold,
+  },
+};
 
+const FILTER_ICONS: Record<FilterType, keyof typeof Ionicons.glyphMap> = {
+  total: 'business-outline',
+  em_andamento: 'play-outline',
+  aguardando: 'hourglass-outline',
+  finalizada: 'checkmark-circle-outline',
+};
+
+function formatDate(value: string | null) {
+  if (!value) return 'Não definida';
   return new Date(value).toLocaleDateString('pt-BR');
 }
 
 function formatUpdatedAt(value: string) {
   const date = new Date(value);
-  const now = new Date();
+  const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60000);
 
-  const diffMilliseconds =
-    now.getTime() - date.getTime();
+  if (diffMinutes < 1) return 'Agora';
+  if (diffMinutes < 60) return `Há ${diffMinutes} min`;
 
-  const diffMinutes = Math.floor(
-    diffMilliseconds / 60000
-  );
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `Há ${diffHours} h`;
 
-  if (diffMinutes < 1) {
-    return 'Atualizada agora';
-  }
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays <= 7) return `Há ${diffDays} d`;
 
-  if (diffMinutes < 60) {
-    return `Atualizada há ${diffMinutes} min`;
-  }
+  return date.toLocaleDateString('pt-BR');
+}
 
-  const diffHours = Math.floor(
-    diffMinutes / 60
-  );
+function getInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 'F';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+}
 
-  if (diffHours < 24) {
-    return `Atualizada há ${diffHours} ${
-      diffHours === 1 ? 'hora' : 'horas'
-    }`;
-  }
-
-  const diffDays = Math.floor(
-    diffHours / 24
-  );
-
-  if (diffDays <= 7) {
-    return `Atualizada há ${diffDays} ${
-      diffDays === 1 ? 'dia' : 'dias'
-    }`;
-  }
-
-  return `Atualizada em ${date.toLocaleDateString(
-    'pt-BR'
-  )}`;
+function makeAuxiliaryMap(workIds: string[]) {
+  return workIds.reduce<Record<string, WorkAuxiliaryData>>((result, id) => {
+    result[id] = { ...EMPTY_AUXILIARY_DATA };
+    return result;
+  }, {});
 }
 
 export default function WorksScreen() {
   const router = useRouter();
-
   const [works, setWorks] = useState<Work[]>([]);
+  const [auxiliaryData, setAuxiliaryData] = useState<
+    Record<string, WorkAuxiliaryData>
+  >({});
+  const [profile, setProfile] = useState<ProfileSummary>({
+    fullName: 'Meu FIO',
+    avatarUrl: null,
+  });
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] =
-    useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
-
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] =
-    useState<FilterType>('total');
+  const [activeFilter, setActiveFilter] = useState<FilterType>('total');
 
-  async function loadWorks(
-    isRefresh = false
-  ) {
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+  async function loadWorks(isRefresh = false) {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
 
     setMessage('');
 
-    const { data, error } = await supabase
-      .from('works')
-      .select(`
-        id,
-        code,
-        client_name,
-        client_phone,
-        address,
-        project_order,
-        status,
-        progress,
-        next_visit_at,
-        notes,
-        updated_at
-      `)
-      .is('archived_at', null)
-      .order('updated_at', {
-        ascending: false,
-      });
+    const [worksResult, userResult] = await Promise.all([
+      supabase
+        .from('works')
+        .select(`
+          id,
+          code,
+          client_name,
+          client_phone,
+          address,
+          project_order,
+          status,
+          progress,
+          next_visit_at,
+          notes,
+          updated_at
+        `)
+        .is('archived_at', null)
+        .order('updated_at', { ascending: false }),
+      supabase.auth.getUser(),
+    ]);
 
-    if (error) {
-      setMessage(error.message);
-
-      if (isRefresh) {
-        setRefreshing(false);
-      } else {
-        setLoading(false);
-      }
-
+    if (worksResult.error) {
+      setMessage(worksResult.error.message);
+      setRefreshing(false);
+      setLoading(false);
       return;
     }
 
-    setWorks((data ?? []) as Work[]);
+    const loadedWorks = (worksResult.data ?? []) as Work[];
+    const workIds = loadedWorks.map((work) => work.id);
+    setWorks(loadedWorks);
 
-    if (isRefresh) {
-      setRefreshing(false);
-    } else {
-      setLoading(false);
+    if (userResult.data.user) {
+      const profileResult = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url')
+        .eq('id', userResult.data.user.id)
+        .maybeSingle();
+
+      if (profileResult.data) {
+        setProfile({
+          fullName: profileResult.data.full_name || 'Meu FIO',
+          avatarUrl: profileResult.data.avatar_url ?? null,
+        });
+      }
     }
+
+    if (workIds.length > 0) {
+      const [pendingResult, environmentsResult, photosResult] = await Promise.all([
+        supabase
+          .from('work_pending_items')
+          .select('id, work_id')
+          .in('work_id', workIds)
+          .eq('status', 'open'),
+        supabase
+          .from('environments')
+          .select('id, work_id')
+          .in('work_id', workIds)
+          .eq('active', true),
+        supabase.from('work_photos').select('id, work_id').in('work_id', workIds),
+      ]);
+
+      const nextAuxiliaryData = makeAuxiliaryMap(workIds);
+
+      ((pendingResult.data ?? []) as WorkRelatedRecord[]).forEach((item) => {
+        nextAuxiliaryData[item.work_id].pending += 1;
+      });
+      ((environmentsResult.data ?? []) as WorkRelatedRecord[]).forEach((item) => {
+        nextAuxiliaryData[item.work_id].environments += 1;
+      });
+      ((photosResult.data ?? []) as WorkRelatedRecord[]).forEach((item) => {
+        nextAuxiliaryData[item.work_id].photos += 1;
+      });
+
+      setAuxiliaryData(nextAuxiliaryData);
+    } else {
+      setAuxiliaryData({});
+    }
+
+    setRefreshing(false);
+    setLoading(false);
   }
 
   useFocusEffect(
@@ -171,113 +260,60 @@ export default function WorksScreen() {
     }, [])
   );
 
-  const counts = useMemo(() => {
-    return {
+  const counts = useMemo(
+    () => ({
       total: works.length,
-
-      em_andamento: works.filter(
-        (work) =>
-          work.status === 'em_andamento'
-      ).length,
-
+      em_andamento: works.filter((work) => work.status === 'em_andamento').length,
       aguardando: works.filter(
         (work) =>
-          work.status ===
-            'aguardando_peca' ||
-          work.status ===
-            'aguardando_cliente'
+          work.status === 'aguardando_peca' ||
+          work.status === 'aguardando_cliente'
       ).length,
-
-      finalizada: works.filter(
-        (work) =>
-          work.status === 'finalizada'
-      ).length,
-    };
-  }, [works]);
+      finalizada: works.filter((work) => work.status === 'finalizada').length,
+    }),
+    [works]
+  );
 
   const filteredWorks = useMemo(() => {
-    const normalizedSearch =
-      search.trim().toLowerCase();
+    const normalizedSearch = search.trim().toLowerCase();
 
     return works.filter((work) => {
-      let matchesFilter = true;
+      const matchesFilter =
+        activeFilter === 'total' ||
+        (activeFilter === 'em_andamento' && work.status === 'em_andamento') ||
+        (activeFilter === 'aguardando' &&
+          (work.status === 'aguardando_peca' ||
+            work.status === 'aguardando_cliente')) ||
+        (activeFilter === 'finalizada' && work.status === 'finalizada');
 
-      if (
-        activeFilter ===
-        'em_andamento'
-      ) {
-        matchesFilter =
-          work.status ===
-          'em_andamento';
-      }
+      if (!matchesFilter) return false;
+      if (!normalizedSearch) return true;
 
-      if (
-        activeFilter === 'aguardando'
-      ) {
-        matchesFilter =
-          work.status ===
-            'aguardando_peca' ||
-          work.status ===
-            'aguardando_cliente';
-      }
-
-      if (
-        activeFilter === 'finalizada'
-      ) {
-        matchesFilter =
-          work.status === 'finalizada';
-      }
-
-      if (!matchesFilter) {
-        return false;
-      }
-
-      if (!normalizedSearch) {
-        return true;
-      }
-
-      const searchableValues = [
+      return [
         work.code,
         work.client_name,
         work.address,
         work.project_order ?? '',
         STATUS_LABELS[work.status],
-      ];
-
-      return searchableValues.some(
-        (value) =>
-          value
-            .toLowerCase()
-            .includes(
-              normalizedSearch
-            )
-      );
+      ].some((value) => value.toLowerCase().includes(normalizedSearch));
     });
-  }, [
-    works,
-    search,
-    activeFilter,
-  ]);
+  }, [works, search, activeFilter]);
+
+  const recentWorks = works.slice(0, 4);
+  const totalPending = Object.values(auxiliaryData).reduce(
+    (total, item) => total + item.pending,
+    0
+  );
 
   function openWork(workId: string) {
-    router.push({
-      pathname: '/works/[id]',
-      params: {
-        id: workId,
-      },
-    });
+    router.push({ pathname: '/works/[id]', params: { id: workId } });
   }
 
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator />
-
-        <Text
-          style={styles.loadingText}
-        >
-          Carregando obras...
-        </Text>
+        <ActivityIndicator color={FioColors.gold} />
+        <Text style={styles.loadingText}>Carregando suas obras...</Text>
       </View>
     );
   }
@@ -285,868 +321,383 @@ export default function WorksScreen() {
   return (
     <ScrollView
       style={styles.page}
-      contentContainerStyle={
-        styles.container
-      }
-      showsVerticalScrollIndicator={
-        false
-      }
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={() =>
-            loadWorks(true)
-          }
+          onRefresh={() => loadWorks(true)}
+          tintColor={FioColors.gold}
         />
       }
     >
-      {/* TOPO */}
-      <View style={styles.topBar}>
-        <View>
-          <Text style={styles.brand}>
-            FIO
-          </Text>
-
-          <Text
-            style={
-              styles.brandSubtitle
-            }
-          >
-            GESTÃO DE OBRAS
-          </Text>
+      <View style={styles.hero}>
+        <View style={styles.brandBlock}>
+          <Text style={styles.brand}>Fio do Bigode</Text>
+          <Text style={styles.brandSubtitle}>GESTÃO DE OBRAS</Text>
         </View>
 
-        <Pressable
-          style={styles.profileButton}
-          onPress={() =>
-            router.replace('/profile')
-          }
-        >
-          <Text
-            style={
-              styles.profileButtonText
-            }
+        <View style={styles.heroActions}>
+          <Pressable
+            accessibilityLabel="Atualizar obras"
+            style={styles.headerIconButton}
+            onPress={() => loadWorks(true)}
           >
-            Meu FIO
-          </Text>
-        </Pressable>
-      </View>
+            <Ionicons name="refresh-outline" size={22} color={FioColors.white} />
+          </Pressable>
 
-      {/* TITULO + NOVA OBRA */}
-      <View style={styles.titleRow}>
-        <View
-          style={styles.titleContent}
-        >
-          <Text style={styles.eyebrow}>
-            OBRAS
-          </Text>
-
-          <Text style={styles.title}>
-            Minhas Obras
-          </Text>
+          <Pressable
+            accessibilityLabel="Abrir Meu FIO"
+            style={styles.avatarButton}
+            onPress={() => router.replace('/profile')}
+          >
+            {profile.avatarUrl ? (
+              <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarInitials}>{getInitials(profile.fullName)}</Text>
+            )}
+          </Pressable>
         </View>
-
-        <Pressable
-          style={
-            styles.newWorkButton
-          }
-          onPress={() =>
-            router.push('/new-work')
-          }
-        >
-          <Text
-            style={
-              styles.newWorkButtonText
-            }
-          >
-            + Nova obra
-          </Text>
-        </Pressable>
       </View>
 
-      <Text style={styles.subtitle}>
-        Acompanhe o andamento das
-        obras em que você participa.
-      </Text>
-
-      {/* BUSCA */}
-      <TextInput
-        style={styles.searchInput}
-        value={search}
-        onChangeText={setSearch}
-        placeholder="Buscar obra, cliente, código ou endereço"
-        placeholderTextColor="#92989B"
-        returnKeyType="search"
-        clearButtonMode="while-editing"
-      />
-
-      {/* FILTROS */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={
-          false
-        }
-        style={
-          styles.filtersScroll
-        }
-        contentContainerStyle={
-          styles.filtersContainer
-        }
-      >
-        <FilterButton
-          label="Total"
-          count={counts.total}
-          active={
-            activeFilter === 'total'
-          }
-          onPress={() =>
-            setActiveFilter('total')
-          }
-        />
-
-        <FilterButton
-          label="Em andamento"
-          count={
-            counts.em_andamento
-          }
-          active={
-            activeFilter ===
-            'em_andamento'
-          }
-          onPress={() =>
-            setActiveFilter(
-              'em_andamento'
-            )
-          }
-        />
-
-        <FilterButton
-          label="Aguardando"
-          count={counts.aguardando}
-          active={
-            activeFilter ===
-            'aguardando'
-          }
-          onPress={() =>
-            setActiveFilter(
-              'aguardando'
-            )
-          }
-        />
-
-        <FilterButton
-          label="Finalizadas"
-          count={counts.finalizada}
-          active={
-            activeFilter ===
-            'finalizada'
-          }
-          onPress={() =>
-            setActiveFilter(
-              'finalizada'
-            )
-          }
-        />
-      </ScrollView>
-
-      {/* RESULTADO */}
-      <View
-        style={
-          styles.resultsHeader
-        }
-      >
-        <Text
-          style={
-            styles.resultsTitle
-          }
-        >
-          {filteredWorks.length}{' '}
-          {filteredWorks.length === 1
-            ? 'obra'
-            : 'obras'}
-        </Text>
-      </View>
-
-      {!!message && (
-        <View style={styles.errorCard}>
-          <Text
-            style={styles.errorText}
-          >
-            {message}
-          </Text>
-        </View>
-      )}
-
-      {!message &&
-        filteredWorks.length === 0 && (
-          <View
-            style={styles.emptyCard}
-          >
-            <Text
-              style={
-                styles.emptyTitle
-              }
-            >
-              {works.length === 0
-                ? 'Nenhuma obra cadastrada'
-                : 'Nenhuma obra encontrada'}
+      <View style={styles.content}>
+        <View style={styles.titleRow}>
+          <View style={styles.titleContent}>
+            <Text style={styles.title}>Suas obras</Text>
+            <Text style={styles.subtitle}>
+              Acompanhe o andamento e abra o FIO de cada projeto.
             </Text>
+          </View>
 
-            <Text
-              style={
-                styles.emptyText
-              }
-            >
+          <Pressable style={styles.newWorkButton} onPress={() => router.push('/new-work')}>
+            <Ionicons name="add" size={18} color={FioColors.white} />
+            <Text style={styles.newWorkButtonText}>Nova obra</Text>
+          </Pressable>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.metricsScroll}
+          contentContainerStyle={styles.metricsContainer}
+        >
+          <MetricCard label="Total" count={counts.total} icon={FILTER_ICONS.total} tone="gold" active={activeFilter === 'total'} onPress={() => setActiveFilter('total')} />
+          <MetricCard label="Em andamento" count={counts.em_andamento} icon={FILTER_ICONS.em_andamento} tone="green" active={activeFilter === 'em_andamento'} onPress={() => setActiveFilter('em_andamento')} />
+          <MetricCard label="Aguardando" count={counts.aguardando} icon={FILTER_ICONS.aguardando} tone="orange" active={activeFilter === 'aguardando'} onPress={() => setActiveFilter('aguardando')} />
+          <MetricCard label="Finalizadas" count={counts.finalizada} icon={FILTER_ICONS.finalizada} tone="green" active={activeFilter === 'finalizada'} onPress={() => setActiveFilter('finalizada')} />
+        </ScrollView>
+
+        {recentWorks.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Atualizações recentes</Text>
+              <Text style={styles.sectionLink}>Mais recentes</Text>
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentScroll} contentContainerStyle={styles.recentContainer}>
+              {recentWorks.map((work) => (
+                <RecentWorkCard key={work.id} work={work} onPress={() => openWork(work.id)} />
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={styles.searchBox}>
+          <Ionicons name="search-outline" size={21} color={FioColors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Buscar cliente, código ou projeto"
+            placeholderTextColor={FioColors.textSoft}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
+          <Ionicons name="options-outline" size={21} color={FioColors.textMuted} />
+        </View>
+
+        <View style={styles.quickActions}>
+          <Pressable style={styles.quickAction} onPress={() => loadWorks(true)}>
+            <Ionicons name="refresh-outline" size={20} color={FioColors.green} />
+            <Text style={styles.quickActionText}>Atualizar</Text>
+          </Pressable>
+          <View style={styles.quickAction}>
+            <Ionicons name="clipboard-outline" size={20} color={FioColors.orange} />
+            <Text style={styles.quickActionText}>Pendências</Text>
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>{totalPending}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.listHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>Minhas obras</Text>
+            <Text style={styles.resultsCount}>
+              {filteredWorks.length} {filteredWorks.length === 1 ? 'obra encontrada' : 'obras encontradas'}
+            </Text>
+          </View>
+          <Text style={styles.orderText}>Mais recentes</Text>
+        </View>
+
+        {!!message && (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{message}</Text>
+          </View>
+        )}
+
+        {!message && filteredWorks.length === 0 && (
+          <View style={styles.emptyCard}>
+            <Ionicons name="business-outline" size={30} color={FioColors.gold} />
+            <Text style={styles.emptyTitle}>
+              {works.length === 0 ? 'Nenhuma obra cadastrada' : 'Nenhuma obra encontrada'}
+            </Text>
+            <Text style={styles.emptyText}>
               {works.length === 0
-                ? 'Quando uma obra for criada, ela aparecerá aqui.'
-                : 'Tente alterar a busca ou os filtros.'}
+                ? 'Crie a primeira obra para começar a organizar seu FIO.'
+                : 'Tente alterar a busca ou selecionar outro indicador.'}
             </Text>
           </View>
         )}
 
-      {/* CARDS */}
-      {filteredWorks.map((work) => {
-        const progress = Math.max(
-          0,
-          Math.min(
-            work.progress ?? 0,
-            100
-          )
-        );
-
-        return (
-          <Pressable
+        {filteredWorks.map((work) => (
+          <WorkCard
             key={work.id}
-            style={styles.workCard}
-            onPress={() =>
-              openWork(work.id)
-            }
-          >
-            <View
-              style={
-                styles.workCardTop
-              }
-            >
-              {/* CAPA PROVISORIA */}
-              <View
-                style={
-                  styles.coverPlaceholder
-                }
-              >
-                <Text
-                  style={
-                    styles.coverInitial
-                  }
-                >
-                  {work.client_name
-                    .trim()
-                    .charAt(0)
-                    .toUpperCase() || 'F'}
-                </Text>
-              </View>
-
-              <View
-                style={
-                  styles.workIdentity
-                }
-              >
-                <Text
-                  style={
-                    styles.workCode
-                  }
-                >
-                  {work.code}
-                </Text>
-
-                <Text
-                  style={
-                    styles.clientName
-                  }
-                  numberOfLines={2}
-                >
-                  {work.client_name}
-                </Text>
-
-                {!!work.project_order && (
-                  <Text
-                    style={
-                      styles.projectOrder
-                    }
-                    numberOfLines={1}
-                  >
-                    {
-                      work.project_order
-                    }
-                  </Text>
-                )}
-              </View>
-            </View>
-
-            <View
-              style={
-                styles.statusRow
-              }
-            >
-              <View
-                style={
-                  styles.statusBadge
-                }
-              >
-                <Text
-                  style={
-                    styles.statusText
-                  }
-                >
-                  {
-                    STATUS_LABELS[
-                      work.status
-                    ]
-                  }
-                </Text>
-              </View>
-
-              <Text
-                style={
-                  styles.progressText
-                }
-              >
-                {progress}%
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.progressBackground
-              }
-            >
-              <View
-                style={[
-                  styles.progressValue,
-                  {
-                    width:
-                      `${progress}%` as `${number}%`,
-                  },
-                ]}
-              />
-            </View>
-
-            <View
-              style={
-                styles.infoSection
-              }
-            >
-              <Text
-                style={
-                  styles.infoLabel
-                }
-              >
-                ENDEREÇO
-              </Text>
-
-              <Text
-                style={
-                  styles.infoValue
-                }
-                numberOfLines={2}
-              >
-                {work.address}
-              </Text>
-            </View>
-
-            <View
-              style={styles.cardDivider}
-            />
-
-            <View
-              style={
-                styles.cardFooter
-              }
-            >
-              <View
-                style={
-                  styles.footerInfo
-                }
-              >
-                <Text
-                  style={
-                    styles.infoLabel
-                  }
-                >
-                  PRÓXIMA VISITA
-                </Text>
-
-                <Text
-                  style={
-                    styles.nextVisit
-                  }
-                >
-                  {formatDate(
-                    work.next_visit_at
-                  )}
-                </Text>
-              </View>
-
-              <Text
-                style={
-                  styles.openWorkText
-                }
-              >
-                Abrir obra ›
-              </Text>
-            </View>
-
-            <Text
-              style={
-                styles.updatedText
-              }
-            >
-              {formatUpdatedAt(
-                work.updated_at
-              )}
-            </Text>
-          </Pressable>
-        );
-      })}
+            work={work}
+            auxiliaryData={auxiliaryData[work.id] ?? EMPTY_AUXILIARY_DATA}
+            onPress={() => openWork(work.id)}
+          />
+        ))}
+      </View>
     </ScrollView>
   );
 }
 
-type FilterButtonProps = {
+type MetricCardProps = {
   label: string;
   count: number;
+  icon: keyof typeof Ionicons.glyphMap;
+  tone: 'gold' | 'green' | 'orange';
   active: boolean;
   onPress: () => void;
 };
 
-function FilterButton({
-  label,
-  count,
-  active,
-  onPress,
-}: FilterButtonProps) {
-  return (
-    <Pressable
-      style={[
-        styles.filterButton,
-        active &&
-          styles.filterButtonActive,
-      ]}
-      onPress={onPress}
-    >
-      <Text
-        style={[
-          styles.filterLabel,
-          active &&
-            styles.filterLabelActive,
-        ]}
-      >
-        {label}
-      </Text>
+function MetricCard({ label, count, icon, tone, active, onPress }: MetricCardProps) {
+  const tones = {
+    gold: { background: FioColors.goldSoft, color: '#806022' },
+    green: { background: FioColors.greenSoft, color: FioColors.green },
+    orange: { background: FioColors.orangeSoft, color: FioColors.orange },
+  };
+  const toneStyle = tones[tone];
 
-      <View
-        style={[
-          styles.filterCount,
-          active &&
-            styles.filterCountActive,
-        ]}
-      >
-        <Text
-          style={[
-            styles.filterCountText,
-            active &&
-              styles.filterCountTextActive,
-          ]}
-        >
-          {count}
-        </Text>
+  return (
+    <Pressable style={[styles.metricCard, active && styles.metricCardActive]} onPress={onPress}>
+      <View style={[styles.metricIcon, { backgroundColor: toneStyle.background }]}>
+        <Ionicons name={icon} size={22} color={toneStyle.color} />
+      </View>
+      <View>
+        <Text style={styles.metricLabel}>{label}</Text>
+        <Text style={styles.metricCount}>{count}</Text>
       </View>
     </Pressable>
   );
 }
 
+type RecentWorkCardProps = {
+  work: Work;
+  onPress: () => void;
+};
+
+function RecentWorkCard({ work, onPress }: RecentWorkCardProps) {
+  const progress = Math.max(0, Math.min(work.progress ?? 0, 100));
+  const statusStyle = STATUS_STYLES[work.status];
+
+  return (
+    <Pressable style={styles.recentCard} onPress={onPress}>
+      <View style={styles.recentCover}>
+        <Text style={styles.recentCoverText}>{getInitials(work.client_name)}</Text>
+      </View>
+      <View style={styles.recentInfo}>
+        <Text style={styles.recentName} numberOfLines={1}>{work.client_name}</Text>
+        <Text style={styles.recentCode}>{work.code}</Text>
+        <Text style={styles.recentUpdated}>{formatUpdatedAt(work.updated_at)}</Text>
+        <View style={styles.recentProgressRow}>
+          <View style={styles.recentProgressBackground}>
+            <View style={[styles.recentProgressValue, { width: `${progress}%` as `${number}%`, backgroundColor: statusStyle.progressColor }]} />
+          </View>
+          <Text style={styles.recentProgressText}>{progress}%</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+type WorkCardProps = {
+  work: Work;
+  auxiliaryData: WorkAuxiliaryData;
+  onPress: () => void;
+};
+
+function WorkCard({ work, auxiliaryData, onPress }: WorkCardProps) {
+  const progress = Math.max(0, Math.min(work.progress ?? 0, 100));
+  const statusStyle = STATUS_STYLES[work.status];
+
+  return (
+    <Pressable style={styles.workCard} onPress={onPress}>
+      <View style={styles.workCardMain}>
+        <View style={styles.workCover}>
+          <Text style={styles.workCoverText}>{getInitials(work.client_name)}</Text>
+        </View>
+
+        <View style={styles.workContent}>
+          <View style={styles.workHeadingRow}>
+            <View style={styles.workIdentity}>
+              <Text style={styles.workCode}>{work.code}</Text>
+              <Text style={styles.clientName} numberOfLines={1}>{work.client_name}</Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: statusStyle.backgroundColor }]}>
+              <View style={[styles.statusDot, { backgroundColor: statusStyle.progressColor }]} />
+              <Text style={[styles.statusText, { color: statusStyle.color }]}>{STATUS_LABELS[work.status]}</Text>
+            </View>
+          </View>
+
+          <View style={styles.workMetadata}>
+            <Ionicons name="calendar-outline" size={14} color={FioColors.textMuted} />
+            <Text style={styles.metadataText}>Próxima visita {formatDate(work.next_visit_at)}</Text>
+          </View>
+
+          <View style={styles.progressRow}>
+            <View style={styles.progressBackground}>
+              <View style={[styles.progressValue, { width: `${progress}%` as `${number}%`, backgroundColor: statusStyle.progressColor }]} />
+            </View>
+            <Text style={styles.progressText}>{progress}%</Text>
+          </View>
+
+          <View style={styles.workStats}>
+            <MiniStat icon="clipboard-outline" label="Pend." value={auxiliaryData.pending} tone="orange" />
+            <MiniStat icon="grid-outline" label="Amb." value={auxiliaryData.environments} tone="gold" />
+            <MiniStat icon="camera-outline" label="Fotos" value={auxiliaryData.photos} tone="green" />
+          </View>
+        </View>
+
+        <Ionicons name="chevron-forward" size={20} color={FioColors.textMuted} />
+      </View>
+
+      <Text style={styles.workAddress} numberOfLines={1}>{work.address}</Text>
+    </Pressable>
+  );
+}
+
+type MiniStatProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: number;
+  tone: 'gold' | 'green' | 'orange';
+};
+
+function MiniStat({ icon, label, value, tone }: MiniStatProps) {
+  const color = tone === 'green' ? FioColors.green : tone === 'orange' ? FioColors.orange : FioColors.gold;
+
+  return (
+    <View style={styles.miniStat}>
+      <Ionicons name={icon} size={14} color={color} />
+      <Text style={styles.miniStatLabel}>{label}</Text>
+      <Text style={styles.miniStatValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: '#F7F7F5',
-  },
-
-  container: {
-    width: '100%',
-    maxWidth: 620,
-    alignSelf: 'center',
-    flexGrow: 1,
+  page: { flex: 1, backgroundColor: FioColors.canvas },
+  container: { width: '100%', maxWidth: 1040, alignSelf: 'center', paddingBottom: 72 },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: FioColors.canvas },
+  loadingText: { marginTop: 10, fontSize: 13, color: FioColors.textMuted },
+  hero: {
+    minHeight: 112,
+    paddingTop: 42,
+    paddingBottom: 18,
     paddingHorizontal: 20,
-    paddingTop: 40,
-    paddingBottom: 70,
-  },
-
-  loading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F7F7F5',
-  },
-
-  loadingText: {
-    marginTop: 10,
-    fontSize: 13,
-    color: '#777D80',
-  },
-
-  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 28,
+    backgroundColor: FioColors.ink,
   },
-
-  brand: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: 2,
-    color: '#2C343A',
-  },
-
-  brandSubtitle: {
-    marginTop: 2,
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1.6,
-    color: '#5F7567',
-  },
-
-  profileButton: {
-    borderWidth: 1,
-    borderColor: '#D8DCDA',
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
-  },
-
-  profileButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2C343A',
-  },
-
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-
-  titleContent: {
-    flex: 1,
-  },
-
-  eyebrow: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.4,
-    color: '#E07A3A',
-  },
-
-  title: {
-    marginTop: 5,
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: '800',
-    color: '#2C343A',
-  },
-
-  newWorkButton: {
-    minHeight: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 999,
-    paddingHorizontal: 15,
-    paddingVertical: 9,
-    backgroundColor: '#E07A3A',
-  },
-
-  newWorkButtonText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-
-  subtitle: {
-    marginTop: 8,
-    marginBottom: 22,
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#737A7E',
-  },
-
-  searchInput: {
-    minHeight: 50,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#DEE2DF',
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    fontSize: 14,
-    color: '#2C343A',
-  },
-
-  filtersScroll: {
-    marginHorizontal: -20,
-    marginTop: 14,
-  },
-
-  filtersContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 4,
-    gap: 8,
-  },
-
-  filterButton: {
-    minHeight: 38,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#DDE1DE',
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
-  },
-
-  filterButtonActive: {
-    borderColor: '#5F7567',
-    backgroundColor: '#EEF1ED',
-  },
-
-  filterLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#747B80',
-  },
-
-  filterLabelActive: {
-    color: '#435649',
-  },
-
-  filterCount: {
-    minWidth: 21,
-    height: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 999,
-    backgroundColor: '#F0F1EF',
-  },
-
-  filterCountActive: {
-    backgroundColor: '#5F7567',
-  },
-
-  filterCountText: {
-    paddingHorizontal: 5,
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#666D71',
-  },
-
-  filterCountTextActive: {
-    color: '#FFFFFF',
-  },
-
-  resultsHeader: {
-    marginTop: 22,
-    marginBottom: 10,
-  },
-
-  resultsTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#858B8F',
-  },
-
-  workCard: {
-    marginBottom: 14,
-    padding: 17,
-    borderWidth: 1,
-    borderColor: '#E4E7E4',
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-  },
-
-  workCardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  coverPlaceholder: {
-    width: 54,
-    height: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    backgroundColor: '#EEF1ED',
-  },
-
-  coverInitial: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#5F7567',
-  },
-
-  workIdentity: {
-    flex: 1,
-    marginLeft: 13,
-  },
-
-  workCode: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    color: '#5F7567',
-  },
-
-  clientName: {
-    marginTop: 3,
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: '800',
-    color: '#2C343A',
-  },
-
-  projectOrder: {
-    marginTop: 3,
-    fontSize: 12,
-    color: '#7B8286',
-  },
-
-  statusRow: {
-    marginTop: 17,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: '#EEF1ED',
-  },
-
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#506455',
-  },
-
-  progressText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#596269',
-  },
-
-  progressBackground: {
-    height: 7,
-    marginTop: 10,
-    borderRadius: 999,
-    overflow: 'hidden',
-    backgroundColor: '#E7E9E7',
-  },
-
-  progressValue: {
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: '#5F7567',
-  },
-
-  infoSection: {
-    marginTop: 17,
-  },
-
-  infoLabel: {
-    marginBottom: 3,
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    color: '#979C9F',
-  },
-
-  infoValue: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600',
-    color: '#50595E',
-  },
-
-  cardDivider: {
-    height: 1,
-    marginVertical: 15,
-    backgroundColor: '#ECEEEC',
-  },
-
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-
-  footerInfo: {
-    flex: 1,
-  },
-
-  nextVisit: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2C343A',
-  },
-
-  openWorkText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#E07A3A',
-  },
-
-  updatedText: {
-    marginTop: 13,
-    fontSize: 10,
-    color: '#9A9FA2',
-  },
-
-  emptyCard: {
-    padding: 28,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E4E7E4',
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-  },
-
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    textAlign: 'center',
-    color: '#2C343A',
-  },
-
-  emptyText: {
-    marginTop: 7,
-    fontSize: 13,
-    lineHeight: 19,
-    textAlign: 'center',
-    color: '#7A8185',
-  },
-
-  errorCard: {
-    padding: 16,
-    borderRadius: 14,
-    backgroundColor: '#FFF2F0',
-  },
-
-  errorText: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: '#B42318',
-  },
+  brandBlock: { flex: 1 },
+  brand: { fontSize: 25, fontFamily: 'serif', fontWeight: '700', color: FioColors.white },
+  brandSubtitle: { marginTop: 2, fontSize: 10, fontWeight: '800', letterSpacing: 1.3, color: FioColors.gold },
+  heroActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerIconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: FioRadius.pill, backgroundColor: FioColors.inkSoft },
+  avatarButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: '#4A4D49', borderRadius: FioRadius.pill, backgroundColor: FioColors.gold },
+  avatarImage: { width: '100%', height: '100%' },
+  avatarInitials: { fontSize: 14, fontWeight: '900', color: FioColors.ink },
+  content: { paddingHorizontal: 16, paddingTop: 26 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  titleContent: { flex: 1 },
+  title: { fontSize: 30, lineHeight: 36, fontWeight: '900', color: FioColors.text },
+  subtitle: { marginTop: 4, fontSize: 13, lineHeight: 19, color: FioColors.textMuted },
+  newWorkButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 15, borderRadius: FioRadius.medium, backgroundColor: FioColors.ink },
+  newWorkButtonText: { fontSize: 13, fontWeight: '800', color: FioColors.white },
+  metricsScroll: { marginHorizontal: -16, marginTop: 22 },
+  metricsContainer: { paddingHorizontal: 16, paddingBottom: 5, gap: 10 },
+  metricCard: { minWidth: 168, minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.medium, backgroundColor: FioColors.surface },
+  metricCardActive: { borderColor: FioColors.gold, backgroundColor: '#FFF9EF' },
+  metricIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: FioRadius.pill },
+  metricLabel: { fontSize: 12, color: FioColors.textMuted },
+  metricCount: { marginTop: 1, fontSize: 24, lineHeight: 27, fontWeight: '900', color: FioColors.text },
+  section: { marginTop: 26 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionTitle: { fontSize: 18, fontWeight: '900', color: FioColors.text },
+  sectionLink: { fontSize: 12, fontWeight: '800', color: FioColors.orange },
+  recentScroll: { marginHorizontal: -16, marginTop: 12 },
+  recentContainer: { paddingHorizontal: 16, paddingBottom: 4, gap: 10 },
+  recentCard: { width: 250, minHeight: 112, flexDirection: 'row', overflow: 'hidden', borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.medium, backgroundColor: FioColors.surface },
+  recentCover: { width: 82, alignItems: 'center', justifyContent: 'center', backgroundColor: FioColors.ink },
+  recentCoverText: { fontSize: 24, fontWeight: '800', color: FioColors.gold },
+  recentInfo: { flex: 1, padding: 12 },
+  recentName: { fontSize: 14, fontWeight: '900', color: FioColors.text },
+  recentCode: { marginTop: 2, fontSize: 11, color: FioColors.textMuted },
+  recentUpdated: { marginTop: 4, fontSize: 10, color: FioColors.textSoft },
+  recentProgressRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  recentProgressBackground: { flex: 1, height: 5, overflow: 'hidden', borderRadius: FioRadius.pill, backgroundColor: '#E7E5DF' },
+  recentProgressValue: { height: '100%', borderRadius: FioRadius.pill },
+  recentProgressText: { fontSize: 10, fontWeight: '900', color: FioColors.text },
+  searchBox: { minHeight: 54, marginTop: 26, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 15, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.medium, backgroundColor: FioColors.surface },
+  searchInput: { flex: 1, paddingVertical: 13, fontSize: 14, color: FioColors.text },
+  quickActions: { marginTop: 10, flexDirection: 'row', gap: 10 },
+  quickAction: { minHeight: 48, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.medium, backgroundColor: FioColors.surface },
+  quickActionText: { fontSize: 12, fontWeight: '800', color: FioColors.text },
+  notificationBadge: { minWidth: 21, height: 21, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, borderRadius: FioRadius.pill, backgroundColor: FioColors.orange },
+  notificationBadgeText: { fontSize: 10, fontWeight: '900', color: FioColors.white },
+  listHeader: { marginTop: 28, marginBottom: 12, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+  resultsCount: { marginTop: 3, fontSize: 11, color: FioColors.textSoft },
+  orderText: { fontSize: 11, color: FioColors.textMuted },
+  workCard: { marginBottom: 12, padding: 13, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.large, backgroundColor: FioColors.surface, ...FioShadow },
+  workCardMain: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  workCover: { width: 70, height: 92, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: FioColors.ink },
+  workCoverText: { fontSize: 23, fontWeight: '800', color: FioColors.gold },
+  workContent: { flex: 1, minWidth: 0 },
+  workHeadingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  workIdentity: { flex: 1, minWidth: 0 },
+  workCode: { fontSize: 10, fontWeight: '700', color: FioColors.textMuted },
+  clientName: { marginTop: 2, fontSize: 16, fontWeight: '900', color: FioColors.text },
+  statusBadge: { maxWidth: 126, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: FioRadius.pill },
+  statusDot: { width: 7, height: 7, borderRadius: FioRadius.pill },
+  statusText: { flexShrink: 1, fontSize: 10, fontWeight: '800' },
+  workMetadata: { marginTop: 7, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  metadataText: { flex: 1, fontSize: 10, color: FioColors.textMuted },
+  progressRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  progressBackground: { flex: 1, height: 6, overflow: 'hidden', borderRadius: FioRadius.pill, backgroundColor: '#E6E4DE' },
+  progressValue: { height: '100%', borderRadius: FioRadius.pill },
+  progressText: { width: 32, fontSize: 11, fontWeight: '900', color: FioColors.text },
+  workStats: { marginTop: 10, paddingTop: 9, flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#ECE9E2' },
+  miniStat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  miniStatLabel: { fontSize: 9, color: FioColors.textMuted },
+  miniStatValue: { fontSize: 10, fontWeight: '900', color: FioColors.text },
+  workAddress: { marginTop: 10, paddingTop: 9, borderTopWidth: 1, borderTopColor: '#ECE9E2', fontSize: 10, color: FioColors.textSoft },
+  emptyCard: { padding: 28, alignItems: 'center', borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.large, backgroundColor: FioColors.surface },
+  emptyTitle: { marginTop: 10, fontSize: 16, fontWeight: '900', textAlign: 'center', color: FioColors.text },
+  emptyText: { marginTop: 6, fontSize: 13, lineHeight: 19, textAlign: 'center', color: FioColors.textMuted },
+  errorCard: { padding: 16, borderRadius: FioRadius.medium, backgroundColor: FioColors.dangerSoft },
+  errorText: { fontSize: 13, lineHeight: 19, color: FioColors.danger },
 });
