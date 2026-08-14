@@ -16,11 +16,12 @@ import {
 } from 'react-native';
 
 import { WorkEnvironment } from '@/components/work-central/types';
+import { WorkGeneralLinkManager } from '@/components/work-central/WorkGeneralLinkManager';
 import { supabase } from '@/lib/supabase';
 
 type TimelineFilter = 'all' | 'general' | string;
 type TimelineCategory = 'all' | 'updates' | 'photos' | 'pending';
-type DiaryVisibility = 'internal' | 'shared';
+type DiaryVisibility = 'internal' | 'shared' | 'company';
 type PhotoSource = 'camera' | 'gallery';
 
 type DraftPhoto = {
@@ -93,6 +94,7 @@ function formatTime(value: string) {
 }
 
 function eventIcon(eventType: string | null): keyof typeof Ionicons.glyphMap {
+  if (eventType?.startsWith('DOCUMENTO_')) return 'document-text-outline';
   if (eventType?.startsWith('FOTO_')) return 'camera-outline';
   if (eventType?.startsWith('PENDENCIA_')) return 'alert-circle-outline';
   if (eventType?.includes('AMBIENTE')) return 'grid-outline';
@@ -128,12 +130,14 @@ export function WorkTimelinePanel({
   workId,
   environments,
   canWrite,
+  canManage = false,
   newEntryRequest = 0,
   onChanged,
 }: {
   workId: string;
   environments: WorkEnvironment[];
   canWrite: boolean;
+  canManage?: boolean;
   newEntryRequest?: number;
   onChanged?: () => void;
 }) {
@@ -483,6 +487,11 @@ export function WorkTimelinePanel({
         </View>
       </View>
 
+      <WorkGeneralLinkManager
+        workId={workId}
+        canManage={canManage}
+      />
+
       <Text style={styles.filterLabel}>FILTRAR POR LOCAL</Text>
       <ScrollView
         horizontal
@@ -713,18 +722,24 @@ export function WorkTimelinePanel({
                                   styles.visibilityBadge,
                                   event.visibility === 'shared' &&
                                     styles.visibilityBadgeShared,
+                                  event.visibility === 'company' &&
+                                    styles.visibilityBadgeCompany,
                                 ]}
                               >
                                 <Ionicons
                                   name={
                                     event.visibility === 'shared'
                                       ? 'eye-outline'
+                                      : event.visibility === 'company'
+                                      ? 'business-outline'
                                       : 'lock-closed-outline'
                                   }
                                   size={11}
                                   color={
                                     event.visibility === 'shared'
                                       ? '#207A50'
+                                      : event.visibility === 'company'
+                                      ? '#4937D8'
                                       : '#697386'
                                   }
                                 />
@@ -733,10 +748,14 @@ export function WorkTimelinePanel({
                                     styles.visibilityText,
                                     event.visibility === 'shared' &&
                                       styles.visibilityTextShared,
+                                    event.visibility === 'company' &&
+                                      styles.visibilityTextCompany,
                                   ]}
                                 >
                                   {event.visibility === 'shared'
                                     ? 'Visível'
+                                    : event.visibility === 'company'
+                                    ? 'Empresa'
                                     : 'Equipe'}
                                 </Text>
                               </View>
@@ -1027,8 +1046,10 @@ const styles = StyleSheet.create({
   eventScope: { flex: 1, fontSize: 9, fontWeight: '800', color: '#4937D8' },
   visibilityBadge: { minHeight: 22, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, backgroundColor: '#F0F2F5' },
   visibilityBadgeShared: { backgroundColor: '#EAF8F0' },
+  visibilityBadgeCompany: { backgroundColor: '#F0EEFF' },
   visibilityText: { fontSize: 8, fontWeight: '800', color: '#697386' },
   visibilityTextShared: { color: '#207A50' },
+  visibilityTextCompany: { color: '#4937D8' },
   actorRow: { marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 4 },
   eventActor: { flex: 1, fontSize: 8, color: '#7C8596' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(17, 25, 43, 0.38)' },

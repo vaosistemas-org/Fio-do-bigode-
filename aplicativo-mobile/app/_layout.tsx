@@ -146,6 +146,11 @@ export default function RootLayout() {
           headerShown: false,
         }}
       >
+        {/* LEITURA EXTERNA DO FIO GERAL */}
+        <Stack.Screen
+          name="fio/[token]"
+        />
+
         {/* USUÁRIO LOGADO + PERFIL COMPLETO */}
         <Stack.Protected
           guard={

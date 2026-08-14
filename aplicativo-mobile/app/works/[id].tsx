@@ -23,6 +23,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExpandableWorkSection } from '@/components/work-central/ExpandableWorkSection';
+import { WorkDocumentsPanel } from '@/components/work-central/WorkDocumentsPanel';
 import { WorkPendingPanel } from '@/components/work-central/WorkPendingPanel';
 import { WorkPhotosPanel } from '@/components/work-central/WorkPhotosPanel';
 import { WorkTimelinePanel } from '@/components/work-central/WorkTimelinePanel';
@@ -108,6 +109,8 @@ export default function WorkDetailsScreen() {
   const [cameraRequest, setCameraRequest] = useState(0);
   const [pendingCreateRequest, setPendingCreateRequest] = useState(0);
   const [timelineCreateRequest, setTimelineCreateRequest] = useState(0);
+  const [documentCreateRequest, setDocumentCreateRequest] = useState(0);
+  const [documentCount, setDocumentCount] = useState(0);
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
 
   const {
@@ -606,6 +609,7 @@ export default function WorkDetailsScreen() {
                     workId={work.id}
                     environments={environments}
                     canWrite={canWrite}
+                    canManage={canManage}
                     newEntryRequest={timelineCreateRequest}
                     onChanged={() => loadCentral(true)}
                   />
@@ -670,10 +674,18 @@ export default function WorkDetailsScreen() {
                   title="Documentos"
                   subtitle="Arquivos da obra e dos ambientes"
                   icon="document-text-outline"
+                  badge={documentCount ? String(documentCount) : undefined}
                   open={openSection === 'documents'}
                   onPress={() => toggle('documents')}
                 >
-                  <Placeholder text="Área reservada para a implementação de amanhã." />
+                  <WorkDocumentsPanel
+                    workId={work.id}
+                    environments={environments}
+                    canWrite={canWrite}
+                    newRequest={documentCreateRequest}
+                    onCountChange={setDocumentCount}
+                    onChanged={() => loadCentral(true)}
+                  />
                 </ExpandableWorkSection>
 
                 {!!message && (
@@ -818,7 +830,10 @@ export default function WorkDetailsScreen() {
                   <Pressable
                     style={styles.actionItem}
                     onPress={() =>
-                      runAction(() => setOpenSection('documents'))
+                      runAction(() => {
+                        setOpenSection('documents');
+                        setDocumentCreateRequest((value) => value + 1);
+                      })
                     }
                   >
                     <View style={styles.actionIcon}>
