@@ -104,7 +104,6 @@ async function getPublicFileUrl(
     {
       headers: {
         apikey: supabasePublishableKey,
-        Authorization: `Bearer ${supabasePublishableKey}`,
       },
     }
   );

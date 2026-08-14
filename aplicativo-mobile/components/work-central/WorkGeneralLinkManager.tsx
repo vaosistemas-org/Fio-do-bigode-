@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -37,9 +36,7 @@ function expiryDate(option: ExpiryOption) {
 
 function publicUrl(token: string) {
   const webBase = process.env.EXPO_PUBLIC_FIO_WEB_URL?.replace(/\/$/, '');
-  return webBase
-    ? `${webBase}/fio/${token}`
-    : Linking.createURL(`/fio/${token}`);
+  return webBase ? `${webBase}/fio/${token}` : '';
 }
 
 export function WorkGeneralLinkManager({
@@ -133,7 +130,13 @@ export function WorkGeneralLinkManager({
   }
 
   async function shareLink() {
-    if (!url) return;
+    if (!url) {
+      Alert.alert(
+        'Endereço público ainda não configurado',
+        'Publique a versão web do FIO antes de compartilhar o link ou QR.'
+      );
+      return;
+    }
     await Share.share({
       title: 'FIO geral da obra',
       message: `Acompanhe o FIO geral da obra em modo somente leitura:\n${url}`,
@@ -177,7 +180,13 @@ export function WorkGeneralLinkManager({
                 </View>
                 <Text style={styles.accessText}>{link.access_count} acessos</Text>
               </View>
-              <Text numberOfLines={2} selectable style={styles.urlText}>{url}</Text>
+              {url ? (
+                <Text numberOfLines={2} selectable style={styles.urlText}>{url}</Text>
+              ) : (
+                <Text style={styles.pendingUrlText}>
+                  Endereço público aguardando a primeira publicação web.
+                </Text>
+              )}
               <Text style={styles.expiryText}>
                 {link.expires_at
                   ? `Válido até ${new Date(link.expires_at).toLocaleDateString('pt-BR')}`
@@ -188,7 +197,11 @@ export function WorkGeneralLinkManager({
                   <Ionicons name="share-social-outline" size={17} color="#FFFFFF" />
                   <Text style={styles.primaryActionText}>Compartilhar</Text>
                 </Pressable>
-                <Pressable style={styles.secondaryAction} onPress={() => setQrVisible(true)}>
+                <Pressable
+                  disabled={!url}
+                  style={[styles.secondaryAction, !url && styles.disabled]}
+                  onPress={() => setQrVisible(true)}
+                >
                   <Ionicons name="qr-code-outline" size={17} color="#4937D8" />
                   <Text style={styles.secondaryActionText}>Ver QR</Text>
                 </Pressable>
@@ -275,6 +288,7 @@ const styles = StyleSheet.create({
   activeText: { fontSize: 8, fontWeight: '800', color: '#207A50' },
   accessText: { fontSize: 8, color: '#7A8394' },
   urlText: { marginTop: 8, fontSize: 9, lineHeight: 13, color: '#4937D8' },
+  pendingUrlText: { marginTop: 8, fontSize: 9, lineHeight: 13, color: '#A06A24' },
   expiryText: { marginTop: 3, fontSize: 8, color: '#7A8394' },
   actionRow: { marginTop: 9, flexDirection: 'row', gap: 7 },
   primaryAction: { minHeight: 40, flex: 1, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, backgroundColor: '#4937D8' },
