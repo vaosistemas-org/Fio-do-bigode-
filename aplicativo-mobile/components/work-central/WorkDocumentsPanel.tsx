@@ -1,11 +1,15 @@
 import { decode } from 'base64-arraybuffer';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 // @ts-ignore installed with the Expo SDK 54 dependencies declared in package.json
 import * as DocumentPicker from 'expo-document-picker';
 // @ts-ignore installed with the Expo SDK 54 dependencies declared in package.json
 import { File as ExpoFile } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import * as Linking from 'expo-linking';
+import {
+  openBrowserAsync,
+  WebBrowserPresentationStyle,
+} from 'expo-web-browser';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -78,6 +82,11 @@ type PickedFile = {
   base64?: string | null;
 };
 
+type DocumentPreview = {
+  title: string;
+  url: string;
+};
+
 const CATEGORY_OPTIONS: Array<{
   value: DocumentCategory;
   label: string;
@@ -148,6 +157,11 @@ function titleFromFileName(value: string) {
   return value.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
 }
 
+function isImageDocument(document: WorkDocument) {
+  if (document.mime_type?.startsWith('image/')) return true;
+  return /\.(avif|heic|heif|jpe?g|png|webp)$/i.test(document.file_name ?? '');
+}
+
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error) return error.message;
   if (
@@ -199,6 +213,8 @@ export function WorkDocumentsPanel({
     useState<WorkDocument | null>(null);
   const [referenceNote, setReferenceNote] = useState('');
   const [referenceSaving, setReferenceSaving] = useState(false);
+  const [documentPreview, setDocumentPreview] =
+    useState<DocumentPreview | null>(null);
 
   async function loadDocuments() {
     setLoading(true);
@@ -454,7 +470,13 @@ export function WorkDocumentsPanel({
       Alert.alert('Não foi possível abrir', error?.message ?? 'Tente novamente.');
       return;
     }
-    await Linking.openURL(data.signedUrl);
+    if (isImageDocument(document)) {
+      setDocumentPreview({ title: document.title, url: data.signedUrl });
+      return;
+    }
+    await openBrowserAsync(data.signedUrl, {
+      presentationStyle: WebBrowserPresentationStyle.FORM_SHEET,
+    });
   }
 
   async function toggleReference(document: WorkDocument) {
@@ -894,6 +916,35 @@ export function WorkDocumentsPanel({
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={!!documentPreview}
+        animationType="fade"
+        onRequestClose={() => setDocumentPreview(null)}
+      >
+        <View style={styles.previewScreen}>
+          <View style={styles.previewHeader}>
+            <Text numberOfLines={1} style={styles.previewTitle}>
+              {documentPreview?.title}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Fechar visualização"
+              style={styles.previewClose}
+              onPress={() => setDocumentPreview(null)}
+            >
+              <Ionicons name="close-outline" size={27} color="#FFFFFF" />
+            </Pressable>
+          </View>
+          {!!documentPreview && (
+            <Image
+              source={{ uri: documentPreview.url }}
+              contentFit="contain"
+              style={styles.previewImage}
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -981,5 +1032,10 @@ const styles = StyleSheet.create({
   referenceCancelText: { fontSize: 10, fontWeight: '800', color: '#596274' },
   referenceSave: { minHeight: 44, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#4937D8' },
   referenceSaveText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
+  previewScreen: { flex: 1, backgroundColor: '#101522' },
+  previewHeader: { minHeight: 72, paddingTop: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#101522' },
+  previewTitle: { flex: 1, fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
+  previewClose: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.12)' },
+  previewImage: { flex: 1, width: '100%' },
   disabled: { opacity: 0.45 },
 });
