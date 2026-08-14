@@ -148,6 +148,19 @@ function titleFromFileName(value: string) {
   return value.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message;
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return error.message;
+  }
+  return fallback;
+}
+
 export function WorkDocumentsPanel({
   workId,
   environments,
@@ -390,7 +403,10 @@ export function WorkDocumentsPanel({
         const { data, error } = await supabase.rpc('create_work_document', {
           p_work_id: workId,
           p_environment_id: environmentId,
-          p_owner_company_id: activeCompany?.company_id ?? null,
+          p_owner_company_id:
+            visibility === 'company_internal'
+              ? activeCompany?.company_id ?? null
+              : null,
           p_title: title.trim(),
           p_description: description.trim() || null,
           p_category: category,
@@ -418,7 +434,7 @@ export function WorkDocumentsPanel({
         });
       }
       setModalMessage(
-        error instanceof Error ? error.message : 'Não foi possível salvar o documento.'
+        getErrorMessage(error, 'Não foi possível salvar o documento.')
       );
     } finally {
       setSaving(false);
