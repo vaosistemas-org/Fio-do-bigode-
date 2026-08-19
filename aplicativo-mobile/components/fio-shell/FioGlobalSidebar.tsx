@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FioColors, FioShadow } from '@/constants/fio-theme';
 
-type SidebarLevel = 0 | 1 | 2;
+type SidebarLevel = 0 | 2;
 
 type NavigationItem = {
   key: string;
@@ -90,7 +90,7 @@ const NAVIGATION: NavigationItem[] = [
   },
 ];
 
-export const FIO_SIDEBAR_RAIL_WIDTH = 54;
+export const FIO_SIDEBAR_RAIL_WIDTH = 22;
 
 export function FioGlobalSidebar() {
   const router = useRouter();
@@ -103,16 +103,19 @@ export function FioGlobalSidebar() {
     [pathname]
   );
 
-  const items = level === 0 ? [activeItem] : NAVIGATION;
-  const width = level === 2 ? 238 : level === 1 ? 66 : FIO_SIDEBAR_RAIL_WIDTH;
+  const width = level === 2 ? 220 : FIO_SIDEBAR_RAIL_WIDTH;
 
-  function cycleLevel() {
-    setLevel((current) => ((current + 1) % 3) as SidebarLevel);
+  function expandMenu() {
+    setLevel(2);
+  }
+
+  function collapseMenu() {
+    setLevel(0);
   }
 
   function open(item: NavigationItem) {
     if (level === 0) {
-      setLevel(1);
+      expandMenu();
       return;
     }
 
@@ -130,41 +133,48 @@ export function FioGlobalSidebar() {
           styles.sidebar,
           {
             width,
+            paddingHorizontal: level === 0 ? 0 : 6,
             paddingTop: Math.max(insets.top, 14),
             paddingBottom: Math.max(insets.bottom, 14),
           },
         ]}
       >
-        {level > 0 && (
+        {level === 0 ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={
-              level === 1 ? 'Mostrar nomes do menu' : 'Recolher menu'
-            }
+            accessibilityLabel="Expandir menu principal"
+            style={styles.collapsedTouchArea}
+            onPress={expandMenu}
+          />
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Recolher menu"
             style={styles.brandButton}
-            onPress={cycleLevel}
+            onPress={collapseMenu}
           >
             <View style={styles.brandMark}>
               <Text style={styles.brandLetter}>F</Text>
             </View>
-            {level === 2 && (
-              <View style={styles.brandIdentity}>
-                <Text style={styles.brandName}>FIO</Text>
-                <Text style={styles.brandCaption}>GESTÃO DE OBRAS</Text>
-              </View>
-            )}
-            {level === 2 && (
-              <Ionicons
-                name="chevron-back-outline"
-                size={17}
-                color={FioColors.textSoft}
-              />
-            )}
+            <View style={styles.brandIdentity}>
+              <Text style={styles.brandName}>FIO</Text>
+              <Text style={styles.brandCaption}>GESTÃO DE OBRAS</Text>
+            </View>
+            <Ionicons
+              name="chevron-back-outline"
+              size={17}
+              color={FioColors.textMuted}
+            />
           </Pressable>
         )}
 
-        <View style={[styles.navigation, level === 0 && styles.navigationCompact]}>
-          {items.map((item) => {
+        {level === 0 && <View style={styles.brandSpacer} />}
+
+        <View
+          pointerEvents={level === 0 ? 'none' : 'auto'}
+          style={styles.navigation}
+        >
+          {NAVIGATION.map((item) => {
             const active = item.key === activeItem.key;
             return (
               <Pressable
@@ -175,16 +185,24 @@ export function FioGlobalSidebar() {
                 }
                 style={({ pressed }) => [
                   styles.item,
+                  level === 0 && styles.itemCompact,
                   level === 2 && styles.itemWide,
-                  active && styles.itemActive,
+                  level === 0 && !active && styles.itemHidden,
+                  active && level === 2 && styles.itemActive,
                   pressed && styles.pressed,
                 ]}
                 onPress={() => open(item)}
               >
                 <Ionicons
                   name={item.icon}
-                  size={21}
-                  color={active ? FioColors.ink : '#B9BAB5'}
+                  size={level === 0 ? 16 : 20}
+                  color={
+                    level === 0
+                      ? FioColors.ink
+                      : active
+                      ? FioColors.ink
+                      : FioColors.textMuted
+                  }
                 />
                 {level === 2 && (
                   <Text
@@ -216,12 +234,16 @@ const styles = StyleSheet.create({
   },
   sidebar: {
     flex: 1,
-    paddingHorizontal: 8,
     borderRightWidth: 1,
-    borderRightColor: '#30332F',
-    backgroundColor: FioColors.ink,
+    borderRightColor: FioColors.line,
+    backgroundColor: FioColors.surfaceMuted,
     ...FioShadow,
   },
+  collapsedTouchArea: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 2,
+  },
+  brandSpacer: { minHeight: 50 },
   brandButton: {
     minHeight: 50,
     flexDirection: 'row',
@@ -251,7 +273,7 @@ const styles = StyleSheet.create({
     fontFamily: 'serif',
     fontSize: 17,
     fontWeight: '900',
-    color: FioColors.white,
+    color: FioColors.ink,
   },
   brandCaption: {
     marginTop: 1,
@@ -260,8 +282,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     color: FioColors.gold,
   },
-  navigation: { flex: 1, marginTop: 20, gap: 5 },
-  navigationCompact: { justifyContent: 'center', marginTop: 0 },
+  navigation: { flex: 1, marginTop: 12, gap: 3 },
   item: {
     width: 48,
     minHeight: 48,
@@ -269,6 +290,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 13,
   },
+  itemCompact: {
+    width: FIO_SIDEBAR_RAIL_WIDTH,
+    borderRadius: 0,
+  },
+  itemHidden: { opacity: 0 },
   itemWide: {
     width: '100%',
     flexDirection: 'row',
@@ -276,22 +302,22 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 13,
   },
-  itemActive: { backgroundColor: FioColors.gold },
+  itemActive: { backgroundColor: FioColors.goldSoft },
   itemLabel: {
     flex: 1,
     fontSize: 12,
     fontWeight: '700',
-    color: '#D4D5D0',
+    color: FioColors.textMuted,
   },
   itemLabelActive: { fontWeight: '900', color: FioColors.ink },
   activeDot: {
     width: 6,
     height: 6,
     borderRadius: 999,
-    backgroundColor: FioColors.green,
+    backgroundColor: FioColors.gold,
   },
   compactGoldLine: {
-    width: 20,
+    width: 12,
     height: 3,
     alignSelf: 'center',
     borderRadius: 999,

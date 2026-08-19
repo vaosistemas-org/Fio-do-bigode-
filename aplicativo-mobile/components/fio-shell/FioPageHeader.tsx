@@ -24,8 +24,10 @@ export function FioPageHeader({
       <View style={styles.header}>
         <View style={styles.identity}>
           {!!eyebrow && <Text style={styles.eyebrow}>{eyebrow}</Text>}
-          <Text style={styles.title}>{title}</Text>
-          {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+          <Text numberOfLines={1} style={styles.title}>{title}</Text>
+          {!!subtitle && (
+            <Text numberOfLines={1} style={styles.subtitle}>{subtitle}</Text>
+          )}
         </View>
 
         {!!actionIcon && !!onAction && (
@@ -38,7 +40,7 @@ export function FioPageHeader({
             ]}
             onPress={onAction}
           >
-            <Ionicons name={actionIcon} size={21} color={FioColors.white} />
+            <Ionicons name={actionIcon} size={19} color={FioColors.ink} />
           </Pressable>
         )}
       </View>
@@ -47,47 +49,49 @@ export function FioPageHeader({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { backgroundColor: FioColors.ink },
+  safeArea: { backgroundColor: FioColors.surfaceMuted },
   header: {
-    minHeight: 104,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 20,
+    minHeight: 54,
+    paddingHorizontal: 12,
+    paddingTop: 6,
+    paddingBottom: 7,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    backgroundColor: FioColors.ink,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: FioColors.line,
+    backgroundColor: FioColors.surfaceMuted,
   },
   identity: { flex: 1, minWidth: 0 },
   eyebrow: {
-    marginBottom: 4,
-    fontSize: 9,
+    marginBottom: 1,
+    fontSize: 7,
     fontWeight: '900',
-    letterSpacing: 1.2,
+    letterSpacing: 1,
     color: FioColors.gold,
   },
   title: {
     fontFamily: 'serif',
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 20,
+    lineHeight: 23,
     fontWeight: '900',
-    color: FioColors.white,
+    color: FioColors.ink,
   },
   subtitle: {
-    marginTop: 4,
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#BFC1BC',
+    marginTop: 1,
+    fontSize: 9,
+    lineHeight: 12,
+    color: FioColors.textMuted,
   },
   action: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#41443F',
+    borderColor: FioColors.line,
     borderRadius: 999,
-    backgroundColor: '#262925',
+    backgroundColor: FioColors.surface,
   },
   pressed: { opacity: 0.68 },
 });

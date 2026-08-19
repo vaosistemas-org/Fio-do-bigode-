@@ -237,9 +237,7 @@ export default function WorksScreen() {
   return (
     <View style={styles.page}>
       <FioPageHeader
-        eyebrow="CENTRAL"
         title="Minhas obras"
-        subtitle="Acesse cada projeto sem caminhos duplicados."
         actionIcon="refresh-outline"
         actionLabel="Atualizar obras"
         onAction={() => loadWorks(true)}
