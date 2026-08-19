@@ -185,8 +185,10 @@ export default function WorkDetailsScreen() {
   const [timelineCreateRequest, setTimelineCreateRequest] = useState(0);
   const [documentCreateRequest, setDocumentCreateRequest] = useState(0);
   const [measurementCreateRequest, setMeasurementCreateRequest] = useState(0);
+  const [projectCreateRequest, setProjectCreateRequest] = useState(0);
   const [documentCount, setDocumentCount] = useState(0);
   const [measurementCount, setMeasurementCount] = useState(0);
+  const [projectCount, setProjectCount] = useState(0);
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
   const [actionEnvironmentId, setActionEnvironmentId] =
     useState<string | null>(null);
@@ -291,6 +293,29 @@ export default function WorkDetailsScreen() {
         );
 
         const documentRows = (documentResult.data ?? []) as DocumentCountReference[];
+        if (documentResult.error) {
+          setMeasurementCount(0);
+          setProjectCount(0);
+          setDocumentCount(0);
+        } else {
+          setMeasurementCount(
+            documentRows.filter(
+              (document) => document.category === 'measurement'
+            ).length
+          );
+          setProjectCount(
+            documentRows.filter(
+              (document) => document.category === 'project'
+            ).length
+          );
+          setDocumentCount(
+            documentRows.filter(
+              (document) =>
+                document.category !== 'measurement' &&
+                document.category !== 'project'
+            ).length
+          );
+        }
         setEnvironmentMeasurementCounts(
           documentResult.error
             ? {}
@@ -304,7 +329,9 @@ export default function WorkDetailsScreen() {
             ? {}
             : countByEnvironment(
                 documentRows,
-                (document) => document.category !== 'measurement'
+                (document) =>
+                  document.category !== 'measurement' &&
+                  document.category !== 'project'
               )
         );
 
@@ -368,6 +395,7 @@ export default function WorkDetailsScreen() {
       section === 'fio' ||
       section === 'photos' ||
       section === 'measurements' ||
+      section === 'projects' ||
       section === 'documents'
     ) {
       setOpenSection(section);
@@ -923,6 +951,32 @@ export default function WorkDetailsScreen() {
                 </ExpandableWorkSection>
 
                 <ExpandableWorkSection
+                  title="Projetos"
+                  subtitle="Projeto vigente e histórico de versões"
+                  icon="layers-outline"
+                  badge={projectCount ? String(projectCount) : undefined}
+                  open={openSection === 'projects'}
+                  onPress={() => toggle('projects')}
+                  onLayout={(event) => {
+                    sectionOffsets.current.projects =
+                      event.nativeEvent.layout.y;
+                  }}
+                >
+                  <WorkDocumentsPanel
+                    workId={work.id}
+                    environments={environments}
+                    participants={participants}
+                    userId={userId}
+                    canWrite={canWrite}
+                    canManageWork={canManage}
+                    newRequest={projectCreateRequest}
+                    categoryFilter="project"
+                    onCountChange={setProjectCount}
+                    onChanged={() => loadCentral(true)}
+                  />
+                </ExpandableWorkSection>
+
+                <ExpandableWorkSection
                   title="Documentos"
                   subtitle="Arquivos da obra e dos ambientes"
                   icon="document-text-outline"
@@ -946,9 +1000,10 @@ export default function WorkDetailsScreen() {
                     participants={participants}
                     userId={userId}
                     canWrite={canWrite}
+                    canManageWork={canManage}
                     newRequest={documentCreateRequest}
                     environmentFilterId={environmentFilterId ?? undefined}
-                    excludeCategory="measurement"
+                    excludeCategories={['measurement', 'project']}
                     onCountChange={setDocumentCount}
                     onChanged={() => loadCentral(true)}
                   />
@@ -1103,6 +1158,25 @@ export default function WorkDetailsScreen() {
                         <Ionicons name="grid-outline" size={21} color={FioColors.green} />
                       </View>
                       <Text style={styles.actionText}>Novo ambiente</Text>
+                    </Pressable>
+                  )}
+
+                  {!actionEnvironment && (
+                    <Pressable
+                      style={styles.actionItem}
+                      onPress={() =>
+                        runAction(() => {
+                          setEnvironmentFilterId(null);
+                          setOpenSection('projects');
+                          setProjectCreateRequest((value) => value + 1);
+                          scrollToSection('projects');
+                        })
+                      }
+                    >
+                      <View style={styles.actionIcon}>
+                        <Ionicons name="layers-outline" size={21} color={FioColors.green} />
+                      </View>
+                      <Text style={styles.actionText}>Novo projeto</Text>
                     </Pressable>
                   )}
 

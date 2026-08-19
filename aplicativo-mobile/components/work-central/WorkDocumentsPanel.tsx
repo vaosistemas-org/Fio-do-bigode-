@@ -41,6 +41,7 @@ type DocumentVisibility =
   | 'company_internal';
 
 type DocumentCategory =
+  | 'project'
   | 'architectural_project'
   | 'hydraulic_plan'
   | 'electrical_plan'
@@ -77,12 +78,30 @@ type WorkDocument = {
   can_manage: boolean;
   is_referenced: boolean;
   reference_note: string | null;
+  is_current_project?: boolean;
+  approved_version?: number | null;
+  project_approved_by?: string | null;
+  project_approved_at?: string | null;
 };
 
-type DocumentVersionSender = {
+type DocumentVersion = {
+  id: string;
   document_id: string;
   version_number: number;
+  storage_path: string;
+  file_name: string;
+  mime_type: string | null;
+  size_bytes: number | null;
   uploaded_by: string;
+  created_at: string;
+};
+
+type ProjectState = {
+  id: string;
+  is_current_project: boolean;
+  approved_version: number | null;
+  project_approved_by: string | null;
+  project_approved_at: string | null;
 };
 
 type DocumentUploadInfo = {
@@ -114,6 +133,7 @@ const CATEGORY_OPTIONS: {
   value: DocumentCategory;
   label: string;
 }[] = [
+  { value: 'project', label: 'Projeto' },
   { value: 'architectural_project', label: 'Projeto arquitetônico' },
   { value: 'hydraulic_plan', label: 'Planta hidráulica' },
   { value: 'electrical_plan', label: 'Planta elétrica' },
@@ -194,6 +214,11 @@ function isImageDocument(document: WorkDocument) {
   return /\.(avif|heic|heif|jpe?g|png|webp)$/i.test(document.file_name ?? '');
 }
 
+function isImageFile(mimeType: string | null, fileName: string) {
+  if (mimeType?.startsWith('image/')) return true;
+  return /\.(avif|heic|heif|jpe?g|png|webp)$/i.test(fileName);
+}
+
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error) return error.message;
   if (
@@ -213,10 +238,12 @@ export function WorkDocumentsPanel({
   participants,
   userId,
   canWrite,
+  canManageWork = false,
   newRequest = 0,
   environmentFilterId,
   categoryFilter,
   excludeCategory,
+  excludeCategories,
   onCountChange,
   onChanged,
 }: {
@@ -225,17 +252,23 @@ export function WorkDocumentsPanel({
   participants: WorkParticipant[];
   userId: string | null;
   canWrite: boolean;
+  canManageWork?: boolean;
   newRequest?: number;
   environmentFilterId?: string;
   categoryFilter?: DocumentCategory;
   excludeCategory?: DocumentCategory;
+  excludeCategories?: DocumentCategory[];
   onCountChange?: (count: number) => void;
   onChanged?: () => void;
 }) {
   const measurementMode = categoryFilter === 'measurement';
+  const projectMode = categoryFilter === 'project';
   const [documents, setDocuments] = useState<WorkDocument[]>([]);
   const [uploadInfo, setUploadInfo] = useState<
     Record<string, DocumentUploadInfo>
+  >({});
+  const [versionsByDocument, setVersionsByDocument] = useState<
+    Record<string, DocumentVersion[]>
   >({});
   const [activeCompany, setActiveCompany] = useState<ActiveCompany | null>(null);
   const [filter, setFilter] = useState<PanelFilter>('all');
@@ -261,6 +294,10 @@ export function WorkDocumentsPanel({
   const [referenceSaving, setReferenceSaving] = useState(false);
   const [documentPreview, setDocumentPreview] =
     useState<DocumentPreview | null>(null);
+  const [versionHistoryDocument, setVersionHistoryDocument] =
+    useState<WorkDocument | null>(null);
+  const [approvingVersion, setApprovingVersion] =
+    useState<number | null>(null);
 
   const participantNames = useMemo(
     () =>
@@ -284,17 +321,22 @@ export function WorkDocumentsPanel({
     if (documentResult.error) {
       setDocuments([]);
       setUploadInfo({});
+      setVersionsByDocument({});
       setMessage(documentResult.error.message);
     } else {
       const next = (documentResult.data ?? []) as WorkDocument[];
-      setDocuments(next);
+      let hydratedDocuments = next;
 
       if (next.length === 0) {
         setUploadInfo({});
+        setVersionsByDocument({});
       } else {
         const { data: versionData, error: versionError } = await supabase
           .from('work_document_versions')
-          .select('document_id, version_number, uploaded_by')
+          .select(`
+            id, document_id, version_number, storage_path,
+            file_name, mime_type, size_bytes, uploaded_by, created_at
+          `)
           .in(
             'document_id',
             next.map((document) => document.id)
@@ -303,11 +345,13 @@ export function WorkDocumentsPanel({
 
         if (versionError) {
           setUploadInfo({});
+          setVersionsByDocument({});
           setMessage(versionError.message);
         } else {
           const nextUploadInfo: Record<string, DocumentUploadInfo> = {};
+          const nextVersions: Record<string, DocumentVersion[]> = {};
 
-          for (const version of (versionData ?? []) as DocumentVersionSender[]) {
+          for (const version of (versionData ?? []) as DocumentVersion[]) {
             const current = nextUploadInfo[version.document_id] ?? {
               hasMyUpload: false,
               latestUploaderId: null,
@@ -321,17 +365,54 @@ export function WorkDocumentsPanel({
             }
 
             nextUploadInfo[version.document_id] = current;
+            nextVersions[version.document_id] = [
+              ...(nextVersions[version.document_id] ?? []),
+              version,
+            ];
           }
 
           setUploadInfo(nextUploadInfo);
+          setVersionsByDocument(nextVersions);
+        }
+
+        if (projectMode) {
+          const { data: projectStateData, error: projectStateError } =
+            await supabase
+              .from('work_documents')
+              .select(`
+                id, is_current_project, approved_version,
+                project_approved_by, project_approved_at
+              `)
+              .in(
+                'id',
+                next.map((document) => document.id)
+              );
+
+          if (projectStateError) {
+            setMessage(projectStateError.message);
+          } else {
+            const states = Object.fromEntries(
+              ((projectStateData ?? []) as ProjectState[]).map((state) => [
+                state.id,
+                state,
+              ])
+            );
+            hydratedDocuments = next.map((document) => ({
+              ...document,
+              ...states[document.id],
+            }));
+          }
         }
       }
 
+      setDocuments(hydratedDocuments);
+
       onCountChange?.(
-        next.filter(
+        hydratedDocuments.filter(
           (document) =>
             (!categoryFilter || document.category === categoryFilter) &&
-            (!excludeCategory || document.category !== excludeCategory)
+            (!excludeCategory || document.category !== excludeCategory) &&
+            !(excludeCategories ?? []).includes(document.category)
         ).length
       );
     }
@@ -345,7 +426,7 @@ export function WorkDocumentsPanel({
 
   useEffect(() => {
     loadDocuments();
-  }, [workId, userId]);
+  }, [workId, userId, projectMode]);
 
   useEffect(() => {
     if (newRequest > 0 && canWrite) openCreate();
@@ -357,10 +438,17 @@ export function WorkDocumentsPanel({
         (document) =>
           (!categoryFilter || document.category === categoryFilter) &&
           (!excludeCategory || document.category !== excludeCategory) &&
+          !(excludeCategories ?? []).includes(document.category) &&
           (!environmentFilterId ||
             document.environment_id === environmentFilterId)
       ),
-    [categoryFilter, documents, environmentFilterId, excludeCategory]
+    [
+      categoryFilter,
+      documents,
+      environmentFilterId,
+      excludeCategory,
+      excludeCategories,
+    ]
   );
 
   const visibleDocuments = useMemo(() => {
@@ -473,7 +561,13 @@ export function WorkDocumentsPanel({
     });
     setModalMessage('');
     if (!title.trim()) {
-      setTitle(measurementMode ? 'Medição fotografada' : 'Documento fotografado');
+      setTitle(
+        projectMode
+          ? 'Projeto fotografado'
+          : measurementMode
+          ? 'Medição fotografada'
+          : 'Documento fotografado'
+      );
     }
   }
 
@@ -500,7 +594,7 @@ export function WorkDocumentsPanel({
       });
     if (uploadError) throw uploadError;
 
-    const { error: versionError } = await supabase.rpc(
+    const { data: versionNumber, error: versionError } = await supabase.rpc(
       'add_work_document_version',
       {
         p_document_id: documentId,
@@ -514,6 +608,7 @@ export function WorkDocumentsPanel({
       await supabase.storage.from('work-documents').remove([storagePath]);
       throw versionError;
     }
+    return versionNumber as number;
   }
 
   async function saveDocument() {
@@ -577,8 +672,12 @@ export function WorkDocumentsPanel({
       setFilter('all');
       setSuccessMessage(
         editing
-          ? `${measurementMode ? 'Medição' : 'Documento'} atualizado.`
-          : `${measurementMode ? 'Medição' : 'Documento'} adicionado à obra.`
+          ? `${
+              projectMode ? 'Projeto' : measurementMode ? 'Medição' : 'Documento'
+            } atualizado.`
+          : `${
+              projectMode ? 'Projeto' : measurementMode ? 'Medição' : 'Documento'
+            } adicionado à obra.`
       );
       onChanged?.();
     } catch (error) {
@@ -590,7 +689,9 @@ export function WorkDocumentsPanel({
       setModalMessage(
         getErrorMessage(
           error,
-          `Não foi possível salvar ${measurementMode ? 'a medição' : 'o documento'}.`
+          `Não foi possível salvar ${
+            projectMode ? 'o projeto' : measurementMode ? 'a medição' : 'o documento'
+          }.`
         )
       );
     } finally {
@@ -618,6 +719,50 @@ export function WorkDocumentsPanel({
     await openBrowserAsync(data.signedUrl, {
       presentationStyle: WebBrowserPresentationStyle.FORM_SHEET,
     });
+  }
+
+  async function openProjectVersion(
+    document: WorkDocument,
+    version: DocumentVersion
+  ) {
+    const { data, error } = await supabase.storage
+      .from('work-documents')
+      .createSignedUrl(version.storage_path, 60 * 10);
+    if (error || !data?.signedUrl) {
+      Alert.alert('Não foi possível abrir', error?.message ?? 'Tente novamente.');
+      return;
+    }
+    if (isImageFile(version.mime_type, version.file_name)) {
+      setDocumentPreview({
+        title: `${document.title} · v${version.version_number}`,
+        url: data.signedUrl,
+      });
+      return;
+    }
+    await openBrowserAsync(data.signedUrl, {
+      presentationStyle: WebBrowserPresentationStyle.FORM_SHEET,
+    });
+  }
+
+  async function approveProjectVersion(
+    document: WorkDocument,
+    versionNumber: number
+  ) {
+    if (!canManageWork || approvingVersion !== null) return;
+    setApprovingVersion(versionNumber);
+    const { error } = await supabase.rpc('set_current_work_project', {
+      p_document_id: document.id,
+      p_version_number: versionNumber,
+    });
+    if (error) {
+      Alert.alert('Não foi possível definir o projeto vigente', error.message);
+    } else {
+      setVersionHistoryDocument(null);
+      await loadDocuments();
+      setSuccessMessage(`Versão ${versionNumber} confirmada como projeto vigente.`);
+      onChanged?.();
+    }
+    setApprovingVersion(null);
   }
 
   async function toggleReference(document: WorkDocument) {
@@ -707,7 +852,11 @@ export function WorkDocumentsPanel({
         <View style={styles.summaryTextWrap}>
           <Text style={styles.summaryTitle}>
             {scopedDocuments.length}{' '}
-            {measurementMode
+            {projectMode
+              ? scopedDocuments.length === 1
+                ? 'projeto'
+                : 'projetos'
+              : measurementMode
               ? scopedDocuments.length === 1
                 ? 'medição'
                 : 'medições'
@@ -716,7 +865,9 @@ export function WorkDocumentsPanel({
               : 'documentos'}
           </Text>
           <Text style={styles.summarySubtitle}>
-            {measurementMode
+            {projectMode
+              ? 'Uma versão vigente por obra, com histórico preservado.'
+              : measurementMode
               ? 'Fotos e arquivos de medidas com versões preservadas.'
               : 'Arquivos da obra com versões e acesso controlado.'}
           </Text>
@@ -725,7 +876,11 @@ export function WorkDocumentsPanel({
           <Pressable style={styles.addButton} onPress={openCreate}>
             <Ionicons name="add-outline" size={19} color="#FFFFFF" />
             <Text style={styles.addButtonText}>
-              {measurementMode ? 'Nova medição' : 'Adicionar'}
+              {projectMode
+                ? 'Novo projeto'
+                : measurementMode
+                ? 'Nova medição'
+                : 'Adicionar'}
             </Text>
           </Pressable>
         )}
@@ -739,7 +894,11 @@ export function WorkDocumentsPanel({
         {([
           [
             'all',
-            measurementMode ? 'Todas as medições' : 'Todos os documentos',
+            projectMode
+              ? 'Todos os projetos'
+              : measurementMode
+              ? 'Todas as medições'
+              : 'Todos os documentos',
           ],
           ['mine', 'Enviados por mim'],
           ['fio_general', 'Todos da obra'],
@@ -786,16 +945,28 @@ export function WorkDocumentsPanel({
       {visibleDocuments.length === 0 ? (
         <View style={styles.emptyCard}>
           <Ionicons
-            name={measurementMode ? 'resize-outline' : 'document-text-outline'}
+            name={
+              projectMode
+                ? 'layers-outline'
+                : measurementMode
+                ? 'resize-outline'
+                : 'document-text-outline'
+            }
             size={24}
             color={FioColors.gold}
           />
           <Text style={styles.emptyTitle}>
-            Nenhuma {measurementMode ? 'medição' : 'documentação'} neste filtro
+            {projectMode
+              ? 'Nenhum projeto neste filtro'
+              : measurementMode
+              ? 'Nenhuma medição neste filtro'
+              : 'Nenhuma documentação neste filtro'}
           </Text>
           <Text style={styles.emptyText}>
             {canWrite
-              ? measurementMode
+              ? projectMode
+                ? 'Adicione o arquivo do projeto para iniciar seu histórico de versões.'
+                : measurementMode
                 ? 'Fotografe uma anotação ou adicione um arquivo de medidas.'
                 : 'Adicione uma planta, projeto, contrato ou registro da obra.'
               : `Os ${measurementMode ? 'registros' : 'documentos'} liberados para seu acesso aparecerão aqui.`}
@@ -808,12 +979,23 @@ export function WorkDocumentsPanel({
               style={[
                 styles.documentIcon,
                 measurementMode && styles.measurementIcon,
+                projectMode && styles.projectIcon,
               ]}
             >
               <Ionicons
-                name={measurementMode ? 'resize-outline' : 'document-text-outline'}
+                name={
+                  projectMode
+                    ? 'layers-outline'
+                    : measurementMode
+                    ? 'resize-outline'
+                    : 'document-text-outline'
+                }
                 size={21}
-                color={measurementMode ? FioColors.gold : FioColors.green}
+                color={
+                  measurementMode || projectMode
+                    ? FioColors.gold
+                    : FioColors.green
+                }
               />
             </View>
             <View style={styles.documentIdentity}>
@@ -845,6 +1027,30 @@ export function WorkDocumentsPanel({
                 </Text>
               </View>
               <View style={styles.tagRow}>
+                {projectMode && (
+                  <View
+                    style={[
+                      styles.projectStatusTag,
+                      document.is_current_project &&
+                        document.approved_version === document.current_version
+                        ? styles.projectStatusCurrent
+                        : document.is_current_project
+                        ? styles.projectStatusPending
+                        : styles.projectStatusOld,
+                    ]}
+                  >
+                    <Text style={styles.projectStatusText}>
+                      {document.is_current_project &&
+                      document.approved_version === document.current_version
+                        ? 'VIGENTE'
+                        : document.is_current_project
+                        ? `v${document.approved_version ?? '-'} vigente · nova aguardando`
+                        : document.approved_version
+                        ? 'DESATUALIZADO'
+                        : 'AGUARDANDO DEFINIÇÃO'}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.visibilityTag}>
                   <Text style={styles.visibilityTagText}>
                     {visibilityLabel(document.visibility)}
@@ -874,8 +1080,19 @@ export function WorkDocumentsPanel({
               <View style={styles.actionRow}>
                 <Pressable style={styles.smallAction} onPress={() => openDocument(document)}>
                   <Ionicons name="eye-outline" size={16} color="#24583E" />
-                  <Text style={styles.smallActionText}>Visualizar</Text>
+                  <Text style={styles.smallActionText}>
+                    {projectMode ? 'Ver mais recente' : 'Visualizar'}
+                  </Text>
                 </Pressable>
+                {projectMode && (
+                  <Pressable
+                    style={styles.smallAction}
+                    onPress={() => setVersionHistoryDocument(document)}
+                  >
+                    <Ionicons name="layers-outline" size={16} color="#24583E" />
+                    <Text style={styles.smallActionText}>Versões</Text>
+                  </Pressable>
+                )}
                 {canWrite && document.visibility !== 'company_internal' && (
                   <Pressable style={styles.smallAction} onPress={() => toggleReference(document)}>
                     <Ionicons
@@ -916,12 +1133,22 @@ export function WorkDocumentsPanel({
               <View style={styles.modalHeaderText}>
                 <Text style={styles.modalTitle}>
                   {editing
-                    ? `Editar ${measurementMode ? 'medição' : 'documento'}`
+                    ? `Editar ${
+                        projectMode
+                          ? 'projeto'
+                          : measurementMode
+                          ? 'medição'
+                          : 'documento'
+                      }`
+                    : projectMode
+                    ? 'Novo projeto'
                     : `Nov${measurementMode ? 'a medição' : 'o documento'}`}
                 </Text>
                 <Text style={styles.modalSubtitle}>
                   {editing
                     ? 'Atualize os dados ou envie uma nova versão.'
+                    : projectMode
+                    ? 'Adicione o arquivo inicial. Proprietário ou gestor define a versão vigente.'
                     : measurementMode
                     ? 'Fotografe uma anotação ou escolha um arquivo de medidas.'
                     : 'Escolha um arquivo ou fotografe agora.'}
@@ -967,6 +1194,8 @@ export function WorkDocumentsPanel({
                 placeholder={
                   measurementMode
                     ? 'Ex.: Medição final da bancada'
+                    : projectMode
+                    ? 'Ex.: Projeto executivo da obra'
                     : 'Ex.: Planta hidráulica atualizada'
                 }
                 placeholderTextColor="#A1A8B4"
@@ -990,7 +1219,9 @@ export function WorkDocumentsPanel({
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.choiceRow}
                   >
-                    {CATEGORY_OPTIONS.map((option) => (
+                    {CATEGORY_OPTIONS.filter(
+                      (option) => option.value !== 'project'
+                    ).map((option) => (
                       <Pressable
                         key={option.value}
                         style={[
@@ -1145,10 +1376,148 @@ export function WorkDocumentsPanel({
                   <Text style={styles.saveButtonText}>
                     {editing
                       ? 'Salvar alterações'
-                      : `Adicionar ${measurementMode ? 'medição' : 'documento'}`}
+                      : `Adicionar ${
+                          projectMode
+                            ? 'projeto'
+                            : measurementMode
+                            ? 'medição'
+                            : 'documento'
+                        }`}
                   </Text>
                 )}
               </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={!!versionHistoryDocument}
+        transparent
+        animationType="slide"
+        onRequestClose={() =>
+          approvingVersion === null && setVersionHistoryDocument(null)
+        }
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.versionSheet}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderText}>
+                <Text style={styles.modalTitle}>Versões do projeto</Text>
+                <Text numberOfLines={1} style={styles.modalSubtitle}>
+                  {versionHistoryDocument?.title}
+                </Text>
+              </View>
+              <Pressable
+                style={styles.closeButton}
+                disabled={approvingVersion !== null}
+                onPress={() => setVersionHistoryDocument(null)}
+              >
+                <Ionicons name="close-outline" size={24} color="#34405A" />
+              </Pressable>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.versionList}>
+              {(versionHistoryDocument
+                ? versionsByDocument[versionHistoryDocument.id] ?? []
+                : []
+              ).map((version) => {
+                const isApproved =
+                  versionHistoryDocument?.is_current_project &&
+                  versionHistoryDocument.approved_version === version.version_number;
+                const isPending =
+                  !versionHistoryDocument?.approved_version ||
+                  (versionHistoryDocument.is_current_project &&
+                    version.version_number >
+                      versionHistoryDocument.approved_version);
+
+                return (
+                  <View key={version.id} style={styles.versionCard}>
+                    <View style={styles.versionHeading}>
+                      <View style={styles.versionNumberBadge}>
+                        <Text style={styles.versionNumberText}>
+                          v{version.version_number}
+                        </Text>
+                      </View>
+                      <View style={styles.versionIdentity}>
+                        <Text numberOfLines={1} style={styles.versionFileName}>
+                          {version.file_name}
+                        </Text>
+                        <Text style={styles.versionMeta}>
+                          Enviada por {userLabel(version.uploaded_by)} ·{' '}
+                          {formatDate(version.created_at)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.versionStatus,
+                        isApproved
+                          ? styles.versionStatusCurrent
+                          : isPending
+                          ? styles.versionStatusPending
+                          : styles.versionStatusOld,
+                      ]}
+                    >
+                      <Text style={styles.versionStatusText}>
+                        {isApproved
+                          ? 'VIGENTE'
+                          : isPending
+                          ? versionHistoryDocument?.approved_version
+                            ? 'AGUARDANDO CONFIRMAÇÃO'
+                            : 'AGUARDANDO DEFINIÇÃO'
+                          : 'DESATUALIZADA'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.versionActions}>
+                      <Pressable
+                        style={styles.smallAction}
+                        onPress={() =>
+                          versionHistoryDocument &&
+                          openProjectVersion(versionHistoryDocument, version)
+                        }
+                      >
+                        <Ionicons name="eye-outline" size={16} color="#24583E" />
+                        <Text style={styles.smallActionText}>Visualizar</Text>
+                      </Pressable>
+
+                      {canManageWork && !isApproved && (
+                        <Pressable
+                          disabled={approvingVersion !== null}
+                          style={[
+                            styles.approveProjectButton,
+                            approvingVersion !== null && styles.disabled,
+                          ]}
+                          onPress={() =>
+                            versionHistoryDocument &&
+                            approveProjectVersion(
+                              versionHistoryDocument,
+                              version.version_number
+                            )
+                          }
+                        >
+                          {approvingVersion === version.version_number ? (
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                          ) : (
+                            <>
+                              <Ionicons
+                                name="checkmark-circle-outline"
+                                size={16}
+                                color="#FFFFFF"
+                              />
+                              <Text style={styles.approveProjectText}>
+                                Definir vigente
+                              </Text>
+                            </>
+                          )}
+                        </Pressable>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
             </ScrollView>
           </View>
         </View>
@@ -1254,12 +1623,18 @@ const styles = StyleSheet.create({
   documentCard: { marginBottom: 8, padding: 10, flexDirection: 'row', gap: 9, borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)', borderRadius: FioRadius.medium, backgroundColor: 'rgba(255,255,255,0.78)', ...FioShadow },
   documentIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#E7F1E8' },
   measurementIcon: { backgroundColor: FioColors.goldSoft },
+  projectIcon: { backgroundColor: '#F5EEDC' },
   documentIdentity: { flex: 1, minWidth: 0 },
   documentTitle: { fontSize: 12, fontWeight: '800', color: '#202A3A' },
   documentMeta: { marginTop: 2, fontSize: 9, color: '#697386' },
   authorDateRow: { marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 4 },
   authorDateText: { flex: 1, minWidth: 0, fontSize: 8, color: FioColors.textMuted },
   tagRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  projectStatusTag: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 999 },
+  projectStatusCurrent: { backgroundColor: '#DDF3E6' },
+  projectStatusPending: { backgroundColor: '#FFF0D6' },
+  projectStatusOld: { backgroundColor: '#ECEEF2' },
+  projectStatusText: { fontSize: 7, fontWeight: '900', color: '#34405A' },
   visibilityTag: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: '#E7F1E8' },
   visibilityTagText: { fontSize: 8, fontWeight: '800', color: '#24583E' },
   versionText: { fontSize: 8, fontWeight: '700', color: '#7A8394' },
@@ -1348,6 +1723,23 @@ const styles = StyleSheet.create({
   referenceCancelText: { fontSize: 10, fontWeight: '800', color: '#596274' },
   referenceSave: { minHeight: 44, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#24583E' },
   referenceSaveText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
+  versionSheet: { maxHeight: '90%', overflow: 'hidden', borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#FFFFFF' },
+  versionList: { padding: 14, paddingBottom: 30, gap: 9 },
+  versionCard: { padding: 11, borderWidth: 1, borderColor: '#DFE2E8', borderRadius: 13, backgroundColor: '#FFFFFF' },
+  versionHeading: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  versionNumberBadge: { minWidth: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: FioColors.goldSoft },
+  versionNumberText: { fontSize: 11, fontWeight: '900', color: FioColors.gold },
+  versionIdentity: { flex: 1, minWidth: 0 },
+  versionFileName: { fontSize: 11, fontWeight: '800', color: '#34405A' },
+  versionMeta: { marginTop: 3, fontSize: 8, color: '#7A8394' },
+  versionStatus: { alignSelf: 'flex-start', marginTop: 9, paddingHorizontal: 7, paddingVertical: 4, borderRadius: 999 },
+  versionStatusCurrent: { backgroundColor: '#DDF3E6' },
+  versionStatusPending: { backgroundColor: '#FFF0D6' },
+  versionStatusOld: { backgroundColor: '#ECEEF2' },
+  versionStatusText: { fontSize: 7, fontWeight: '900', color: '#34405A' },
+  versionActions: { marginTop: 8, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  approveProjectButton: { minHeight: 34, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 9, backgroundColor: FioColors.green },
+  approveProjectText: { fontSize: 8, fontWeight: '900', color: '#FFFFFF' },
   previewScreen: { flex: 1, backgroundColor: '#101522' },
   previewHeader: { minHeight: 72, paddingTop: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#101522' },
   previewTitle: { flex: 1, fontSize: 14, fontWeight: '800', color: '#FFFFFF' },

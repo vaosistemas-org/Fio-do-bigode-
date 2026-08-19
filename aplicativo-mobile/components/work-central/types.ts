@@ -56,4 +56,5 @@ export type WorkSectionKey =
   | 'fio'
   | 'photos'
   | 'measurements'
+  | 'projects'
   | 'documents';
