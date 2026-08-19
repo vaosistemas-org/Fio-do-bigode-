@@ -180,6 +180,7 @@ export function WorkDocumentsPanel({
   environments,
   canWrite,
   newRequest = 0,
+  environmentFilterId,
   categoryFilter,
   excludeCategory,
   onCountChange,
@@ -189,6 +190,7 @@ export function WorkDocumentsPanel({
   environments: WorkEnvironment[];
   canWrite: boolean;
   newRequest?: number;
+  environmentFilterId?: string;
   categoryFilter?: DocumentCategory;
   excludeCategory?: DocumentCategory;
   onCountChange?: (count: number) => void;
@@ -256,16 +258,18 @@ export function WorkDocumentsPanel({
 
   useEffect(() => {
     if (newRequest > 0 && canWrite) openCreate();
-  }, [newRequest, canWrite]);
+  }, [newRequest, canWrite, environmentFilterId]);
 
   const scopedDocuments = useMemo(
     () =>
       documents.filter(
         (document) =>
           (!categoryFilter || document.category === categoryFilter) &&
-          (!excludeCategory || document.category !== excludeCategory)
+          (!excludeCategory || document.category !== excludeCategory) &&
+          (!environmentFilterId ||
+            document.environment_id === environmentFilterId)
       ),
-    [categoryFilter, documents, excludeCategory]
+    [categoryFilter, documents, environmentFilterId, excludeCategory]
   );
 
   const visibleDocuments = useMemo(() => {
@@ -290,6 +294,7 @@ export function WorkDocumentsPanel({
 
   function openCreate() {
     resetForm();
+    setEnvironmentId(environmentFilterId ?? null);
     setMessage('');
     setSuccessMessage('');
     setFormVisible(true);

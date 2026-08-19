@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { PropsWithChildren } from 'react';
 import {
+  LayoutChangeEvent,
   Pressable,
   StyleSheet,
   Text,
@@ -13,6 +14,7 @@ type Props = PropsWithChildren<{
   icon: keyof typeof Ionicons.glyphMap;
   open: boolean;
   onPress: () => void;
+  onLayout?: (event: LayoutChangeEvent) => void;
   badge?: string;
 }>;
 
@@ -22,11 +24,13 @@ export function ExpandableWorkSection({
   icon,
   open,
   onPress,
+  onLayout,
   badge,
   children,
 }: Props) {
   return (
     <View
+      onLayout={onLayout}
       style={[
         styles.card,
         open && styles.cardOpen,

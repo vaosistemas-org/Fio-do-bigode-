@@ -54,6 +54,7 @@ export function WorkPhotosPanel({
   canManage,
   userId,
   cameraRequest,
+  environmentFilterId,
   onCameraRequestHandled,
   onCountChange,
   onChanged,
@@ -64,6 +65,7 @@ export function WorkPhotosPanel({
   canManage: boolean;
   userId: string | null;
   cameraRequest: number;
+  environmentFilterId?: string;
   onCameraRequestHandled?: () => void;
   onCountChange?: (count: number) => void;
   onChanged?: () => void;
@@ -123,14 +125,22 @@ export function WorkPhotosPanel({
 
   useEffect(() => {
     if (cameraRequest > 0 && canWrite) {
-      setPendingSource('camera');
-      setTargetVisible(true);
+      if (environmentFilterId) {
+        void chooseTarget(environmentFilterId, 'camera');
+      } else {
+        setPendingSource('camera');
+        setTargetVisible(true);
+      }
       onCameraRequestHandled?.();
     }
-  }, [cameraRequest, canWrite, onCameraRequestHandled]);
+  }, [cameraRequest, canWrite, environmentFilterId, onCameraRequestHandled]);
+
+  useEffect(() => {
+    setOpenGroup(environmentFilterId ?? null);
+  }, [environmentFilterId]);
 
   const groups = useMemo(() => {
-    return [
+    const allGroups = [
       {
         key: 'general' as GroupKey,
         title: 'Geral da obra',
@@ -144,10 +154,24 @@ export function WorkPhotosPanel({
         ),
       })),
     ];
-  }, [environments, photos]);
+    if (!environmentFilterId) return allGroups;
+    return allGroups.filter((group) => group.key === environmentFilterId);
+  }, [environmentFilterId, environments, photos]);
+
+  const scopedPhotos = useMemo(
+    () =>
+      environmentFilterId
+        ? photos.filter((photo) => photo.environment_id === environmentFilterId)
+        : photos,
+    [environmentFilterId, photos]
+  );
 
   function beginUpload(source: PhotoSource) {
     if (!canWrite || uploading) return;
+    if (environmentFilterId) {
+      void chooseTarget(environmentFilterId, source);
+      return;
+    }
     setPendingSource(source);
     setTargetVisible(true);
   }
@@ -236,10 +260,13 @@ export function WorkPhotosPanel({
     }
   }
 
-  async function chooseTarget(environmentId: string | null) {
+  async function chooseTarget(
+    environmentId: string | null,
+    source: PhotoSource = pendingSource
+  ) {
     setTargetVisible(false);
 
-    if (pendingSource === 'camera') {
+    if (source === 'camera') {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
         Alert.alert(
@@ -342,14 +369,20 @@ export function WorkPhotosPanel({
     <View>
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryNumber}>{photos.length}</Text>
-          <Text style={styles.summaryLabel}>Fotos da obra</Text>
+          <Text style={styles.summaryNumber}>{scopedPhotos.length}</Text>
+          <Text style={styles.summaryLabel}>
+            {environmentFilterId ? 'Fotos do ambiente' : 'Fotos da obra'}
+          </Text>
         </View>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryNumber}>
-            {photos.filter((photo) => !photo.environment_id).length}
+            {environmentFilterId
+              ? scopedPhotos.length
+              : photos.filter((photo) => !photo.environment_id).length}
           </Text>
-          <Text style={styles.summaryLabel}>Fotos gerais</Text>
+          <Text style={styles.summaryLabel}>
+            {environmentFilterId ? 'Nesta pasta' : 'Fotos gerais'}
+          </Text>
         </View>
       </View>
 

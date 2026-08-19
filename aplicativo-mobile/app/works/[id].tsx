@@ -8,6 +8,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -24,6 +25,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ExpandableWorkSection } from '@/components/work-central/ExpandableWorkSection';
+import {
+  EnvironmentQuickCenter,
+  EnvironmentQuickCounts,
+} from '@/components/work-central/EnvironmentQuickCenter';
 import { WorkDocumentsPanel } from '@/components/work-central/WorkDocumentsPanel';
 import { WorkPendingPanel } from '@/components/work-central/WorkPendingPanel';
 import { WorkPhotosPanel } from '@/components/work-central/WorkPhotosPanel';
@@ -62,6 +67,32 @@ type PhotoReference = {
   storage_path: string;
 };
 
+type EnvironmentReference = {
+  environment_id: string | null;
+};
+
+type PendingCountReference = EnvironmentReference & {
+  status: string;
+};
+
+type DocumentCountReference = EnvironmentReference & {
+  category: string;
+};
+
+type EnvironmentSection = Exclude<WorkSectionKey, 'environments'>;
+
+function countByEnvironment<T extends EnvironmentReference>(
+  rows: T[],
+  include: (row: T) => boolean = () => true
+) {
+  const counts: Record<string, number> = {};
+  for (const row of rows) {
+    if (!row.environment_id || !include(row)) continue;
+    counts[row.environment_id] = (counts[row.environment_id] ?? 0) + 1;
+  }
+  return counts;
+}
+
 function initials(value: string) {
   return value
     .trim()
@@ -85,8 +116,37 @@ function Placeholder({ text }: { text: string }) {
   );
 }
 
+function EnvironmentFilterNotice({
+  name,
+  onClear,
+}: {
+  name: string;
+  onClear: () => void;
+}) {
+  return (
+    <View style={styles.environmentFilter}>
+      <View style={styles.environmentFilterIcon}>
+        <Ionicons name="grid-outline" size={17} color={FioColors.green} />
+      </View>
+      <View style={styles.environmentFilterIdentity}>
+        <Text style={styles.environmentFilterLabel}>EXIBINDO AMBIENTE</Text>
+        <Text numberOfLines={1} style={styles.environmentFilterName}>
+          {name}
+        </Text>
+      </View>
+      <Pressable style={styles.environmentFilterClear} onPress={onClear}>
+        <Text style={styles.environmentFilterClearText}>Ver toda a obra</Text>
+        <Ionicons name="close-outline" size={17} color={FioColors.green} />
+      </Pressable>
+    </View>
+  );
+}
+
 export default function WorkDetailsScreen() {
   const router = useRouter();
+  const scrollRef = useRef<ScrollView>(null);
+  const sectionsOffset = useRef(0);
+  const sectionOffsets = useRef<Partial<Record<WorkSectionKey, number>>>({});
   const { id, section } = useLocalSearchParams<{
     id: string;
     section?: string;
@@ -98,11 +158,21 @@ export default function WorkDetailsScreen() {
     useState<WorkParticipant[]>([]);
   const [photoCounts, setPhotoCounts] =
     useState<Record<string, number>>({});
+  const [environmentPendingCounts, setEnvironmentPendingCounts] =
+    useState<Record<string, number>>({});
+  const [environmentDocumentCounts, setEnvironmentDocumentCounts] =
+    useState<Record<string, number>>({});
+  const [environmentMeasurementCounts, setEnvironmentMeasurementCounts] =
+    useState<Record<string, number>>({});
+  const [environmentTimelineCounts, setEnvironmentTimelineCounts] =
+    useState<Record<string, number>>({});
   const [coverUrl, setCoverUrl] =
     useState<string | null>(null);
   const [openSection, setOpenSection] =
     useState<WorkSectionKey | null>(null);
   const [openEnvironmentId, setOpenEnvironmentId] =
+    useState<string | null>(null);
+  const [environmentFilterId, setEnvironmentFilterId] =
     useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -113,9 +183,12 @@ export default function WorkDetailsScreen() {
   const [pendingCreateRequest, setPendingCreateRequest] = useState(0);
   const [timelineCreateRequest, setTimelineCreateRequest] = useState(0);
   const [documentCreateRequest, setDocumentCreateRequest] = useState(0);
+  const [measurementCreateRequest, setMeasurementCreateRequest] = useState(0);
   const [documentCount, setDocumentCount] = useState(0);
   const [measurementCount, setMeasurementCount] = useState(0);
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
+  const [actionEnvironmentId, setActionEnvironmentId] =
+    useState<string | null>(null);
 
   const {
     canManage,
@@ -133,11 +206,20 @@ export default function WorkDetailsScreen() {
         return;
       }
 
-      isRefresh ? setRefreshing(true) : setLoading(true);
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
       setMessage('');
 
       try {
-        const [workResult, environmentResult, peopleResult, photoResult] =
+        const [
+          workResult,
+          environmentResult,
+          peopleResult,
+          photoResult,
+          pendingResult,
+          documentResult,
+          timelineResult,
+        ] =
           await Promise.all([
             supabase
               .from('works')
@@ -168,6 +250,16 @@ export default function WorkDetailsScreen() {
               .eq('work_id', id)
               .eq('collection', 'work')
               .order('created_at', { ascending: false }),
+            supabase
+              .from('work_pending_items')
+              .select('environment_id, status')
+              .eq('work_id', id),
+            supabase.rpc('get_work_documents', {
+              p_work_id: id,
+            }),
+            supabase.rpc('get_work_timeline', {
+              p_work_id: id,
+            }),
           ]);
 
         if (workResult.error) throw workResult.error;
@@ -185,6 +277,39 @@ export default function WorkDetailsScreen() {
         );
         setParticipants(
           (peopleResult.data ?? []) as WorkParticipant[]
+        );
+
+        const pendingRows = (pendingResult.data ?? []) as PendingCountReference[];
+        setEnvironmentPendingCounts(
+          pendingResult.error
+            ? {}
+            : countByEnvironment(
+                pendingRows,
+                (item) => item.status === 'open'
+              )
+        );
+
+        const documentRows = (documentResult.data ?? []) as DocumentCountReference[];
+        setEnvironmentMeasurementCounts(
+          documentResult.error
+            ? {}
+            : countByEnvironment(
+                documentRows,
+                (document) => document.category === 'measurement'
+              )
+        );
+        setEnvironmentDocumentCounts(
+          documentResult.error
+            ? {}
+            : countByEnvironment(
+                documentRows,
+                (document) => document.category !== 'measurement'
+              )
+        );
+
+        const timelineRows = (timelineResult.data ?? []) as EnvironmentReference[];
+        setEnvironmentTimelineCounts(
+          timelineResult.error ? {} : countByEnvironment(timelineRows)
         );
 
         if (photoResult.error) {
@@ -222,7 +347,8 @@ export default function WorkDetailsScreen() {
             : 'Não foi possível carregar a central da obra.'
         );
       } finally {
-        isRefresh ? setRefreshing(false) : setLoading(false);
+        if (isRefresh) setRefreshing(false);
+        else setLoading(false);
       }
     },
     [id]
@@ -260,12 +386,62 @@ export default function WorkDetailsScreen() {
   const responsible =
     participants.find((person) => person.access_level === 'owner') ??
     participants.find((person) => person.access_level === 'manager');
+  const filteredEnvironment = environments.find(
+    (environment) => environment.id === environmentFilterId
+  );
+  const actionEnvironment = environments.find(
+    (environment) => environment.id === actionEnvironmentId
+  );
   const totalPhotos = galleryCount;
 
   function toggle(section: WorkSectionKey) {
+    setEnvironmentFilterId(null);
     setOpenSection((current) =>
       current === section ? null : section
     );
+  }
+
+  function scrollToSection(section: WorkSectionKey) {
+    setTimeout(() => {
+      const localOffset = sectionOffsets.current[section] ?? 0;
+      scrollRef.current?.scrollTo({
+        y: Math.max(sectionsOffset.current + localOffset - 8, 0),
+        animated: true,
+      });
+    }, 120);
+  }
+
+  function openEnvironmentSection(
+    environmentId: string,
+    section: EnvironmentSection
+  ) {
+    setEnvironmentFilterId(environmentId);
+    setOpenSection(section);
+    scrollToSection(section);
+  }
+
+  function environmentCounts(environmentId: string): EnvironmentQuickCounts {
+    return {
+      pending: environmentPendingCounts[environmentId] ?? 0,
+      photos: photoCounts[environmentId] ?? 0,
+      measurements: environmentMeasurementCounts[environmentId] ?? 0,
+      documents: environmentDocumentCounts[environmentId] ?? 0,
+      fio: environmentTimelineCounts[environmentId] ?? 0,
+    };
+  }
+
+  function openEnvironmentCamera(environmentId: string) {
+    openEnvironmentSection(environmentId, 'photos');
+    setCameraRequest((current) => current + 1);
+  }
+
+  function openEnvironmentActions(environmentId: string) {
+    setActionEnvironmentId(environmentId);
+    setActionMenuVisible(true);
+  }
+
+  function clearEnvironmentFilter() {
+    setEnvironmentFilterId(null);
   }
 
   function runAction(action: () => void) {
@@ -288,6 +464,7 @@ export default function WorkDetailsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.page}>
         <ScrollView
+          ref={scrollRef}
           style={styles.scroll}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
@@ -461,7 +638,12 @@ export default function WorkDetailsScreen() {
                 )}
               </View>
 
-              <View style={styles.sections}>
+              <View
+                style={styles.sections}
+                onLayout={(event) => {
+                  sectionsOffset.current = event.nativeEvent.layout.y;
+                }}
+              >
                 <ExpandableWorkSection
                   title="Ambientes"
                   subtitle="Andamento e preparação por ambiente"
@@ -469,6 +651,10 @@ export default function WorkDetailsScreen() {
                   badge={String(environments.length)}
                   open={openSection === 'environments'}
                   onPress={() => toggle('environments')}
+                  onLayout={(event) => {
+                    sectionOffsets.current.environments =
+                      event.nativeEvent.layout.y;
+                  }}
                 >
                   {environments.length === 0 ? (
                     <Placeholder text="Nenhum ambiente cadastrado." />
@@ -552,10 +738,22 @@ export default function WorkDetailsScreen() {
                                   ? `${count}/${minimum} fotos · completa`
                                   : `${count}/${minimum} fotos · faltam ${missing}`}
                               </Text>
-                              <Text style={styles.environmentCentralNote}>
-                                Fotos e pendências deste ambiente ficam nos
-                                blocos da própria Central da obra.
-                              </Text>
+                              <EnvironmentQuickCenter
+                                counts={environmentCounts(environment.id)}
+                                canWrite={canWrite}
+                                onOpenSection={(targetSection) =>
+                                  openEnvironmentSection(
+                                    environment.id,
+                                    targetSection
+                                  )
+                                }
+                                onCamera={() =>
+                                  openEnvironmentCamera(environment.id)
+                                }
+                                onMore={() =>
+                                  openEnvironmentActions(environment.id)
+                                }
+                              />
                             </View>
                           )}
                         </View>
@@ -589,7 +787,16 @@ export default function WorkDetailsScreen() {
                   badge={pendingCount ? String(pendingCount) : undefined}
                   open={openSection === 'pending'}
                   onPress={() => toggle('pending')}
+                  onLayout={(event) => {
+                    sectionOffsets.current.pending = event.nativeEvent.layout.y;
+                  }}
                 >
+                  {filteredEnvironment && (
+                    <EnvironmentFilterNotice
+                      name={filteredEnvironment.name}
+                      onClear={clearEnvironmentFilter}
+                    />
+                  )}
                   <WorkPendingPanel
                     workId={work.id}
                     environments={environments}
@@ -598,7 +805,9 @@ export default function WorkDetailsScreen() {
                     canManage={canManage}
                     userId={userId}
                     newRequest={pendingCreateRequest}
+                    environmentFilterId={environmentFilterId ?? undefined}
                     onOpenCountChange={setPendingCount}
+                    onChanged={() => loadCentral(true)}
                   />
                 </ExpandableWorkSection>
 
@@ -608,13 +817,23 @@ export default function WorkDetailsScreen() {
                   icon="chatbubble-ellipses-outline"
                   open={openSection === 'fio'}
                   onPress={() => toggle('fio')}
+                  onLayout={(event) => {
+                    sectionOffsets.current.fio = event.nativeEvent.layout.y;
+                  }}
                 >
+                  {filteredEnvironment && (
+                    <EnvironmentFilterNotice
+                      name={filteredEnvironment.name}
+                      onClear={clearEnvironmentFilter}
+                    />
+                  )}
                   <WorkTimelinePanel
                     workId={work.id}
                     environments={environments}
                     canWrite={canWrite}
                     canManage={canManage}
                     newEntryRequest={timelineCreateRequest}
+                    environmentFilterId={environmentFilterId ?? undefined}
                     onChanged={() => loadCentral(true)}
                   />
                 </ExpandableWorkSection>
@@ -626,7 +845,16 @@ export default function WorkDetailsScreen() {
                   badge={String(totalPhotos)}
                   open={openSection === 'photos'}
                   onPress={() => toggle('photos')}
+                  onLayout={(event) => {
+                    sectionOffsets.current.photos = event.nativeEvent.layout.y;
+                  }}
                 >
+                  {filteredEnvironment && (
+                    <EnvironmentFilterNotice
+                      name={filteredEnvironment.name}
+                      onClear={clearEnvironmentFilter}
+                    />
+                  )}
                   <WorkPhotosPanel
                     workId={work.id}
                     environments={environments}
@@ -634,6 +862,7 @@ export default function WorkDetailsScreen() {
                     canManage={canManage}
                     userId={userId}
                     cameraRequest={cameraRequest}
+                    environmentFilterId={environmentFilterId ?? undefined}
                     onCameraRequestHandled={() =>
                       setCameraRequest(0)
                     }
@@ -649,11 +878,23 @@ export default function WorkDetailsScreen() {
                   badge={measurementCount ? String(measurementCount) : undefined}
                   open={openSection === 'measurements'}
                   onPress={() => toggle('measurements')}
+                  onLayout={(event) => {
+                    sectionOffsets.current.measurements =
+                      event.nativeEvent.layout.y;
+                  }}
                 >
+                  {filteredEnvironment && (
+                    <EnvironmentFilterNotice
+                      name={filteredEnvironment.name}
+                      onClear={clearEnvironmentFilter}
+                    />
+                  )}
                   <WorkDocumentsPanel
                     workId={work.id}
                     environments={environments}
                     canWrite={canWrite}
+                    newRequest={measurementCreateRequest}
+                    environmentFilterId={environmentFilterId ?? undefined}
                     categoryFilter="measurement"
                     onCountChange={setMeasurementCount}
                     onChanged={() => loadCentral(true)}
@@ -667,12 +908,23 @@ export default function WorkDetailsScreen() {
                   badge={documentCount ? String(documentCount) : undefined}
                   open={openSection === 'documents'}
                   onPress={() => toggle('documents')}
+                  onLayout={(event) => {
+                    sectionOffsets.current.documents =
+                      event.nativeEvent.layout.y;
+                  }}
                 >
+                  {filteredEnvironment && (
+                    <EnvironmentFilterNotice
+                      name={filteredEnvironment.name}
+                      onClear={clearEnvironmentFilter}
+                    />
+                  )}
                   <WorkDocumentsPanel
                     workId={work.id}
                     environments={environments}
                     canWrite={canWrite}
                     newRequest={documentCreateRequest}
+                    environmentFilterId={environmentFilterId ?? undefined}
                     excludeCategory="measurement"
                     onCountChange={setDocumentCount}
                     onChanged={() => loadCentral(true)}
@@ -704,7 +956,10 @@ export default function WorkDetailsScreen() {
               styles.floatingAction,
               pressed && styles.pressed,
             ]}
-            onPress={() => setActionMenuVisible(true)}
+            onPress={() => {
+              setActionEnvironmentId(null);
+              setActionMenuVisible(true);
+            }}
           >
             <Ionicons name="add-outline" size={30} color="#FFFFFF" />
           </Pressable>
@@ -725,9 +980,11 @@ export default function WorkDetailsScreen() {
                 <View style={styles.actionHandle} />
                 <View style={styles.actionHeader}>
                   <View style={styles.actionHeaderIdentity}>
-                    <Text style={styles.actionTitle}>Ações da obra</Text>
+                    <Text style={styles.actionTitle}>
+                      {actionEnvironment ? 'Ações do ambiente' : 'Ações da obra'}
+                    </Text>
                     <Text numberOfLines={1} style={styles.actionSubtitle}>
-                      {work.client_name}
+                      {actionEnvironment?.name ?? work.client_name}
                     </Text>
                   </View>
                   <Pressable
@@ -743,8 +1000,10 @@ export default function WorkDetailsScreen() {
                     style={styles.actionItem}
                     onPress={() =>
                       runAction(() => {
+                        setEnvironmentFilterId(actionEnvironmentId);
                         setOpenSection('pending');
                         setPendingCreateRequest((current) => current + 1);
+                        scrollToSection('pending');
                       })
                     }
                   >
@@ -758,8 +1017,10 @@ export default function WorkDetailsScreen() {
                     style={styles.actionItem}
                     onPress={() =>
                       runAction(() => {
+                        setEnvironmentFilterId(actionEnvironmentId);
                         setOpenSection('fio');
                         setTimelineCreateRequest((current) => current + 1);
+                        scrollToSection('fio');
                       })
                     }
                   >
@@ -773,8 +1034,10 @@ export default function WorkDetailsScreen() {
                     style={styles.actionItem}
                     onPress={() =>
                       runAction(() => {
+                        setEnvironmentFilterId(actionEnvironmentId);
                         setOpenSection('photos');
                         setCameraRequest((current) => current + 1);
+                        scrollToSection('photos');
                       })
                     }
                   >
@@ -787,43 +1050,47 @@ export default function WorkDetailsScreen() {
                   <Pressable
                     style={styles.actionItem}
                     onPress={() =>
-                      runAction(() =>
-                        router.push({
-                          pathname: '/new-environment',
-                          params: { workId: work.id },
-                        })
-                      )
+                      runAction(() => {
+                        setEnvironmentFilterId(actionEnvironmentId);
+                        setOpenSection('measurements');
+                        setMeasurementCreateRequest((current) => current + 1);
+                        scrollToSection('measurements');
+                      })
                     }
                   >
                     <View style={styles.actionIcon}>
-                      <Ionicons name="grid-outline" size={21} color={FioColors.green} />
+                      <Ionicons name="resize-outline" size={21} color={FioColors.green} />
                     </View>
-                    <Text style={styles.actionText}>Novo ambiente</Text>
+                    <Text style={styles.actionText}>Nova medição</Text>
                   </Pressable>
 
-                  <Pressable
-                    style={styles.actionItem}
-                    onPress={() =>
-                      runAction(() =>
-                        router.push({
-                          pathname: '/work-participants',
-                          params: { workId: work.id },
-                        })
-                      )
-                    }
-                  >
-                    <View style={styles.actionIcon}>
-                      <Ionicons name="people-outline" size={21} color={FioColors.green} />
-                    </View>
-                    <Text style={styles.actionText}>Equipe</Text>
-                  </Pressable>
+                  {!actionEnvironment && (
+                    <Pressable
+                      style={styles.actionItem}
+                      onPress={() =>
+                        runAction(() =>
+                          router.push({
+                            pathname: '/new-environment',
+                            params: { workId: work.id },
+                          })
+                        )
+                      }
+                    >
+                      <View style={styles.actionIcon}>
+                        <Ionicons name="grid-outline" size={21} color={FioColors.green} />
+                      </View>
+                      <Text style={styles.actionText}>Novo ambiente</Text>
+                    </Pressable>
+                  )}
 
                   <Pressable
                     style={styles.actionItem}
                     onPress={() =>
                       runAction(() => {
+                        setEnvironmentFilterId(actionEnvironmentId);
                         setOpenSection('documents');
                         setDocumentCreateRequest((value) => value + 1);
+                        scrollToSection('documents');
                       })
                     }
                   >
@@ -832,6 +1099,25 @@ export default function WorkDetailsScreen() {
                     </View>
                     <Text style={styles.actionText}>Documentos</Text>
                   </Pressable>
+
+                  {!actionEnvironment && (
+                    <Pressable
+                      style={styles.actionItem}
+                      onPress={() =>
+                        runAction(() =>
+                          router.push({
+                            pathname: '/work-participants',
+                            params: { workId: work.id },
+                          })
+                        )
+                      }
+                    >
+                      <View style={styles.actionIcon}>
+                        <Ionicons name="people-outline" size={21} color={FioColors.green} />
+                      </View>
+                      <Text style={styles.actionText}>Equipe</Text>
+                    </Pressable>
+                  )}
                 </View>
               </Pressable>
             </Pressable>
@@ -996,9 +1282,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E1E4EA',
-    borderRadius: 15,
-    backgroundColor: '#FAFBFC',
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 19,
+    backgroundColor: 'rgba(250, 249, 246, 0.88)',
   },
   environmentHeader: {
     minHeight: 58,
@@ -1022,9 +1308,63 @@ const styles = StyleSheet.create({
     backgroundColor: '#E4E7EC',
   },
   environmentFill: { height: '100%', borderRadius: 999, backgroundColor: FioColors.green },
-  environmentBody: { padding: 13, paddingTop: 3, borderTopWidth: 1, borderTopColor: '#E8EAEE' },
+  environmentBody: {
+    padding: 13,
+    paddingTop: 3,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(220, 221, 216, 0.72)',
+    backgroundColor: 'rgba(244, 242, 237, 0.52)',
+  },
   environmentDetail: { marginTop: 8, fontSize: 12, lineHeight: 17, color: '#5D687C' },
-  environmentCentralNote: { marginTop: 10, fontSize: 10, lineHeight: 15, color: FioColors.green },
+  environmentFilter: {
+    marginBottom: 11,
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(191, 208, 195, 0.78)',
+    borderRadius: 16,
+    backgroundColor: 'rgba(231, 241, 232, 0.72)',
+  },
+  environmentFilterIcon: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.76)',
+  },
+  environmentFilterIdentity: { flex: 1, minWidth: 0 },
+  environmentFilterLabel: {
+    fontSize: 7,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    color: FioColors.gold,
+  },
+  environmentFilterName: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: '900',
+    color: FioColors.green,
+  },
+  environmentFilterClear: {
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(36, 88, 62, 0.18)',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+  },
+  environmentFilterClearText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: FioColors.green,
+  },
   environmentActions: { marginTop: 13, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   secondaryButton: {
     minHeight: 44,

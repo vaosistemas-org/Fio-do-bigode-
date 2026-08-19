@@ -135,6 +135,7 @@ export function WorkTimelinePanel({
   canWrite,
   canManage = false,
   newEntryRequest = 0,
+  environmentFilterId,
   onChanged,
 }: {
   workId: string;
@@ -142,6 +143,7 @@ export function WorkTimelinePanel({
   canWrite: boolean;
   canManage?: boolean;
   newEntryRequest?: number;
+  environmentFilterId?: string;
   onChanged?: () => void;
 }) {
   const [events, setEvents] = useState<WorkEvent[]>([]);
@@ -205,7 +207,11 @@ export function WorkTimelinePanel({
 
   useEffect(() => {
     if (newEntryRequest > 0 && canWrite) openForm();
-  }, [newEntryRequest, canWrite]);
+  }, [newEntryRequest, canWrite, environmentFilterId]);
+
+  useEffect(() => {
+    setFilter(environmentFilterId ?? 'all');
+  }, [environmentFilterId]);
 
   const visibleEvents = useMemo(() => {
     if (filter === 'all') return events;
@@ -266,6 +272,7 @@ export function WorkTimelinePanel({
 
   function openForm() {
     resetForm();
+    setEnvironmentId(environmentFilterId ?? null);
     setMessage('');
     setSuccessMessage('');
     setFormVisible(true);

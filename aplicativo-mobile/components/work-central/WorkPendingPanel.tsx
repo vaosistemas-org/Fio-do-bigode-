@@ -104,7 +104,9 @@ export function WorkPendingPanel({
   canManage,
   userId,
   newRequest = 0,
+  environmentFilterId,
   onOpenCountChange,
+  onChanged,
 }: {
   workId: string;
   environments: WorkEnvironment[];
@@ -113,7 +115,9 @@ export function WorkPendingPanel({
   canManage: boolean;
   userId: string | null;
   newRequest?: number;
+  environmentFilterId?: string;
   onOpenCountChange?: (count: number) => void;
+  onChanged?: () => void;
 }) {
   const [items, setItems] = useState<PendingItem[]>([]);
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
@@ -241,7 +245,7 @@ export function WorkPendingPanel({
 
   useEffect(() => {
     if (newRequest > 0 && canWrite) openNew();
-  }, [newRequest, canWrite]);
+  }, [newRequest, canWrite, environmentFilterId]);
 
   function resetForm() {
     setEditingId(null);
@@ -257,6 +261,7 @@ export function WorkPendingPanel({
 
   function openNew() {
     resetForm();
+    setEnvironmentId(environmentFilterId ?? null);
     setFormVisible(true);
   }
 
@@ -322,6 +327,7 @@ export function WorkPendingPanel({
     setFormVisible(false);
     resetForm();
     await loadItems();
+    onChanged?.();
     setSaving(false);
   }
 
@@ -349,7 +355,10 @@ export function WorkPendingPanel({
       .eq('id', item.id);
 
     if (error) setMessage(error.message);
-    else await loadItems();
+    else {
+      await loadItems();
+      onChanged?.();
+    }
     setChangingId(null);
   }
 
@@ -542,7 +551,10 @@ export function WorkPendingPanel({
     setDeletingPhotoId(null);
   }
 
-  const visibleItems = items
+  const scopedItems = environmentFilterId
+    ? items.filter((item) => item.environment_id === environmentFilterId)
+    : items;
+  const visibleItems = scopedItems
     .filter((item) => item.status === tab)
     .sort((a, b) => {
       if (a.blocks_delivery !== b.blocks_delivery) {
@@ -550,8 +562,8 @@ export function WorkPendingPanel({
       }
       return PRIORITY_ORDER[b.priority] - PRIORITY_ORDER[a.priority];
     });
-  const openCount = items.filter((item) => item.status === 'open').length;
-  const completedCount = items.length - openCount;
+  const openCount = scopedItems.filter((item) => item.status === 'open').length;
+  const completedCount = scopedItems.length - openCount;
 
   if (loading) {
     return (
@@ -571,7 +583,9 @@ export function WorkPendingPanel({
         </View>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryNumber}>
-            {items.filter((item) => item.blocks_delivery && item.status === 'open').length}
+            {scopedItems.filter(
+              (item) => item.blocks_delivery && item.status === 'open'
+            ).length}
           </Text>
           <Text style={styles.summaryLabel}>Impedem entrega</Text>
         </View>
