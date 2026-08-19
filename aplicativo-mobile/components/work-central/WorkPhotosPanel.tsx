@@ -19,6 +19,7 @@ import { supabase } from '@/lib/supabase';
 
 type PhotoSource = 'camera' | 'gallery';
 type GroupKey = 'general' | string;
+type PhotoVisibility = 'internal' | 'shared';
 
 type WorkPhoto = {
   id: string;
@@ -26,10 +27,28 @@ type WorkPhoto = {
   storage_path: string;
   file_name: string | null;
   caption: string | null;
+  visibility: PhotoVisibility;
   created_by: string | null;
   created_at: string;
   signed_url: string | null;
 };
+
+const PHOTO_VISIBILITY_OPTIONS: {
+  value: PhotoVisibility;
+  label: string;
+  detail: string;
+}[] = [
+  {
+    value: 'shared',
+    label: 'Compartilhada',
+    detail: 'Participantes autorizados e modo de visualização.',
+  },
+  {
+    value: 'internal',
+    label: 'Interna',
+    detail: 'Somente quem pode escrever na operação da obra.',
+  },
+];
 
 function makeFileName() {
   return `fio-${Date.now()}-${Math.random()
@@ -54,6 +73,8 @@ export function WorkPhotosPanel({
   canManage,
   userId,
   cameraRequest,
+  compareRequest,
+  onCompareRequestHandled,
   environmentFilterId,
   onCameraRequestHandled,
   onCountChange,
@@ -65,6 +86,8 @@ export function WorkPhotosPanel({
   canManage: boolean;
   userId: string | null;
   cameraRequest: number;
+  compareRequest: number;
+  onCompareRequestHandled?: () => void;
   environmentFilterId?: string;
   onCameraRequestHandled?: () => void;
   onCountChange?: (count: number) => void;
@@ -81,6 +104,10 @@ export function WorkPhotosPanel({
   const [targetVisible, setTargetVisible] = useState(false);
   const [pendingSource, setPendingSource] =
     useState<PhotoSource>('camera');
+  const [photoVisibility, setPhotoVisibility] =
+    useState<PhotoVisibility>('shared');
+  const [compareVisible, setCompareVisible] = useState(false);
+  const [compareSelection, setCompareSelection] = useState<string[]>([]);
 
   async function loadPhotos() {
     setLoading(true);
@@ -89,7 +116,7 @@ export function WorkPhotosPanel({
       .from('work_photos')
       .select(`
         id, environment_id, storage_path, file_name,
-        caption, created_by, created_at
+        caption, visibility, created_by, created_at
       `)
       .eq('work_id', workId)
       .eq('collection', 'work')
@@ -166,6 +193,17 @@ export function WorkPhotosPanel({
     [environmentFilterId, photos]
   );
 
+  useEffect(() => {
+    if (compareRequest <= 0) return;
+    if (scopedPhotos.length < 2) {
+      setMessage('Adicione pelo menos duas fotos para comparar.');
+    } else {
+      setCompareSelection([]);
+      setCompareVisible(true);
+    }
+    onCompareRequestHandled?.();
+  }, [compareRequest, onCompareRequestHandled, scopedPhotos.length]);
+
   function beginUpload(source: PhotoSource) {
     if (!canWrite || uploading) return;
     if (environmentFilterId) {
@@ -214,6 +252,7 @@ export function WorkPhotosPanel({
         mime_type: 'image/jpeg',
         size_bytes: asset.fileSize ?? null,
         caption: null,
+        visibility: photoVisibility,
         taken_at:
           source === 'camera' ? new Date().toISOString() : null,
         created_by: authData.user.id,
@@ -314,6 +353,20 @@ export function WorkPhotosPanel({
     return canManage ||
       (canWrite && !!userId && photo.created_by === userId);
   }
+
+  function toggleCompareSelection(photoId: string) {
+    setCompareSelection((current) => {
+      if (current.includes(photoId)) {
+        return current.filter((id) => id !== photoId);
+      }
+      if (current.length >= 2) return current;
+      return [...current, photoId];
+    });
+  }
+
+  const comparePhotos = compareSelection
+    .map((id) => photos.find((photo) => photo.id === id))
+    .filter((photo): photo is WorkPhoto => Boolean(photo));
 
   function confirmDelete(photo: WorkPhoto) {
     if (!canDelete(photo) || deletingId) return;
@@ -476,6 +529,16 @@ export function WorkPhotosPanel({
                       <Text style={styles.photoDate}>
                         {formatDate(photo.created_at)}
                       </Text>
+                      <View style={styles.visibilityTag}>
+                        <Ionicons
+                          name={photo.visibility === 'shared' ? 'eye-outline' : 'lock-closed-outline'}
+                          size={11}
+                          color="#24583E"
+                        />
+                        <Text style={styles.visibilityText}>
+                          {photo.visibility === 'shared' ? 'Compartilhada' : 'Interna'}
+                        </Text>
+                      </View>
                       {canDelete(photo) && (
                         <Pressable
                           style={styles.deleteButton}
@@ -525,6 +588,33 @@ export function WorkPhotosPanel({
               </Pressable>
             </View>
 
+            <Text style={styles.visibilityHeading}>Quem poderá ver estas fotos?</Text>
+            <View style={styles.visibilityOptions}>
+              {PHOTO_VISIBILITY_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.value}
+                  style={[
+                    styles.visibilityOption,
+                    photoVisibility === option.value && styles.visibilityOptionActive,
+                  ]}
+                  onPress={() => setPhotoVisibility(option.value)}
+                >
+                  <Ionicons
+                    name={option.value === 'shared' ? 'eye-outline' : 'lock-closed-outline'}
+                    size={17}
+                    color={photoVisibility === option.value ? '#24583E' : '#7B8496'}
+                  />
+                  <View style={styles.visibilityOptionText}>
+                    <Text style={styles.visibilityOptionLabel}>{option.label}</Text>
+                    <Text style={styles.visibilityOptionDetail}>{option.detail}</Text>
+                  </View>
+                  {photoVisibility === option.value && (
+                    <Ionicons name="checkmark-circle" size={18} color="#24583E" />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+
             <ScrollView showsVerticalScrollIndicator={false}>
               <Pressable style={styles.targetButton} onPress={() => chooseTarget(null)}>
                 <Ionicons name="home-outline" size={21} color="#24583E" />
@@ -543,6 +633,81 @@ export function WorkPhotosPanel({
                 </Pressable>
               ))}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={compareVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCompareVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.compareModalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Comparativo</Text>
+                <Text style={styles.modalSubtitle}>
+                  Escolha duas fotos para visualizar Antes e Depois.
+                </Text>
+              </View>
+              <Pressable
+                style={styles.closeButton}
+                onPress={() => setCompareVisible(false)}
+              >
+                <Ionicons name="close-outline" size={24} color="#34405A" />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.comparePicker}
+            >
+              {scopedPhotos.map((photo) => {
+                const selectedIndex = compareSelection.indexOf(photo.id);
+                return (
+                  <Pressable
+                    key={photo.id}
+                    style={[
+                      styles.comparePickerItem,
+                      selectedIndex >= 0 && styles.comparePickerItemActive,
+                    ]}
+                    onPress={() => toggleCompareSelection(photo.id)}
+                  >
+                    {photo.signed_url ? (
+                      <Image source={{ uri: photo.signed_url }} style={styles.comparePickerImage} />
+                    ) : (
+                      <View style={styles.comparePickerUnavailable} />
+                    )}
+                    <Text style={styles.comparePickerDate}>{formatDate(photo.created_at)}</Text>
+                    {selectedIndex >= 0 && (
+                      <View style={styles.compareOrderBadge}>
+                        <Text style={styles.compareOrderText}>{selectedIndex + 1}</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {comparePhotos.length === 2 ? (
+              <View style={styles.comparePreviewRow}>
+                {comparePhotos.map((photo, index) => (
+                  <View key={photo.id} style={styles.comparePreviewCard}>
+                    <Text style={styles.comparePreviewLabel}>{index === 0 ? 'ANTES' : 'DEPOIS'}</Text>
+                    {photo.signed_url ? (
+                      <Image source={{ uri: photo.signed_url }} style={styles.comparePreviewImage} />
+                    ) : (
+                      <View style={styles.comparePreviewUnavailable} />
+                    )}
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.compareHint}>Toque em duas fotos na faixa acima.</Text>
+            )}
           </View>
         </View>
       </Modal>
@@ -581,6 +746,8 @@ const styles = StyleSheet.create({
   photoUnavailable: { width: '100%', aspectRatio: 1.25, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ECEEF2' },
   unavailableText: { fontSize: 9, color: '#7D8697' },
   photoDate: { paddingHorizontal: 8, paddingTop: 7, fontSize: 8, color: '#7D8697' },
+  visibilityTag: { marginTop: 5, marginHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  visibilityText: { fontSize: 8, color: '#557064' },
   deleteButton: { minHeight: 34, margin: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#FFF0EE' },
   deleteText: { fontSize: 9, fontWeight: '800', color: '#B42318' },
   emptyText: { width: '100%', padding: 12, textAlign: 'center', fontSize: 10, color: '#7D8697' },
@@ -591,6 +758,28 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 21, fontWeight: '900', color: '#172033' },
   modalSubtitle: { marginTop: 3, fontSize: 11, color: '#727C8E' },
   closeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#F1F2F5' },
+  visibilityHeading: { marginTop: 3, marginBottom: 7, fontSize: 11, fontWeight: '900', color: '#34405A' },
+  visibilityOptions: { gap: 7, marginBottom: 8 },
+  visibilityOption: { minHeight: 54, paddingHorizontal: 11, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: '#DFE2E8', borderRadius: 12, backgroundColor: '#FFFFFF' },
+  visibilityOptionActive: { borderColor: '#BFD0C3', backgroundColor: '#F4FAF5' },
+  visibilityOptionText: { flex: 1 },
+  visibilityOptionLabel: { fontSize: 11, fontWeight: '900', color: '#34405A' },
+  visibilityOptionDetail: { marginTop: 2, fontSize: 9, lineHeight: 13, color: '#727C8E' },
+  compareModalCard: { maxHeight: '88%', padding: 18, paddingBottom: 28, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#FFFFFF' },
+  comparePicker: { gap: 8, paddingVertical: 10 },
+  comparePickerItem: { width: 86, paddingBottom: 5, overflow: 'hidden', borderWidth: 1, borderColor: '#DFE2E8', borderRadius: 10, backgroundColor: '#FFFFFF' },
+  comparePickerItemActive: { borderWidth: 2, borderColor: '#24583E' },
+  comparePickerImage: { width: '100%', height: 68, backgroundColor: '#ECEEF2' },
+  comparePickerUnavailable: { width: '100%', height: 68, backgroundColor: '#ECEEF2' },
+  comparePickerDate: { paddingHorizontal: 5, paddingTop: 4, fontSize: 7, color: '#7D8697' },
+  compareOrderBadge: { position: 'absolute', top: 5, right: 5, width: 21, height: 21, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#24583E' },
+  compareOrderText: { fontSize: 10, fontWeight: '900', color: '#FFFFFF' },
+  comparePreviewRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  comparePreviewCard: { flex: 1, overflow: 'hidden', borderWidth: 1, borderColor: '#DFE2E8', borderRadius: 12, backgroundColor: '#FFFFFF' },
+  comparePreviewLabel: { paddingHorizontal: 8, paddingVertical: 6, fontSize: 9, fontWeight: '900', letterSpacing: 0.8, color: '#24583E' },
+  comparePreviewImage: { width: '100%', aspectRatio: 1, backgroundColor: '#ECEEF2' },
+  comparePreviewUnavailable: { width: '100%', aspectRatio: 1, backgroundColor: '#ECEEF2' },
+  compareHint: { padding: 14, textAlign: 'center', fontSize: 10, color: '#727C8E' },
   targetButton: { minHeight: 54, marginTop: 8, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#DFE2E8', borderRadius: 12 },
   targetText: { flex: 1, fontSize: 12, fontWeight: '800', color: '#34405A' },
 });

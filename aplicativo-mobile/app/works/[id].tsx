@@ -180,6 +180,7 @@ export default function WorkDetailsScreen() {
   const [pendingCount, setPendingCount] = useState(0);
   const [galleryCount, setGalleryCount] = useState(0);
   const [cameraRequest, setCameraRequest] = useState(0);
+  const [galleryCompareRequest, setGalleryCompareRequest] = useState(0);
   const [pendingCreateRequest, setPendingCreateRequest] = useState(0);
   const [timelineCreateRequest, setTimelineCreateRequest] = useState(0);
   const [documentCreateRequest, setDocumentCreateRequest] = useState(0);
@@ -433,6 +434,12 @@ export default function WorkDetailsScreen() {
   function openEnvironmentCamera(environmentId: string) {
     openEnvironmentSection(environmentId, 'photos');
     setCameraRequest((current) => current + 1);
+  }
+
+  function openGalleryCompare() {
+    setOpenSection('photos');
+    setGalleryCompareRequest((current) => current + 1);
+    scrollToSection('photos');
   }
 
   function openEnvironmentActions(environmentId: string) {
@@ -845,6 +852,16 @@ export default function WorkDetailsScreen() {
                   badge={String(totalPhotos)}
                   open={openSection === 'photos'}
                   onPress={() => toggle('photos')}
+                  headerAction={
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Abrir comparativo Antes e Depois"
+                      style={styles.galleryCompareAction}
+                      onPress={openGalleryCompare}
+                    >
+                      <Ionicons name="git-compare-outline" size={17} color={FioColors.green} />
+                    </Pressable>
+                  }
                   onLayout={(event) => {
                     sectionOffsets.current.photos = event.nativeEvent.layout.y;
                   }}
@@ -862,6 +879,8 @@ export default function WorkDetailsScreen() {
                     canManage={canManage}
                     userId={userId}
                     cameraRequest={cameraRequest}
+                    compareRequest={galleryCompareRequest}
+                    onCompareRequestHandled={() => setGalleryCompareRequest(0)}
                     environmentFilterId={environmentFilterId ?? undefined}
                     onCameraRequestHandled={() =>
                       setCameraRequest(0)
@@ -1368,6 +1387,16 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     color: FioColors.green,
+  },
+  galleryCompareAction: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#BFD0C3',
+    borderRadius: 999,
+    backgroundColor: '#F4FAF5',
   },
   environmentActions: { marginTop: 13, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   secondaryButton: {

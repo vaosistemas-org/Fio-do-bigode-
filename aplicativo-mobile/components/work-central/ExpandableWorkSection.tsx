@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, ReactNode } from 'react';
 import {
   LayoutChangeEvent,
   Pressable,
@@ -16,6 +16,7 @@ type Props = PropsWithChildren<{
   onPress: () => void;
   onLayout?: (event: LayoutChangeEvent) => void;
   badge?: string;
+  headerAction?: ReactNode;
 }>;
 
 export function ExpandableWorkSection({
@@ -26,6 +27,7 @@ export function ExpandableWorkSection({
   onPress,
   onLayout,
   badge,
+  headerAction,
   children,
 }: Props) {
   return (
@@ -36,53 +38,57 @@ export function ExpandableWorkSection({
         open && styles.cardOpen,
       ]}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-        style={({ pressed }) => [
-          styles.header,
-          pressed && styles.pressed,
-        ]}
-        onPress={onPress}
-      >
-        <View style={styles.iconBox}>
-          <Ionicons
-            name={icon}
-            size={19}
-            color="#FFFFFF"
-          />
-        </View>
-
-        <View style={styles.identity}>
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>
-              {title}
-            </Text>
-
-            {!!badge && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {badge}
-                </Text>
-              </View>
-            )}
+      <View style={styles.header}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          style={({ pressed }) => [
+            styles.headerMain,
+            pressed && styles.pressed,
+          ]}
+          onPress={onPress}
+        >
+          <View style={styles.iconBox}>
+            <Ionicons
+              name={icon}
+              size={19}
+              color="#FFFFFF"
+            />
           </View>
 
-          <Text style={styles.subtitle}>
-            {subtitle}
-          </Text>
-        </View>
+          <View style={styles.identity}>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>
+                {title}
+              </Text>
 
-        <Ionicons
-          name={
-            open
-              ? 'chevron-up-outline'
-              : 'chevron-down-outline'
-          }
-          size={21}
-          color="#202B34"
-        />
-      </Pressable>
+              {!!badge && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {badge}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <Text style={styles.subtitle}>
+              {subtitle}
+            </Text>
+          </View>
+
+          <Ionicons
+            name={
+              open
+                ? 'chevron-up-outline'
+                : 'chevron-down-outline'
+            }
+            size={21}
+            color="#202B34"
+          />
+        </Pressable>
+
+        {headerAction}
+      </View>
 
       {open && (
         <View style={styles.content}>
@@ -107,8 +113,16 @@ const styles = StyleSheet.create({
   },
   header: {
     minHeight: 66,
-    paddingHorizontal: 12,
+    paddingLeft: 12,
+    paddingRight: 8,
     paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerMain: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
