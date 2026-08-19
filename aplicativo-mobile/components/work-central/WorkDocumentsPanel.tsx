@@ -24,7 +24,15 @@ import {
   View,
 } from 'react-native';
 
-import { WorkEnvironment } from '@/components/work-central/types';
+import {
+  WorkEnvironment,
+  WorkParticipant,
+} from '@/components/work-central/types';
+import {
+  FioColors,
+  FioRadius,
+  FioShadow,
+} from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
 type DocumentVisibility =
@@ -44,7 +52,7 @@ type DocumentCategory =
   | 'receipt'
   | 'other';
 
-type PanelFilter = DocumentVisibility | 'referenced';
+type PanelFilter = DocumentVisibility | 'all' | 'referenced';
 
 type WorkDocument = {
   id: string;
@@ -63,6 +71,8 @@ type WorkDocument = {
   mime_type: string | null;
   size_bytes: number | null;
   version_created_at: string | null;
+  created_by: string;
+  created_at: string;
   updated_at: string;
   can_manage: boolean;
   is_referenced: boolean;
@@ -87,10 +97,12 @@ type DocumentPreview = {
   url: string;
 };
 
-const CATEGORY_OPTIONS: Array<{
+const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
+
+const CATEGORY_OPTIONS: {
   value: DocumentCategory;
   label: string;
-}> = [
+}[] = [
   { value: 'architectural_project', label: 'Projeto arquitetônico' },
   { value: 'hydraulic_plan', label: 'Planta hidráulica' },
   { value: 'electrical_plan', label: 'Planta elétrica' },
@@ -103,12 +115,12 @@ const CATEGORY_OPTIONS: Array<{
   { value: 'other', label: 'Outro' },
 ];
 
-const VISIBILITY_OPTIONS: Array<{
+const VISIBILITY_OPTIONS: {
   value: DocumentVisibility;
   label: string;
   detail: string;
   icon: keyof typeof Ionicons.glyphMap;
-}> = [
+}[] = [
   {
     value: 'fio_general',
     label: 'Todos da obra',
@@ -142,6 +154,15 @@ function formatSize(bytes: number | null) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function formatDate(value: string | null) {
+  if (!value) return 'Data não informada';
+  return new Date(value).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 function cleanFileName(value: string) {
@@ -178,6 +199,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 export function WorkDocumentsPanel({
   workId,
   environments,
+  participants,
   canWrite,
   newRequest = 0,
   environmentFilterId,
@@ -188,6 +210,7 @@ export function WorkDocumentsPanel({
 }: {
   workId: string;
   environments: WorkEnvironment[];
+  participants: WorkParticipant[];
   canWrite: boolean;
   newRequest?: number;
   environmentFilterId?: string;
@@ -196,9 +219,10 @@ export function WorkDocumentsPanel({
   onCountChange?: (count: number) => void;
   onChanged?: () => void;
 }) {
+  const measurementMode = categoryFilter === 'measurement';
   const [documents, setDocuments] = useState<WorkDocument[]>([]);
   const [activeCompany, setActiveCompany] = useState<ActiveCompany | null>(null);
-  const [filter, setFilter] = useState<PanelFilter>('fio_general');
+  const [filter, setFilter] = useState<PanelFilter>('all');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -221,6 +245,17 @@ export function WorkDocumentsPanel({
   const [referenceSaving, setReferenceSaving] = useState(false);
   const [documentPreview, setDocumentPreview] =
     useState<DocumentPreview | null>(null);
+
+  const participantNames = useMemo(
+    () =>
+      Object.fromEntries(
+        participants.map((participant) => [
+          participant.user_id,
+          participant.full_name,
+        ])
+      ),
+    [participants]
+  );
 
   async function loadDocuments() {
     setLoading(true);
@@ -273,6 +308,7 @@ export function WorkDocumentsPanel({
   );
 
   const visibleDocuments = useMemo(() => {
+    if (filter === 'all') return scopedDocuments;
     if (filter === 'referenced') {
       return scopedDocuments.filter((document) => document.is_referenced);
     }
@@ -328,12 +364,17 @@ export function WorkDocumentsPanel({
     });
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
+    if (asset.size && asset.size > MAX_DOCUMENT_BYTES) {
+      setModalMessage('O arquivo deve possuir no máximo 50 MB.');
+      return;
+    }
     const file: PickedFile = {
       uri: asset.uri,
       name: asset.name || `documento-${Date.now()}`,
       mimeType: asset.mimeType ?? null,
       size: asset.size ?? null,
     };
+    setModalMessage('');
     setSelectedFile(file);
     if (!title.trim()) setTitle(titleFromFileName(file.name));
   }
@@ -363,7 +404,10 @@ export function WorkDocumentsPanel({
       size: asset.fileSize ?? null,
       base64: asset.base64,
     });
-    if (!title.trim()) setTitle('Documento fotografado');
+    setModalMessage('');
+    if (!title.trim()) {
+      setTitle(measurementMode ? 'Medição fotografada' : 'Documento fotografado');
+    }
   }
 
   async function uploadVersion(documentId: string, file: PickedFile) {
@@ -463,9 +507,11 @@ export function WorkDocumentsPanel({
       setFormVisible(false);
       resetForm();
       await loadDocuments();
-      setFilter(visibility);
+      setFilter('all');
       setSuccessMessage(
-        editing ? 'Documento atualizado.' : 'Documento adicionado à obra.'
+        editing
+          ? `${measurementMode ? 'Medição' : 'Documento'} atualizado.`
+          : `${measurementMode ? 'Medição' : 'Documento'} adicionado à obra.`
       );
       onChanged?.();
     } catch (error) {
@@ -475,7 +521,10 @@ export function WorkDocumentsPanel({
         });
       }
       setModalMessage(
-        getErrorMessage(error, 'Não foi possível salvar o documento.')
+        getErrorMessage(
+          error,
+          `Não foi possível salvar ${measurementMode ? 'a medição' : 'o documento'}.`
+        )
       );
     } finally {
       setSaving(false);
@@ -591,16 +640,26 @@ export function WorkDocumentsPanel({
         <View style={styles.summaryTextWrap}>
           <Text style={styles.summaryTitle}>
             {scopedDocuments.length}{' '}
-            {scopedDocuments.length === 1 ? 'documento' : 'documentos'}
+            {measurementMode
+              ? scopedDocuments.length === 1
+                ? 'medição'
+                : 'medições'
+              : scopedDocuments.length === 1
+              ? 'documento'
+              : 'documentos'}
           </Text>
           <Text style={styles.summarySubtitle}>
-            Arquivo único, versões preservadas e acesso controlado.
+            {measurementMode
+              ? 'Fotos e arquivos de medidas com versões preservadas.'
+              : 'Arquivos da obra com versões e acesso controlado.'}
           </Text>
         </View>
         {canWrite && (
           <Pressable style={styles.addButton} onPress={openCreate}>
             <Ionicons name="add-outline" size={19} color="#FFFFFF" />
-            <Text style={styles.addButtonText}>Adicionar</Text>
+            <Text style={styles.addButtonText}>
+              {measurementMode ? 'Nova medição' : 'Adicionar'}
+            </Text>
           </Pressable>
         )}
       </View>
@@ -611,13 +670,16 @@ export function WorkDocumentsPanel({
         contentContainerStyle={styles.filters}
       >
         {([
-          ['fio_general', 'Todos da obra'],
+          ['all', 'Todos'],
+          ['fio_general', 'Compartilhados'],
           ['professionals', 'Profissionais'],
           ['company_internal', 'Minha empresa'],
           ['referenced', 'Referenciados'],
-        ] as Array<[PanelFilter, string]>).map(([key, label]) => {
+        ] as [PanelFilter, string][]).map(([key, label]) => {
           const count =
-            key === 'referenced'
+            key === 'all'
+              ? scopedDocuments.length
+              : key === 'referenced'
               ? scopedDocuments.filter((document) => document.is_referenced).length
               : scopedDocuments.filter((document) => document.visibility === key).length;
           return (
@@ -648,25 +710,54 @@ export function WorkDocumentsPanel({
 
       {visibleDocuments.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Ionicons name="document-text-outline" size={24} color="#C79A45" />
-          <Text style={styles.emptyTitle}>Nenhum documento neste filtro</Text>
+          <Ionicons
+            name={measurementMode ? 'resize-outline' : 'document-text-outline'}
+            size={24}
+            color={FioColors.gold}
+          />
+          <Text style={styles.emptyTitle}>
+            Nenhuma {measurementMode ? 'medição' : 'documentação'} neste filtro
+          </Text>
           <Text style={styles.emptyText}>
             {canWrite
-              ? 'Adicione uma planta, projeto, contrato ou registro da obra.'
-              : 'Os documentos liberados para seu acesso aparecerão aqui.'}
+              ? measurementMode
+                ? 'Fotografe uma anotação ou adicione um arquivo de medidas.'
+                : 'Adicione uma planta, projeto, contrato ou registro da obra.'
+              : `Os ${measurementMode ? 'registros' : 'documentos'} liberados para seu acesso aparecerão aqui.`}
           </Text>
         </View>
       ) : (
         visibleDocuments.map((document) => (
           <View key={document.id} style={styles.documentCard}>
-            <View style={styles.documentIcon}>
-              <Ionicons name="document-text-outline" size={21} color="#24583E" />
+            <View
+              style={[
+                styles.documentIcon,
+                measurementMode && styles.measurementIcon,
+              ]}
+            >
+              <Ionicons
+                name={measurementMode ? 'resize-outline' : 'document-text-outline'}
+                size={21}
+                color={measurementMode ? FioColors.gold : FioColors.green}
+              />
             </View>
             <View style={styles.documentIdentity}>
               <Text style={styles.documentTitle}>{document.title}</Text>
               <Text style={styles.documentMeta}>
                 {categoryLabel(document.category)} · {document.environment_name || 'Geral da obra'}
               </Text>
+              <View style={styles.authorDateRow}>
+                <Ionicons
+                  name="person-circle-outline"
+                  size={14}
+                  color={FioColors.textMuted}
+                />
+                <Text numberOfLines={1} style={styles.authorDateText}>
+                  {participantNames[document.created_by] ?? 'Usuário do FIO'}
+                  {' · '}
+                  {formatDate(document.version_created_at ?? document.created_at)}
+                </Text>
+              </View>
               <View style={styles.tagRow}>
                 <View style={styles.visibilityTag}>
                   <Text style={styles.visibilityTagText}>
@@ -712,8 +803,13 @@ export function WorkDocumentsPanel({
                   </Pressable>
                 )}
                 {document.can_manage && (
-                  <Pressable style={styles.iconAction} onPress={() => openEdit(document)}>
-                    <Ionicons name="create-outline" size={18} color="#596274" />
+                  <Pressable
+                    accessibilityLabel="Editar dados ou enviar nova versão"
+                    style={styles.smallAction}
+                    onPress={() => openEdit(document)}
+                  >
+                    <Ionicons name="cloud-upload-outline" size={16} color="#24583E" />
+                    <Text style={styles.smallActionText}>Editar / versão</Text>
                   </Pressable>
                 )}
                 {document.can_manage && (
@@ -733,11 +829,15 @@ export function WorkDocumentsPanel({
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderText}>
                 <Text style={styles.modalTitle}>
-                  {editing ? 'Editar documento' : 'Novo documento'}
+                  {editing
+                    ? `Editar ${measurementMode ? 'medição' : 'documento'}`
+                    : `Nov${measurementMode ? 'a medição' : 'o documento'}`}
                 </Text>
                 <Text style={styles.modalSubtitle}>
                   {editing
                     ? 'Atualize os dados ou envie uma nova versão.'
+                    : measurementMode
+                    ? 'Fotografe uma anotação ou escolha um arquivo de medidas.'
                     : 'Escolha um arquivo ou fotografe agora.'}
                 </Text>
               </View>
@@ -754,7 +854,9 @@ export function WorkDocumentsPanel({
                 </Pressable>
                 <Pressable style={styles.fileButton} onPress={takePhoto}>
                   <Ionicons name="camera-outline" size={21} color="#24583E" />
-                  <Text style={styles.fileButtonText}>Foto rápida</Text>
+                  <Text style={styles.fileButtonText}>
+                    {measurementMode ? 'Fotografar medição' : 'Foto rápida'}
+                  </Text>
                 </Pressable>
               </View>
               {!!selectedFile && (
@@ -776,7 +878,11 @@ export function WorkDocumentsPanel({
               <TextInput
                 value={title}
                 onChangeText={setTitle}
-                placeholder="Ex.: Planta hidráulica atualizada"
+                placeholder={
+                  measurementMode
+                    ? 'Ex.: Medição final da bancada'
+                    : 'Ex.: Planta hidráulica atualizada'
+                }
                 placeholderTextColor="#A1A8B4"
                 style={styles.input}
               />
@@ -790,46 +896,102 @@ export function WorkDocumentsPanel({
                 style={[styles.input, styles.textArea]}
               />
 
-              <Text style={styles.label}>Categoria</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choiceRow}>
-                {CATEGORY_OPTIONS.filter(
-                  (option) => !categoryFilter || option.value === categoryFilter
-                ).map((option) => (
-                  <Pressable
-                    key={option.value}
-                    style={[styles.choiceChip, category === option.value && styles.choiceChipActive]}
-                    onPress={() => setCategory(option.value)}
-                    disabled={Boolean(categoryFilter)}
+              {!categoryFilter && (
+                <>
+                  <Text style={styles.label}>Categoria</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.choiceRow}
                   >
-                    <Text style={[styles.choiceText, category === option.value && styles.choiceTextActive]}>
-                      {option.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
+                    {CATEGORY_OPTIONS.map((option) => (
+                      <Pressable
+                        key={option.value}
+                        style={[
+                          styles.choiceChip,
+                          category === option.value && styles.choiceChipActive,
+                        ]}
+                        onPress={() => setCategory(option.value)}
+                      >
+                        <Text
+                          style={[
+                            styles.choiceText,
+                            category === option.value && styles.choiceTextActive,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
 
               <Text style={styles.label}>Onde se aplica?</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choiceRow}>
-                <Pressable
-                  style={[styles.choiceChip, environmentId === null && styles.choiceChipActive]}
-                  onPress={() => setEnvironmentId(null)}
+              {environmentFilterId ? (
+                <View style={styles.lockedEnvironment}>
+                  <View style={styles.lockedEnvironmentIcon}>
+                    <Ionicons name="grid-outline" size={18} color={FioColors.green} />
+                  </View>
+                  <View style={styles.lockedEnvironmentIdentity}>
+                    <Text style={styles.lockedEnvironmentLabel}>AMBIENTE VINCULADO</Text>
+                    <Text style={styles.lockedEnvironmentName}>
+                      {environments.find(
+                        (environment) => environment.id === environmentFilterId
+                      )?.name ?? 'Ambiente'}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={17}
+                    color={FioColors.gold}
+                  />
+                </View>
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.choiceRow}
                 >
-                  <Text style={[styles.choiceText, environmentId === null && styles.choiceTextActive]}>
-                    Geral da obra
-                  </Text>
-                </Pressable>
-                {environments.map((environment) => (
                   <Pressable
-                    key={environment.id}
-                    style={[styles.choiceChip, environmentId === environment.id && styles.choiceChipActive]}
-                    onPress={() => setEnvironmentId(environment.id)}
+                    style={[
+                      styles.choiceChip,
+                      environmentId === null && styles.choiceChipActive,
+                    ]}
+                    onPress={() => setEnvironmentId(null)}
                   >
-                    <Text style={[styles.choiceText, environmentId === environment.id && styles.choiceTextActive]}>
-                      {environment.name}
+                    <Text
+                      style={[
+                        styles.choiceText,
+                        environmentId === null && styles.choiceTextActive,
+                      ]}
+                    >
+                      Geral da obra
                     </Text>
                   </Pressable>
-                ))}
-              </ScrollView>
+                  {environments.map((environment) => (
+                    <Pressable
+                      key={environment.id}
+                      style={[
+                        styles.choiceChip,
+                        environmentId === environment.id &&
+                          styles.choiceChipActive,
+                      ]}
+                      onPress={() => setEnvironmentId(environment.id)}
+                    >
+                      <Text
+                        style={[
+                          styles.choiceText,
+                          environmentId === environment.id &&
+                            styles.choiceTextActive,
+                        ]}
+                      >
+                        {environment.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
 
               <Text style={styles.label}>Quem pode visualizar?</Text>
               {VISIBILITY_OPTIONS.map((option) => (
@@ -895,7 +1057,9 @@ export function WorkDocumentsPanel({
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <Text style={styles.saveButtonText}>
-                    {editing ? 'Salvar alterações' : 'Adicionar documento'}
+                    {editing
+                      ? 'Salvar alterações'
+                      : `Adicionar ${measurementMode ? 'medição' : 'documento'}`}
                   </Text>
                 )}
               </Pressable>
@@ -987,7 +1151,7 @@ const styles = StyleSheet.create({
   summaryTextWrap: { flex: 1, minWidth: 0 },
   summaryTitle: { fontSize: 15, fontWeight: '800', color: '#152033' },
   summarySubtitle: { marginTop: 2, fontSize: 10, lineHeight: 14, color: '#697386' },
-  addButton: { minHeight: 40, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 11, backgroundColor: '#24583E' },
+  addButton: { minHeight: 40, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: FioRadius.pill, backgroundColor: FioColors.green },
   addButtonText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
   filters: { paddingVertical: 12, gap: 7 },
   filterChip: { minHeight: 36, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 999, backgroundColor: '#FFFFFF' },
@@ -1001,11 +1165,14 @@ const styles = StyleSheet.create({
   emptyCard: { minHeight: 125, padding: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E4E9', borderRadius: 13, backgroundColor: '#FAFAFC' },
   emptyTitle: { marginTop: 7, fontSize: 12, fontWeight: '800', color: '#34405A' },
   emptyText: { maxWidth: 320, marginTop: 4, textAlign: 'center', fontSize: 9, lineHeight: 13, color: '#7A8394' },
-  documentCard: { marginBottom: 8, padding: 10, flexDirection: 'row', gap: 9, borderWidth: 1, borderColor: '#E0E3E8', borderRadius: 13, backgroundColor: '#FFFFFF' },
+  documentCard: { marginBottom: 8, padding: 10, flexDirection: 'row', gap: 9, borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)', borderRadius: FioRadius.medium, backgroundColor: 'rgba(255,255,255,0.78)', ...FioShadow },
   documentIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#E7F1E8' },
+  measurementIcon: { backgroundColor: FioColors.goldSoft },
   documentIdentity: { flex: 1, minWidth: 0 },
   documentTitle: { fontSize: 12, fontWeight: '800', color: '#202A3A' },
   documentMeta: { marginTop: 2, fontSize: 9, color: '#697386' },
+  authorDateRow: { marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  authorDateText: { flex: 1, minWidth: 0, fontSize: 8, color: FioColors.textMuted },
   tagRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   visibilityTag: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: '#E7F1E8' },
   visibilityTagText: { fontSize: 8, fontWeight: '800', color: '#24583E' },
@@ -1040,6 +1207,38 @@ const styles = StyleSheet.create({
   choiceChipActive: { borderColor: '#24583E', backgroundColor: '#E7F1E8' },
   choiceText: { fontSize: 9, fontWeight: '700', color: '#697386' },
   choiceTextActive: { color: '#24583E' },
+  lockedEnvironment: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    padding: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(191, 208, 195, 0.78)',
+    borderRadius: FioRadius.medium,
+    backgroundColor: 'rgba(231, 241, 232, 0.68)',
+  },
+  lockedEnvironmentIcon: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+  },
+  lockedEnvironmentIdentity: { flex: 1, minWidth: 0 },
+  lockedEnvironmentLabel: {
+    fontSize: 7,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    color: FioColors.gold,
+  },
+  lockedEnvironmentName: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '900',
+    color: FioColors.green,
+  },
   permissionOption: { minHeight: 68, marginBottom: 7, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 12, backgroundColor: '#FFFFFF' },
   permissionOptionActive: { borderColor: '#24583E', backgroundColor: '#E7F1E8' },
   permissionIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#E7F1E8' },
