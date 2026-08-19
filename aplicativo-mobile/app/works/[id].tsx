@@ -893,6 +893,7 @@ export default function WorkDetailsScreen() {
                     workId={work.id}
                     environments={environments}
                     participants={participants}
+                    userId={userId}
                     canWrite={canWrite}
                     newRequest={measurementCreateRequest}
                     environmentFilterId={environmentFilterId ?? undefined}
@@ -924,6 +925,7 @@ export default function WorkDetailsScreen() {
                     workId={work.id}
                     environments={environments}
                     participants={participants}
+                    userId={userId}
                     canWrite={canWrite}
                     newRequest={documentCreateRequest}
                     environmentFilterId={environmentFilterId ?? undefined}

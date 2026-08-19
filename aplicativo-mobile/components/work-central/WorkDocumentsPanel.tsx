@@ -52,7 +52,7 @@ type DocumentCategory =
   | 'receipt'
   | 'other';
 
-type PanelFilter = DocumentVisibility | 'all' | 'referenced';
+type PanelFilter = DocumentVisibility | 'all' | 'mine' | 'referenced';
 
 type WorkDocument = {
   id: string;
@@ -77,6 +77,17 @@ type WorkDocument = {
   can_manage: boolean;
   is_referenced: boolean;
   reference_note: string | null;
+};
+
+type DocumentVersionSender = {
+  document_id: string;
+  version_number: number;
+  uploaded_by: string;
+};
+
+type DocumentUploadInfo = {
+  hasMyUpload: boolean;
+  latestUploaderId: string | null;
 };
 
 type ActiveCompany = {
@@ -200,6 +211,7 @@ export function WorkDocumentsPanel({
   workId,
   environments,
   participants,
+  userId,
   canWrite,
   newRequest = 0,
   environmentFilterId,
@@ -211,6 +223,7 @@ export function WorkDocumentsPanel({
   workId: string;
   environments: WorkEnvironment[];
   participants: WorkParticipant[];
+  userId: string | null;
   canWrite: boolean;
   newRequest?: number;
   environmentFilterId?: string;
@@ -221,6 +234,9 @@ export function WorkDocumentsPanel({
 }) {
   const measurementMode = categoryFilter === 'measurement';
   const [documents, setDocuments] = useState<WorkDocument[]>([]);
+  const [uploadInfo, setUploadInfo] = useState<
+    Record<string, DocumentUploadInfo>
+  >({});
   const [activeCompany, setActiveCompany] = useState<ActiveCompany | null>(null);
   const [filter, setFilter] = useState<PanelFilter>('all');
   const [loading, setLoading] = useState(true);
@@ -267,10 +283,50 @@ export function WorkDocumentsPanel({
 
     if (documentResult.error) {
       setDocuments([]);
+      setUploadInfo({});
       setMessage(documentResult.error.message);
     } else {
       const next = (documentResult.data ?? []) as WorkDocument[];
       setDocuments(next);
+
+      if (next.length === 0) {
+        setUploadInfo({});
+      } else {
+        const { data: versionData, error: versionError } = await supabase
+          .from('work_document_versions')
+          .select('document_id, version_number, uploaded_by')
+          .in(
+            'document_id',
+            next.map((document) => document.id)
+          )
+          .order('version_number', { ascending: false });
+
+        if (versionError) {
+          setUploadInfo({});
+          setMessage(versionError.message);
+        } else {
+          const nextUploadInfo: Record<string, DocumentUploadInfo> = {};
+
+          for (const version of (versionData ?? []) as DocumentVersionSender[]) {
+            const current = nextUploadInfo[version.document_id] ?? {
+              hasMyUpload: false,
+              latestUploaderId: null,
+            };
+
+            if (!current.latestUploaderId) {
+              current.latestUploaderId = version.uploaded_by;
+            }
+            if (version.uploaded_by === userId) {
+              current.hasMyUpload = true;
+            }
+
+            nextUploadInfo[version.document_id] = current;
+          }
+
+          setUploadInfo(nextUploadInfo);
+        }
+      }
+
       onCountChange?.(
         next.filter(
           (document) =>
@@ -289,7 +345,7 @@ export function WorkDocumentsPanel({
 
   useEffect(() => {
     loadDocuments();
-  }, [workId]);
+  }, [workId, userId]);
 
   useEffect(() => {
     if (newRequest > 0 && canWrite) openCreate();
@@ -309,11 +365,22 @@ export function WorkDocumentsPanel({
 
   const visibleDocuments = useMemo(() => {
     if (filter === 'all') return scopedDocuments;
+    if (filter === 'mine') {
+      return scopedDocuments.filter(
+        (document) => uploadInfo[document.id]?.hasMyUpload
+      );
+    }
     if (filter === 'referenced') {
       return scopedDocuments.filter((document) => document.is_referenced);
     }
     return scopedDocuments.filter((document) => document.visibility === filter);
-  }, [filter, scopedDocuments]);
+  }, [filter, scopedDocuments, uploadInfo]);
+
+  function userLabel(id: string | null) {
+    if (!id) return 'Usuário do FIO';
+    if (id === userId) return 'você';
+    return participantNames[id] ?? 'Usuário do FIO';
+  }
 
   function resetForm() {
     setEditing(null);
@@ -670,8 +737,12 @@ export function WorkDocumentsPanel({
         contentContainerStyle={styles.filters}
       >
         {([
-          ['all', 'Todos'],
-          ['fio_general', 'Compartilhados'],
+          [
+            'all',
+            measurementMode ? 'Todas as medições' : 'Todos os documentos',
+          ],
+          ['mine', 'Enviados por mim'],
+          ['fio_general', 'Todos da obra'],
           ['professionals', 'Profissionais'],
           ['company_internal', 'Minha empresa'],
           ['referenced', 'Referenciados'],
@@ -679,6 +750,10 @@ export function WorkDocumentsPanel({
           const count =
             key === 'all'
               ? scopedDocuments.length
+              : key === 'mine'
+              ? scopedDocuments.filter(
+                  (document) => uploadInfo[document.id]?.hasMyUpload
+                ).length
               : key === 'referenced'
               ? scopedDocuments.filter((document) => document.is_referenced).length
               : scopedDocuments.filter((document) => document.visibility === key).length;
@@ -753,7 +828,18 @@ export function WorkDocumentsPanel({
                   color={FioColors.textMuted}
                 />
                 <Text numberOfLines={1} style={styles.authorDateText}>
-                  {participantNames[document.created_by] ?? 'Usuário do FIO'}
+                  Criado por {userLabel(document.created_by)}
+                </Text>
+              </View>
+              <View style={styles.authorDateRow}>
+                <Ionicons
+                  name="cloud-upload-outline"
+                  size={14}
+                  color={FioColors.textMuted}
+                />
+                <Text numberOfLines={1} style={styles.authorDateText}>
+                  Versão atual enviada por{' '}
+                  {userLabel(uploadInfo[document.id]?.latestUploaderId ?? null)}
                   {' · '}
                   {formatDate(document.version_created_at ?? document.created_at)}
                 </Text>
