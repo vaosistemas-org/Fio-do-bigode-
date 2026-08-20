@@ -97,6 +97,7 @@ function formatTime(value: string) {
 }
 
 function eventIcon(eventType: string | null): keyof typeof Ionicons.glyphMap {
+  if (eventType?.startsWith('ENTREGA_')) return 'checkmark-done-outline';
   if (eventType?.startsWith('DOCUMENTO_')) return 'document-text-outline';
   if (eventType?.startsWith('FOTO_')) return 'camera-outline';
   if (eventType?.startsWith('PENDENCIA_')) return 'alert-circle-outline';

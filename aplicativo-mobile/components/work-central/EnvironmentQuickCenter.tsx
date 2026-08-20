@@ -14,6 +14,7 @@ export type EnvironmentQuickCounts = {
   measurements: number;
   documents: number;
   fio: number;
+  delivery: number;
 };
 
 const ITEMS: {
@@ -63,6 +64,14 @@ const ITEMS: {
     countKey: 'fio',
     tone: FioColors.green,
     soft: FioColors.greenSoft,
+  },
+  {
+    section: 'delivery',
+    label: 'Entrega',
+    icon: 'checkmark-done-outline',
+    countKey: 'delivery',
+    tone: FioColors.gold,
+    soft: FioColors.goldSoft,
   },
 ];
 

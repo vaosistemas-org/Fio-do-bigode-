@@ -57,4 +57,5 @@ export type WorkSectionKey =
   | 'photos'
   | 'measurements'
   | 'projects'
-  | 'documents';
+  | 'documents'
+  | 'delivery';

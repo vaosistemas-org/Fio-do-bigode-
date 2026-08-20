@@ -30,6 +30,7 @@ import {
   EnvironmentQuickCounts,
 } from '@/components/work-central/EnvironmentQuickCenter';
 import { WorkDocumentsPanel } from '@/components/work-central/WorkDocumentsPanel';
+import { WorkDeliveryPanel } from '@/components/work-central/WorkDeliveryPanel';
 import { WorkPendingPanel } from '@/components/work-central/WorkPendingPanel';
 import { WorkPhotosPanel } from '@/components/work-central/WorkPhotosPanel';
 import { WorkTimelinePanel } from '@/components/work-central/WorkTimelinePanel';
@@ -65,6 +66,7 @@ const ENVIRONMENT_STATUS_LABELS: Record<
 type PhotoReference = {
   environment_id: string | null;
   storage_path: string;
+  photo_type: 'general' | 'delivery_final';
 };
 
 type EnvironmentReference = {
@@ -73,10 +75,16 @@ type EnvironmentReference = {
 
 type PendingCountReference = EnvironmentReference & {
   status: string;
+  blocks_delivery: boolean;
 };
 
 type DocumentCountReference = EnvironmentReference & {
   category: string;
+};
+
+type DeliveryChecklistCountReference = EnvironmentReference & {
+  status: string;
+  required: boolean;
 };
 
 type EnvironmentSection = Exclude<WorkSectionKey, 'environments'>;
@@ -158,6 +166,8 @@ export default function WorkDetailsScreen() {
     useState<WorkParticipant[]>([]);
   const [photoCounts, setPhotoCounts] =
     useState<Record<string, number>>({});
+  const [finalPhotoCounts, setFinalPhotoCounts] =
+    useState<Record<string, number>>({});
   const [environmentPendingCounts, setEnvironmentPendingCounts] =
     useState<Record<string, number>>({});
   const [environmentDocumentCounts, setEnvironmentDocumentCounts] =
@@ -165,6 +175,8 @@ export default function WorkDetailsScreen() {
   const [environmentMeasurementCounts, setEnvironmentMeasurementCounts] =
     useState<Record<string, number>>({});
   const [environmentTimelineCounts, setEnvironmentTimelineCounts] =
+    useState<Record<string, number>>({});
+  const [environmentDeliveryCounts, setEnvironmentDeliveryCounts] =
     useState<Record<string, number>>({});
   const [coverUrl, setCoverUrl] =
     useState<string | null>(null);
@@ -189,6 +201,8 @@ export default function WorkDetailsScreen() {
   const [documentCount, setDocumentCount] = useState(0);
   const [measurementCount, setMeasurementCount] = useState(0);
   const [projectCount, setProjectCount] = useState(0);
+  const [deliveryBlockerCount, setDeliveryBlockerCount] = useState(0);
+  const [deliveryReady, setDeliveryReady] = useState(false);
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
   const [actionEnvironmentId, setActionEnvironmentId] =
     useState<string | null>(null);
@@ -222,6 +236,8 @@ export default function WorkDetailsScreen() {
           pendingResult,
           documentResult,
           timelineResult,
+          deliveryChecklistResult,
+          deliveryStateResult,
         ] =
           await Promise.all([
             supabase
@@ -249,13 +265,13 @@ export default function WorkDetailsScreen() {
             }),
             supabase
               .from('work_photos')
-              .select('environment_id, storage_path')
+              .select('environment_id, storage_path, photo_type')
               .eq('work_id', id)
               .eq('collection', 'work')
               .order('created_at', { ascending: false }),
             supabase
               .from('work_pending_items')
-              .select('environment_id, status')
+              .select('environment_id, status, blocks_delivery')
               .eq('work_id', id),
             supabase.rpc('get_work_documents', {
               p_work_id: id,
@@ -263,6 +279,16 @@ export default function WorkDetailsScreen() {
             supabase.rpc('get_work_timeline', {
               p_work_id: id,
             }),
+            supabase
+              .from('work_delivery_checklist_items')
+              .select('environment_id, status, required')
+              .eq('work_id', id)
+              .eq('active', true),
+            supabase
+              .from('work_delivery_states')
+              .select('status')
+              .eq('work_id', id)
+              .maybeSingle(),
           ]);
 
         if (workResult.error) throw workResult.error;
@@ -275,9 +301,9 @@ export default function WorkDetailsScreen() {
         if (peopleResult.error) throw peopleResult.error;
 
         setWork(workResult.data as Work);
-        setEnvironments(
-          (environmentResult.data ?? []) as WorkEnvironment[]
-        );
+        const environmentRows =
+          (environmentResult.data ?? []) as WorkEnvironment[];
+        setEnvironments(environmentRows);
         setParticipants(
           (peopleResult.data ?? []) as WorkParticipant[]
         );
@@ -342,18 +368,28 @@ export default function WorkDetailsScreen() {
 
         if (photoResult.error) {
           setPhotoCounts({});
+          setFinalPhotoCounts({});
           setGalleryCount(0);
           setCoverUrl(null);
+          setEnvironmentDeliveryCounts({});
+          setDeliveryBlockerCount(0);
+          setDeliveryReady(false);
         } else {
           const photos =
             (photoResult.data ?? []) as PhotoReference[];
           const counts: Record<string, number> = {};
+          const finalCounts: Record<string, number> = {};
 
           for (const photo of photos) {
             const key = photo.environment_id ?? 'general';
             counts[key] = (counts[key] ?? 0) + 1;
+            if (photo.photo_type === 'delivery_final' && photo.environment_id) {
+              finalCounts[photo.environment_id] =
+                (finalCounts[photo.environment_id] ?? 0) + 1;
+            }
           }
           setPhotoCounts(counts);
+          setFinalPhotoCounts(finalCounts);
           setGalleryCount(photos.length);
 
           const cover = photos.find(
@@ -367,6 +403,58 @@ export default function WorkDetailsScreen() {
               .createSignedUrl(cover.storage_path, 60 * 60);
             setCoverUrl(data?.signedUrl ?? null);
           }
+
+          const deliveryRows = deliveryChecklistResult.error
+            ? []
+            : ((deliveryChecklistResult.data ?? []) as DeliveryChecklistCountReference[]);
+          const environmentDelivery: Record<string, number> = {};
+          let blockers = pendingRows.filter(
+            (item) =>
+              !item.environment_id &&
+              item.status === 'open' &&
+              item.blocks_delivery
+          ).length;
+
+          blockers += deliveryRows.filter(
+            (item) =>
+              !item.environment_id &&
+              item.required &&
+              item.status === 'open'
+          ).length;
+
+          const deliveryEnvironments = environmentRows.filter(
+            (environment) => environment.status !== 'cancelado'
+          );
+          if (deliveryEnvironments.length === 0) blockers += 1;
+
+          for (const environment of deliveryEnvironments) {
+            const minimum = environment.preparation_min_photos ?? 0;
+            const photos = finalCounts[environment.id] ?? 0;
+            const photoBlocker = minimum < 1 || photos < minimum ? 1 : 0;
+            const pendingBlockers = pendingRows.filter(
+              (item) =>
+                item.environment_id === environment.id &&
+                item.status === 'open' &&
+                item.blocks_delivery
+            ).length;
+            const checklistBlockers = deliveryRows.filter(
+              (item) =>
+                item.environment_id === environment.id &&
+                item.required &&
+                item.status === 'open'
+            ).length;
+            environmentDelivery[environment.id] =
+              photoBlocker + pendingBlockers + checklistBlockers;
+            blockers += environmentDelivery[environment.id];
+          }
+
+          setEnvironmentDeliveryCounts(environmentDelivery);
+          setDeliveryBlockerCount(blockers);
+          setDeliveryReady(
+            !deliveryStateResult.error &&
+              deliveryStateResult.data?.status === 'ready' &&
+              blockers === 0
+          );
         }
       } catch (error) {
         setMessage(
@@ -396,7 +484,8 @@ export default function WorkDetailsScreen() {
       section === 'photos' ||
       section === 'measurements' ||
       section === 'projects' ||
-      section === 'documents'
+      section === 'documents' ||
+      section === 'delivery'
     ) {
       setOpenSection(section);
     }
@@ -456,6 +545,7 @@ export default function WorkDetailsScreen() {
       measurements: environmentMeasurementCounts[environmentId] ?? 0,
       documents: environmentDocumentCounts[environmentId] ?? 0,
       fio: environmentTimelineCounts[environmentId] ?? 0,
+      delivery: environmentDeliveryCounts[environmentId] ?? 0,
     };
   }
 
@@ -695,7 +785,7 @@ export default function WorkDetailsScreen() {
                     <Placeholder text="Nenhum ambiente cadastrado." />
                   ) : (
                     environments.map((environment) => {
-                      const count = photoCounts[environment.id] ?? 0;
+                      const count = finalPhotoCounts[environment.id] ?? 0;
                       const minimum =
                         environment.preparation_min_photos ?? 0;
                       const missing = Math.max(minimum - count, 0);
@@ -766,12 +856,12 @@ export default function WorkDetailsScreen() {
                                   : 'Não definido'}
                               </Text>
                               <Text style={styles.environmentDetail}>
-                                Preparação:{' '}
+                                Entrega:{' '}
                                 {minimum === 0
-                                  ? `${count} fotos · mínimo não definido`
+                                  ? `${count} fotos finais · mínimo não definido`
                                   : missing === 0
-                                  ? `${count}/${minimum} fotos · completa`
-                                  : `${count}/${minimum} fotos · faltam ${missing}`}
+                                  ? `${count}/${minimum} fotos finais · completa`
+                                  : `${count}/${minimum} fotos finais · faltam ${missing}`}
                               </Text>
                               <EnvironmentQuickCenter
                                 counts={environmentCounts(environment.id)}
@@ -1009,6 +1099,46 @@ export default function WorkDetailsScreen() {
                   />
                 </ExpandableWorkSection>
 
+                <ExpandableWorkSection
+                  title="Preparação para entrega"
+                  subtitle="Checklist, fotos finais e bloqueios"
+                  icon="checkmark-done-outline"
+                  badge={
+                    deliveryReady
+                      ? 'Pronta'
+                      : deliveryBlockerCount
+                      ? String(deliveryBlockerCount)
+                      : undefined
+                  }
+                  open={openSection === 'delivery'}
+                  onPress={() => toggle('delivery')}
+                  onLayout={(event) => {
+                    sectionOffsets.current.delivery =
+                      event.nativeEvent.layout.y;
+                  }}
+                >
+                  {filteredEnvironment && (
+                    <EnvironmentFilterNotice
+                      name={filteredEnvironment.name}
+                      onClear={clearEnvironmentFilter}
+                    />
+                  )}
+                  <WorkDeliveryPanel
+                    workId={work.id}
+                    environments={environments}
+                    participants={participants}
+                    canWrite={canWrite}
+                    canManage={canManage}
+                    userId={userId}
+                    environmentFilterId={environmentFilterId ?? undefined}
+                    onSummaryChange={(blockers, ready) => {
+                      setDeliveryBlockerCount(blockers);
+                      setDeliveryReady(ready);
+                    }}
+                    onChanged={() => loadCentral(true)}
+                  />
+                </ExpandableWorkSection>
+
                 {!!message && (
                   <View style={styles.errorCard}>
                     <Text style={styles.errorText}>{message}</Text>
@@ -1195,6 +1325,26 @@ export default function WorkDetailsScreen() {
                       <Ionicons name="document-text-outline" size={21} color={FioColors.green} />
                     </View>
                     <Text style={styles.actionText}>Documentos</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.actionItem}
+                    onPress={() =>
+                      runAction(() => {
+                        setEnvironmentFilterId(actionEnvironmentId);
+                        setOpenSection('delivery');
+                        scrollToSection('delivery');
+                      })
+                    }
+                  >
+                    <View style={styles.actionIcon}>
+                      <Ionicons
+                        name="checkmark-done-outline"
+                        size={21}
+                        color={FioColors.green}
+                      />
+                    </View>
+                    <Text style={styles.actionText}>Preparar entrega</Text>
                   </Pressable>
 
                   {!actionEnvironment && (

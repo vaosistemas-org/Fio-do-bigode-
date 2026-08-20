@@ -28,6 +28,7 @@ type WorkPhoto = {
   file_name: string | null;
   caption: string | null;
   visibility: PhotoVisibility;
+  photo_type: 'general' | 'delivery_final';
   created_by: string | null;
   created_at: string;
   signed_url: string | null;
@@ -116,7 +117,7 @@ export function WorkPhotosPanel({
       .from('work_photos')
       .select(`
         id, environment_id, storage_path, file_name,
-        caption, visibility, created_by, created_at
+        caption, visibility, photo_type, created_by, created_at
       `)
       .eq('work_id', workId)
       .eq('collection', 'work')
@@ -247,6 +248,7 @@ export function WorkPhotosPanel({
         work_id: workId,
         environment_id: environmentId,
         collection: 'work',
+        photo_type: 'general',
         storage_path: storagePath,
         file_name: asset.fileName || fileName,
         mime_type: 'image/jpeg',
@@ -500,6 +502,13 @@ export function WorkPhotosPanel({
                 <Text style={styles.groupCount}>
                   {group.photos.length}{' '}
                   {group.photos.length === 1 ? 'foto' : 'fotos'}
+                  {group.photos.some((photo) => photo.photo_type === 'delivery_final')
+                    ? ` · ${
+                        group.photos.filter(
+                          (photo) => photo.photo_type === 'delivery_final'
+                        ).length
+                      } finais`
+                    : ''}
                 </Text>
               </View>
               <Ionicons
@@ -529,6 +538,16 @@ export function WorkPhotosPanel({
                       <Text style={styles.photoDate}>
                         {formatDate(photo.created_at)}
                       </Text>
+                      {photo.photo_type === 'delivery_final' && (
+                        <View style={styles.finalTag}>
+                          <Ionicons
+                            name="checkmark-done-outline"
+                            size={11}
+                            color="#8A5B08"
+                          />
+                          <Text style={styles.finalTagText}>Foto final</Text>
+                        </View>
+                      )}
                       <View style={styles.visibilityTag}>
                         <Ionicons
                           name={photo.visibility === 'shared' ? 'eye-outline' : 'lock-closed-outline'}
@@ -746,6 +765,8 @@ const styles = StyleSheet.create({
   photoUnavailable: { width: '100%', aspectRatio: 1.25, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ECEEF2' },
   unavailableText: { fontSize: 9, color: '#7D8697' },
   photoDate: { paddingHorizontal: 8, paddingTop: 7, fontSize: 8, color: '#7D8697' },
+  finalTag: { marginTop: 5, marginHorizontal: 8, paddingHorizontal: 6, paddingVertical: 4, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: '#FFF4D8' },
+  finalTagText: { fontSize: 8, fontWeight: '900', color: '#8A5B08' },
   visibilityTag: { marginTop: 5, marginHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
   visibilityText: { fontSize: 8, color: '#557064' },
   deleteButton: { minHeight: 34, margin: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#FFF0EE' },
