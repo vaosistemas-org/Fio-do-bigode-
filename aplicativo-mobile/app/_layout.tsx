@@ -207,6 +207,10 @@ export default function RootLayout() {
           />
 
           <Stack.Screen
+            name="notifications"
+          />
+
+          <Stack.Screen
   name="works/[id]"
 />
 

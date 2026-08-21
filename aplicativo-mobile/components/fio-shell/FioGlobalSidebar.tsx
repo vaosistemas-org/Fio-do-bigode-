@@ -46,6 +46,13 @@ const NAVIGATION: NavigationItem[] = [
     match: (pathname) => pathname.startsWith('/agenda'),
   },
   {
+    key: 'notifications',
+    label: 'Notificações',
+    href: '/notifications',
+    icon: 'notifications-outline',
+    match: (pathname) => pathname.startsWith('/notifications'),
+  },
+  {
     key: 'messages',
     label: 'Mensagens',
     href: '/messages',
