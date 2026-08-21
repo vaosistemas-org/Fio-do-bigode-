@@ -2,19 +2,14 @@ import {
   DarkTheme,
   ThemeProvider,
 } from '@react-navigation/native';
-import { Stack, usePathname, useRouter } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   useEffect,
-  useMemo,
   useState,
 } from 'react';
 import 'react-native-reanimated';
-import {
-  PanResponder,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import {
   FIO_SIDEBAR_RAIL_WIDTH,
@@ -26,9 +21,6 @@ import { supabase } from '@/lib/supabase';
 export const unstable_settings = {
   anchor: '(tabs)',
 };
-
-const BACK_SWIPE_DISTANCE = 42;
-const BACK_SWIPE_VELOCITY = 0.22;
 
 const FioNavigationTheme = {
   ...DarkTheme,
@@ -44,7 +36,6 @@ const FioNavigationTheme = {
 };
 
 export default function RootLayout() {
-  const router = useRouter();
   const pathname = usePathname();
   const [
     isAuthenticated,
@@ -60,35 +51,6 @@ export default function RootLayout() {
     isLoading,
     setIsLoading,
   ] = useState(true);
-
-  const backSwipeResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gesture) => {
-          const startedOutsideSidebar =
-            gesture.x0 > FIO_SIDEBAR_RAIL_WIDTH + 8;
-          const horizontalMovement =
-            gesture.dx > 8 &&
-            Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2;
-
-          return (
-            startedOutsideSidebar &&
-            horizontalMovement &&
-            router.canGoBack()
-          );
-        },
-        onPanResponderRelease: (_event, gesture) => {
-          const shouldGoBack =
-            gesture.dx >= BACK_SWIPE_DISTANCE ||
-            gesture.vx >= BACK_SWIPE_VELOCITY;
-
-          if (shouldGoBack && router.canGoBack()) router.back();
-        },
-        onPanResponderTerminationRequest: () => true,
-        onShouldBlockNativeResponder: () => false,
-      }),
-    [router]
-  );
 
   async function checkProfile(
     userId: string
@@ -193,7 +155,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={FioNavigationTheme}>
-      <View style={styles.application} {...backSwipeResponder.panHandlers}>
+      <View style={styles.application}>
         <View
           style={[
             styles.navigator,
@@ -203,6 +165,10 @@ export default function RootLayout() {
           <Stack
             screenOptions={{
               headerShown: false,
+              gestureEnabled: true,
+              fullScreenGestureEnabled: true,
+              gestureDirection: 'horizontal',
+              animationMatchesGesture: true,
             }}
           >
         {/* USUÁRIO LOGADO + PERFIL COMPLETO */}
