@@ -145,6 +145,17 @@ function plural(value: number, singular: string, pluralLabel: string) {
   return `${value} ${value === 1 ? singular : pluralLabel}`;
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message.trim()) return error.message;
+
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+
+  return fallback;
+}
+
 export function WorkTimelinePanel({
   workId,
   environments,
@@ -485,12 +496,12 @@ export function WorkTimelinePanel({
           ? 'Atualização e fotos registradas no FIO.'
           : 'Atualização registrada no FIO.'
       );
-      if (photoCount > 0) onChanged?.();
+      onChanged?.();
     } catch (error) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível registrar a atualização.';
+      const errorMessage = getErrorMessage(
+        error,
+        'Não foi possível registrar a atualização.'
+      );
 
       if (eventCreated) {
         setFormVisible(false);
@@ -502,7 +513,7 @@ export function WorkTimelinePanel({
         setMessage(
           `A atualização foi registrada, mas uma foto não foi enviada. ${errorMessage}`
         );
-        if (photoCount > 0) onChanged?.();
+        onChanged?.();
       } else {
         setModalMessage(errorMessage);
       }
