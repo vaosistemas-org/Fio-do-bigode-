@@ -168,9 +168,11 @@ function toggleId(values: string[], id: string) {
 function VisitCard({
   visit,
   onManage,
+  onEdit,
 }: {
   visit: WorkVisit;
   onManage: (visit: WorkVisit) => void;
+  onEdit: (visit: WorkVisit) => void;
 }) {
   const statusTone =
     visit.status === 'cancelled'
@@ -237,10 +239,18 @@ function VisitCard({
           <Text numberOfLines={3} style={styles.observation}>{visit.observation}</Text>
         )}
         {visit.can_manage && !['completed', 'cancelled'].includes(visit.status) && (
-          <Pressable style={styles.manageButton} onPress={() => onManage(visit)}>
-            <Ionicons name="options-outline" size={15} color={FioColors.green} />
-            <Text style={styles.manageButtonText}>Gerenciar visita</Text>
-          </Pressable>
+          <>
+            <Pressable style={styles.manageButton} onPress={() => onManage(visit)}>
+              <Ionicons name="options-outline" size={15} color={FioColors.green} />
+              <Text style={styles.manageButtonText}>Gerenciar visita</Text>
+            </Pressable>
+            {visit.status !== 'in_progress' && (
+            <Pressable style={styles.editButton} onPress={() => onEdit(visit)}>
+                <Ionicons name="create-outline" size={15} color={FioColors.gold} />
+                <Text style={styles.editButtonText}>Editar dados</Text>
+              </Pressable>
+            )}
+          </>
         )}
       </View>
     </View>
@@ -263,6 +273,7 @@ export default function AgendaScreen() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [quickMode, setQuickMode] = useState(false);
+  const [editingVisit, setEditingVisit] = useState<WorkVisit | null>(null);
   const [createWorkId, setCreateWorkId] = useState('');
   const [participants, setParticipants] = useState<AssignmentParticipant[]>([]);
   const [environments, setEnvironments] = useState<EnvironmentOption[]>([]);
@@ -464,7 +475,22 @@ export default function AgendaScreen() {
     setEnvironmentIds([]);
     setCreateOpen(true);
     setQuickMode(false);
+    setEditingVisit(null);
     loadFormOptions(preferred.work_id);
+  }
+
+  async function openEdit(visit: WorkVisit) {
+    setEditingVisit(visit);
+    setQuickMode(false);
+    setCreateOpen(true);
+    setStartsAt(new Date(visit.starts_at));
+    setObservation(visit.observation ?? '');
+    setParticipantIds(visit.participants.filter((item) => item.participation_role === 'participant').map((item) => item.user_id));
+    setEnvironmentIds(visit.environments.map((item) => item.environment_id));
+    await loadFormOptions(visit.work_id);
+    setResponsibleId(visit.responsible_user_id);
+    setParticipantIds(visit.participants.filter((item) => item.participation_role === 'participant').map((item) => item.user_id));
+    setEnvironmentIds(visit.environments.map((item) => item.environment_id));
   }
 
   function openAndroidDateTime() {
@@ -515,6 +541,26 @@ export default function AgendaScreen() {
       setCreateOpen(false);
       setSaving(false);
       setQuickMode(false);
+      await fetchVisits(scopeRef.current, selectedWorkIdRef.current);
+      return;
+    }
+    if (editingVisit) {
+      const editResult = await supabase.rpc('update_work_visit_details', {
+        p_visit_id: editingVisit.visit_id,
+        p_starts_at: startsAt.toISOString(),
+        p_responsible_user_id: responsibleId,
+        p_participant_ids: participantIds.filter((id) => id !== responsibleId),
+        p_environment_ids: environmentIds,
+        p_observation: observation,
+      });
+      if (editResult.error) {
+        setFormMessage(editResult.error.message);
+        setSaving(false);
+        return;
+      }
+      setCreateOpen(false);
+      setEditingVisit(null);
+      setSaving(false);
       await fetchVisits(scopeRef.current, selectedWorkIdRef.current);
       return;
     }
@@ -732,7 +778,7 @@ export default function AgendaScreen() {
             <Text style={styles.sectionTitle}>Próximas visitas</Text>
             <Text style={styles.sectionCount}>{upcomingVisits.length}</Text>
             {upcomingVisits.map((visit) => (
-              <VisitCard key={visit.visit_id} visit={visit} onManage={openManagement} />
+              <VisitCard key={visit.visit_id} visit={visit} onManage={openManagement} onEdit={openEdit} />
             ))}
           </View>
         )}
@@ -742,7 +788,7 @@ export default function AgendaScreen() {
             <Text style={styles.sectionTitle}>Histórico</Text>
             <Text style={styles.sectionCount}>{historyVisits.length}</Text>
             {historyVisits.map((visit) => (
-              <VisitCard key={visit.visit_id} visit={visit} onManage={openManagement} />
+              <VisitCard key={visit.visit_id} visit={visit} onManage={openManagement} onEdit={openEdit} />
             ))}
           </View>
         )}
@@ -912,8 +958,8 @@ export default function AgendaScreen() {
         <SafeAreaView style={styles.modalPage}>
           <View style={styles.modalHeader}>
             <View style={styles.modalHeading}>
-              <Text style={styles.modalEyebrow}>NOVA VISITA</Text>
-              <Text style={styles.modalTitle}>Agendar compromisso</Text>
+              <Text style={styles.modalEyebrow}>{editingVisit ? 'EDITAR VISITA' : quickMode ? 'VISITA RÁPIDA' : 'NOVA VISITA'}</Text>
+              <Text style={styles.modalTitle}>{editingVisit ? 'Editar compromisso' : 'Agendar compromisso'}</Text>
             </View>
             <Pressable
               accessibilityLabel="Fechar"
@@ -1136,7 +1182,7 @@ export default function AgendaScreen() {
               ) : (
                 <>
                   <Ionicons name="calendar-outline" size={18} color={FioColors.textOnAccent} />
-                  <Text style={styles.saveButtonText}>{quickMode ? 'Registrar chegada' : 'Agendar visita'}</Text>
+                  <Text style={styles.saveButtonText}>{editingVisit ? 'Salvar alterações' : quickMode ? 'Registrar chegada' : 'Agendar visita'}</Text>
                 </>
               )}
             </Pressable>
@@ -1261,6 +1307,8 @@ const styles = StyleSheet.create({
   observation: { marginTop: 3, padding: 8, fontSize: 10, lineHeight: 15, color: FioColors.inkSoft, borderRadius: 9, backgroundColor: FioColors.surfaceMuted },
   manageButton: { minHeight: 38, marginTop: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: FioColors.green, borderRadius: 10, backgroundColor: FioColors.greenSoft },
   manageButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.green },
+  editButton: { minHeight: 38, marginTop: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: FioColors.gold, borderRadius: 10, backgroundColor: FioColors.goldSoft },
+  editButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.gold },
   modalPage: { flex: 1, backgroundColor: FioColors.canvas },
   modalHeader: {
     minHeight: 64,
