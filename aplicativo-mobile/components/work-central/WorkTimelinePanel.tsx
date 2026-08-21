@@ -433,6 +433,11 @@ export function WorkTimelinePanel({
     let eventCreated = false;
     const photoCount = selectedPhotos.length;
     const todayKey = dayKey(new Date().toISOString());
+    const changedStatusLabel =
+      canManage && selectedStatus && selectedStatus !== workStatus
+        ? WORK_STATUS_OPTIONS.find((option) => option.value === selectedStatus)?.label ??
+          selectedStatus
+        : null;
 
     try {
       const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -444,7 +449,13 @@ export function WorkTimelinePanel({
         p_work_id: workId,
         p_environment_id: environmentId,
         p_status: canManage ? selectedStatus : null,
-        p_done_today: doneToday.trim() || (selectedPhotos.length ? 'Fotos do dia' : null),
+        p_done_today:
+          doneToday.trim() ||
+          (changedStatusLabel
+            ? `Status atualizado para ${changedStatusLabel}.`
+            : selectedPhotos.length
+            ? 'Fotos do dia'
+            : null),
         p_next_steps: nextSteps.trim() || null,
         p_blockers: blockers.trim() || null,
         p_visibility: visibility,
