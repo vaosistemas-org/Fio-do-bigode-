@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FioColors, FioShadow } from '@/constants/fio-theme';
@@ -98,6 +98,8 @@ const NAVIGATION: NavigationItem[] = [
 ];
 
 export const FIO_SIDEBAR_RAIL_WIDTH = 22;
+const SIDEBAR_SWIPE_DISTANCE = 44;
+const SIDEBAR_SWIPE_VELOCITY = 0.25;
 
 export function FioGlobalSidebar() {
   const router = useRouter();
@@ -111,6 +113,36 @@ export function FioGlobalSidebar() {
   );
 
   const width = level === 2 ? 220 : FIO_SIDEBAR_RAIL_WIDTH;
+
+  const swipeResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gesture) => {
+          const horizontalMovement =
+            Math.abs(gesture.dx) > 10 &&
+            Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.35;
+
+          if (!horizontalMovement) return false;
+          return level === 0 ? gesture.dx > 0 : gesture.dx < 0;
+        },
+        onPanResponderRelease: (_event, gesture) => {
+          const shouldOpen =
+            level === 0 &&
+            (gesture.dx >= SIDEBAR_SWIPE_DISTANCE ||
+              gesture.vx >= SIDEBAR_SWIPE_VELOCITY);
+          const shouldClose =
+            level === 2 &&
+            (gesture.dx <= -SIDEBAR_SWIPE_DISTANCE ||
+              gesture.vx <= -SIDEBAR_SWIPE_VELOCITY);
+
+          if (shouldOpen) expandMenu();
+          if (shouldClose) collapseMenu();
+        },
+        onPanResponderTerminationRequest: () => true,
+        onShouldBlockNativeResponder: () => false,
+      }),
+    [level]
+  );
 
   function expandMenu() {
     setLevel(2);
@@ -134,6 +166,7 @@ export function FioGlobalSidebar() {
     <View
       pointerEvents="box-none"
       style={[styles.positioner, { width }]}
+      {...swipeResponder.panHandlers}
     >
       <View
         style={[
@@ -150,6 +183,7 @@ export function FioGlobalSidebar() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Expandir menu principal"
+            accessibilityHint="Toque ou arraste para a direita"
             style={styles.collapsedTouchArea}
             onPress={expandMenu}
           />
@@ -157,6 +191,7 @@ export function FioGlobalSidebar() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Recolher menu"
+            accessibilityHint="Toque ou arraste para a esquerda"
             style={styles.brandButton}
             onPress={collapseMenu}
           >
