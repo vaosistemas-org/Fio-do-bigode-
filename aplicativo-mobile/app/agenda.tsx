@@ -673,6 +673,8 @@ export default function AgendaScreen() {
                       mode="date"
                       display="inline"
                       locale="pt-BR"
+                      themeVariant="dark"
+                      accentColor={FioColors.green}
                       minimumDate={new Date()}
                       onChange={(_event, value) => {
                         if (!value) return;
@@ -686,6 +688,8 @@ export default function AgendaScreen() {
                       mode="time"
                       display="spinner"
                       locale="pt-BR"
+                      themeVariant="dark"
+                      textColor={FioColors.text}
                       minuteInterval={5}
                       onChange={(_event, value) => {
                         if (!value) return;
