@@ -656,7 +656,12 @@ export default function WorkDetailsScreen() {
 
           {work && (
             <>
-              <View style={styles.workCard}>
+              <View
+                style={[
+                  styles.workCard,
+                  work.status === 'finalizada' && styles.workCardFinished,
+                ]}
+              >
                 <View style={styles.identityRow}>
                   {coverUrl ? (
                     <Image
@@ -851,7 +856,11 @@ export default function WorkDetailsScreen() {
                       return (
                         <View
                           key={environment.id}
-                          style={styles.environmentCard}
+                          style={[
+                            styles.environmentCard,
+                            environment.status === 'concluido' &&
+                              styles.environmentCardFinished,
+                          ]}
                         >
                           <View style={styles.environmentHeader}>
                             <Pressable
@@ -1527,6 +1536,10 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     backgroundColor: FioColors.surface,
   },
+  workCardFinished: {
+    borderColor: FioColors.green,
+    backgroundColor: FioColors.successSoft,
+  },
   identityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   cover: { width: 72, height: 72, borderRadius: 15 },
   coverPlaceholder: {
@@ -1664,6 +1677,10 @@ const styles = StyleSheet.create({
     borderColor: FioColors.lineStrong,
     borderRadius: 19,
     backgroundColor: FioColors.surface,
+  },
+  environmentCardFinished: {
+    borderColor: FioColors.green,
+    backgroundColor: FioColors.successSoft,
   },
   environmentHeader: {
     minHeight: 58,

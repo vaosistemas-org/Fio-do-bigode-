@@ -39,6 +39,13 @@ const NAVIGATION: NavigationItem[] = [
       pathname.startsWith('/work-participants'),
   },
   {
+    key: 'agenda',
+    label: 'Agenda',
+    href: '/agenda',
+    icon: 'calendar-outline',
+    match: (pathname) => pathname.startsWith('/agenda'),
+  },
+  {
     key: 'messages',
     label: 'Mensagens',
     href: '/messages',

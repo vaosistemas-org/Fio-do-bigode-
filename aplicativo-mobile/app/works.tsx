@@ -414,7 +414,13 @@ export default function WorksScreen() {
           const open = expandedWork === work.id;
           const counts = auxiliary[work.id] ?? EMPTY_AUXILIARY;
           return (
-            <View key={work.id} style={styles.workCard}>
+            <View
+              key={work.id}
+              style={[
+                styles.workCard,
+                work.status === 'finalizada' && styles.workCardFinished,
+              ]}
+            >
               <Pressable
                 style={styles.workHeader}
                 onPress={() => setExpandedWork(open ? null : work.id)}
@@ -555,6 +561,7 @@ const styles = StyleSheet.create({
   results: { marginTop: 3, fontSize: 9, color: FioColors.textSoft },
   order: { fontSize: 9, color: FioColors.textMuted },
   workCard: { marginBottom: 10, overflow: 'hidden', borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.large, backgroundColor: FioColors.surface, ...FioShadow },
+  workCardFinished: { borderColor: FioColors.green, backgroundColor: FioColors.successSoft },
   workHeader: { minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
   cover: { width: 58, height: 66, alignItems: 'center', justifyContent: 'center', gap: 3, borderRadius: 14, backgroundColor: FioColors.surfaceRaised },
   coverImage: { width: 58, height: 66, borderRadius: 14, resizeMode: 'cover', backgroundColor: FioColors.surfaceRaised },

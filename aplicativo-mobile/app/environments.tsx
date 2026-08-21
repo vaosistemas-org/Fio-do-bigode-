@@ -1084,6 +1084,9 @@ export default function EnvironmentsScreen() {
                 pressed,
               }) => [
                 styles.environmentCard,
+                environment.status ===
+                  'concluido' &&
+                  styles.environmentCardFinished,
                 pressed &&
                   styles.cardPressed,
               ]}
@@ -1529,6 +1532,11 @@ const styles =
       borderColor: '#4C534D',
       borderRadius: 18,
       backgroundColor: '#2E332F',
+    },
+
+    environmentCardFinished: {
+      borderColor: '#74B892',
+      backgroundColor: '#294536',
     },
 
     cardPressed: {

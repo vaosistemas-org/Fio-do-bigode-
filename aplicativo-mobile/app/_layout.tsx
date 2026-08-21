@@ -199,6 +199,10 @@ export default function RootLayout() {
           />
 
           <Stack.Screen
+            name="agenda"
+          />
+
+          <Stack.Screen
   name="works/[id]"
 />
 
