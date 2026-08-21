@@ -65,16 +65,22 @@ export default function RootLayout() {
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (_event, gesture) => {
+          const startedOutsideSidebar =
+            gesture.x0 > FIO_SIDEBAR_RAIL_WIDTH + 8;
           const horizontalMovement =
-            gesture.dx < -8 &&
+            gesture.dx > 8 &&
             Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2;
 
-          return horizontalMovement && router.canGoBack();
+          return (
+            startedOutsideSidebar &&
+            horizontalMovement &&
+            router.canGoBack()
+          );
         },
         onPanResponderRelease: (_event, gesture) => {
           const shouldGoBack =
-            gesture.dx <= -BACK_SWIPE_DISTANCE ||
-            gesture.vx <= -BACK_SWIPE_VELOCITY;
+            gesture.dx >= BACK_SWIPE_DISTANCE ||
+            gesture.vx >= BACK_SWIPE_VELOCITY;
 
           if (shouldGoBack && router.canGoBack()) router.back();
         },
