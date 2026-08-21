@@ -13,7 +13,6 @@ import 'react-native-reanimated';
 import {
   PanResponder,
   StyleSheet,
-  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -28,9 +27,8 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-const BACK_SWIPE_EDGE_WIDTH = 32;
-const BACK_SWIPE_DISTANCE = 52;
-const BACK_SWIPE_VELOCITY = 0.3;
+const BACK_SWIPE_DISTANCE = 42;
+const BACK_SWIPE_VELOCITY = 0.22;
 
 const FioNavigationTheme = {
   ...DarkTheme,
@@ -48,7 +46,6 @@ const FioNavigationTheme = {
 export default function RootLayout() {
   const router = useRouter();
   const pathname = usePathname();
-  const { width: windowWidth } = useWindowDimensions();
   const [
     isAuthenticated,
     setIsAuthenticated,
@@ -67,14 +64,12 @@ export default function RootLayout() {
   const backSwipeResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponderCapture: (_event, gesture) => {
-          const startedAtRightEdge =
-            gesture.x0 >= windowWidth - BACK_SWIPE_EDGE_WIDTH;
+        onMoveShouldSetPanResponder: (_event, gesture) => {
           const horizontalMovement =
-            gesture.dx < -10 &&
-            Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.35;
+            gesture.dx < -8 &&
+            Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2;
 
-          return startedAtRightEdge && horizontalMovement && router.canGoBack();
+          return horizontalMovement && router.canGoBack();
         },
         onPanResponderRelease: (_event, gesture) => {
           const shouldGoBack =
@@ -86,7 +81,7 @@ export default function RootLayout() {
         onPanResponderTerminationRequest: () => true,
         onShouldBlockNativeResponder: () => false,
       }),
-    [router, windowWidth]
+    [router]
   );
 
   async function checkProfile(
