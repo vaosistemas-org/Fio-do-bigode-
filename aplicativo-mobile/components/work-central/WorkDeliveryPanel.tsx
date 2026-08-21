@@ -38,6 +38,8 @@ type ChecklistItem = {
   id: string;
   work_id: string;
   environment_id: string | null;
+  default_key: string | null;
+  sort_order: number;
   title: string;
   description: string | null;
   required: boolean;
@@ -180,6 +182,19 @@ export function WorkDeliveryPanel({
     setLoading(true);
     setMessage('');
 
+    if (canManage) {
+      const { error: defaultsError } = await supabase.rpc(
+        'ensure_work_delivery_default_checklist',
+        { p_work_id: workId }
+      );
+
+      if (defaultsError) {
+        setMessage(defaultsError.message);
+        setLoading(false);
+        return;
+      }
+    }
+
     const [stateResult, itemsResult, pendingResult, photosResult] =
       await Promise.all([
         supabase
@@ -190,12 +205,14 @@ export function WorkDeliveryPanel({
         supabase
           .from('work_delivery_checklist_items')
           .select(`
-            id, work_id, environment_id, title, description,
+            id, work_id, environment_id, default_key, sort_order,
+            title, description,
             required, responsible_user_id, status,
             completed_by, completed_at, created_at
           `)
           .eq('work_id', workId)
           .eq('active', true)
+          .order('sort_order', { ascending: true })
           .order('created_at', { ascending: true }),
         supabase
           .from('work_pending_items')
@@ -231,7 +248,7 @@ export function WorkDeliveryPanel({
     setBlockingPending((pendingResult.data ?? []) as BlockingPending[]);
     setFinalPhotos((photosResult.data ?? []) as FinalPhoto[]);
     setLoading(false);
-  }, [canWrite, workId]);
+  }, [canManage, canWrite, workId]);
 
   useEffect(() => {
     void loadDelivery();
@@ -699,7 +716,7 @@ export function WorkDeliveryPanel({
                   )}
                 </View>
 
-                {canManage && (
+                {canManage && !item.default_key && (
                   <View style={styles.itemActions}>
                     <Pressable
                       accessibilityLabel="Editar item"
