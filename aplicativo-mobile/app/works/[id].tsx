@@ -1333,6 +1333,23 @@ export default function WorkDetailsScreen() {
                   <Pressable
                     style={styles.actionItem}
                     onPress={() =>
+                      runAction(() =>
+                        router.push({
+                          pathname: '/agenda',
+                          params: { workId: work.id, quick: '1' },
+                        })
+                      )
+                    }
+                  >
+                    <View style={styles.actionIcon}>
+                      <Ionicons name="walk-outline" size={21} color={FioColors.green} />
+                    </View>
+                    <Text style={styles.actionText}>Registrar visita agora</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.actionItem}
+                    onPress={() =>
                       runAction(() => {
                         setEnvironmentFilterId(actionEnvironmentId);
                         setOpenSection('pending');

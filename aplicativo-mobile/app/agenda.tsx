@@ -24,6 +24,7 @@ import { supabase } from '@/lib/supabase';
 
 type AgendaScope = 'mine' | 'work' | 'company';
 type AccessLevel = 'owner' | 'manager' | 'collaborator' | 'viewer';
+type VisitAction = 'confirm' | 'reschedule' | 'start' | 'complete' | 'cancel';
 type VisitStatus =
   | 'scheduled'
   | 'confirmed'
@@ -106,6 +107,14 @@ const STATUS_LABELS: Record<VisitStatus, string> = {
 
 const DURATION_OPTIONS = [30, 60, 90, 120];
 
+const ACTION_LABELS: Record<VisitAction, string> = {
+  confirm: 'Confirmar visita',
+  reschedule: 'Reagendar',
+  start: 'Iniciar visita',
+  complete: 'Concluir visita',
+  cancel: 'Cancelar visita',
+};
+
 function formatDuration(minutes: number) {
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
@@ -156,7 +165,13 @@ function toggleId(values: string[], id: string) {
     : [...values, id];
 }
 
-function VisitCard({ visit }: { visit: WorkVisit }) {
+function VisitCard({
+  visit,
+  onManage,
+}: {
+  visit: WorkVisit;
+  onManage: (visit: WorkVisit) => void;
+}) {
   const statusTone =
     visit.status === 'cancelled'
       ? styles.statusCancelled
@@ -221,14 +236,21 @@ function VisitCard({ visit }: { visit: WorkVisit }) {
         {!!visit.observation && (
           <Text numberOfLines={3} style={styles.observation}>{visit.observation}</Text>
         )}
+        {visit.can_manage && !['completed', 'cancelled'].includes(visit.status) && (
+          <Pressable style={styles.manageButton} onPress={() => onManage(visit)}>
+            <Ionicons name="options-outline" size={15} color={FioColors.green} />
+            <Text style={styles.manageButtonText}>Gerenciar visita</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
 }
 
 export default function AgendaScreen() {
-  const params = useLocalSearchParams<{ workId?: string | string[] }>();
+  const params = useLocalSearchParams<{ workId?: string | string[]; quick?: string | string[] }>();
   const requestedWorkId = firstParam(params.workId);
+  const requestedQuick = firstParam(params.quick) === '1';
   const [scope, setScope] = useState<AgendaScope>(requestedWorkId ? 'work' : 'mine');
   const [works, setWorks] = useState<AgendaWork[]>([]);
   const [visits, setVisits] = useState<WorkVisit[]>([]);
@@ -240,6 +262,7 @@ export default function AgendaScreen() {
   const [message, setMessage] = useState('');
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [quickMode, setQuickMode] = useState(false);
   const [createWorkId, setCreateWorkId] = useState('');
   const [participants, setParticipants] = useState<AssignmentParticipant[]>([]);
   const [environments, setEnvironments] = useState<EnvironmentOption[]>([]);
@@ -252,8 +275,16 @@ export default function AgendaScreen() {
   const [formLoading, setFormLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formMessage, setFormMessage] = useState('');
+  const [manageOpen, setManageOpen] = useState(false);
+  const [managedVisit, setManagedVisit] = useState<WorkVisit | null>(null);
+  const [manageAction, setManageAction] = useState<VisitAction | null>(null);
+  const [manageStartsAt, setManageStartsAt] = useState(suggestedStart);
+  const [manageReason, setManageReason] = useState('');
+  const [manageSaving, setManageSaving] = useState(false);
+  const [manageMessage, setManageMessage] = useState('');
   const scopeRef = useRef<AgendaScope>(requestedWorkId ? 'work' : 'mine');
   const selectedWorkIdRef = useRef(requestedWorkId ?? '');
+  const quickOpenedRef = useRef(false);
 
   const creatableWorks = useMemo(
     () => works.filter((work) => work.can_create),
@@ -274,6 +305,16 @@ export default function AgendaScreen() {
     () => visits.filter((visit) => !upcomingVisits.includes(visit)),
     [upcomingVisits, visits]
   );
+
+  const manageActions = useMemo<VisitAction[]>(() => {
+    if (!managedVisit) return [];
+    if (managedVisit.status === 'in_progress') return ['complete', 'cancel'];
+    if (managedVisit.status === 'confirmed') return ['reschedule', 'start', 'cancel'];
+    if (managedVisit.status === 'scheduled' || managedVisit.status === 'rescheduled') {
+      return ['confirm', 'reschedule', 'start', 'cancel'];
+    }
+    return [];
+  }, [managedVisit]);
 
   const fetchVisits = useCallback(async (nextScope: AgendaScope, workId: string) => {
     if (nextScope === 'work' && !workId) {
@@ -321,13 +362,24 @@ export default function AgendaScreen() {
       scopeRef.current = preferredScope;
       setActiveCompanyName(companyResult.data?.[0]?.company_name ?? '');
       await fetchVisits(preferredScope, preferredWorkId);
+      if (requestedQuick && preferredWorkId && !quickOpenedRef.current) {
+        quickOpenedRef.current = true;
+        setQuickMode(true);
+        setCreateWorkId(preferredWorkId);
+        setStartsAt(new Date());
+        setObservation('');
+        setCreateOpen(true);
+        await loadFormOptions(preferredWorkId);
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível carregar a agenda.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fetchVisits, requestedWorkId]);
+  // loadFormOptions is intentionally kept as a local action; this focus load runs once per route.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchVisits, requestedQuick, requestedWorkId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -411,6 +463,7 @@ export default function AgendaScreen() {
     setParticipantIds([]);
     setEnvironmentIds([]);
     setCreateOpen(true);
+    setQuickMode(false);
     loadFormOptions(preferred.work_id);
   }
 
@@ -449,6 +502,22 @@ export default function AgendaScreen() {
     }
     setSaving(true);
     setFormMessage('');
+    if (quickMode) {
+      const quickResult = await supabase.rpc('create_quick_work_visit', {
+        p_work_id: createWorkId,
+        p_observation: observation,
+      });
+      if (quickResult.error) {
+        setFormMessage(quickResult.error.message);
+        setSaving(false);
+        return;
+      }
+      setCreateOpen(false);
+      setSaving(false);
+      setQuickMode(false);
+      await fetchVisits(scopeRef.current, selectedWorkIdRef.current);
+      return;
+    }
     const result = await supabase.rpc('create_work_visit', {
       p_work_id: createWorkId,
       p_starts_at: startsAt.toISOString(),
@@ -470,6 +539,77 @@ export default function AgendaScreen() {
     setSelectedWorkId(createWorkId);
     selectedWorkIdRef.current = createWorkId;
     await fetchVisits('mine', createWorkId);
+  }
+
+  function openManagement(visit: WorkVisit) {
+    const currentStart = new Date(visit.starts_at);
+    setManagedVisit(visit);
+    setManageAction(null);
+    setManageStartsAt(currentStart.getTime() > Date.now() ? currentStart : suggestedStart());
+    setManageReason('');
+    setManageMessage('');
+    setManageOpen(true);
+  }
+
+  function openAndroidManageDateTime() {
+    DateTimePickerAndroid.open({
+      value: manageStartsAt,
+      mode: 'date',
+      display: 'calendar',
+      minimumDate: new Date(),
+      onChange: (dateEvent, selectedDate) => {
+        if (dateEvent.type !== 'set' || !selectedDate) return;
+        DateTimePickerAndroid.open({
+          value: manageStartsAt,
+          mode: 'time',
+          display: 'clock',
+          is24Hour: true,
+          onChange: (timeEvent, selectedTime) => {
+            if (timeEvent.type !== 'set' || !selectedTime) return;
+            const combined = new Date(selectedDate);
+            combined.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+            setManageStartsAt(combined);
+          },
+        });
+      },
+    });
+  }
+
+  async function saveVisitAction() {
+    if (!managedVisit || !manageAction) {
+      setManageMessage('Escolha uma ação para a visita.');
+      return;
+    }
+    if (manageAction === 'reschedule' && manageStartsAt.getTime() <= Date.now()) {
+      setManageMessage('Escolha uma nova data e horário futuros.');
+      return;
+    }
+    if (['reschedule', 'cancel'].includes(manageAction) && !manageReason.trim()) {
+      setManageMessage(
+        manageAction === 'reschedule'
+          ? 'Informe o motivo do reagendamento.'
+          : 'Informe o motivo do cancelamento.'
+      );
+      return;
+    }
+
+    setManageSaving(true);
+    setManageMessage('');
+    const result = await supabase.rpc('transition_work_visit', {
+      p_visit_id: managedVisit.visit_id,
+      p_action: manageAction,
+      p_new_starts_at: manageAction === 'reschedule' ? manageStartsAt.toISOString() : null,
+      p_reason: ['reschedule', 'cancel'].includes(manageAction) ? manageReason.trim() : null,
+    });
+    if (result.error) {
+      setManageMessage(result.error.message);
+      setManageSaving(false);
+      return;
+    }
+
+    setManageOpen(false);
+    setManageSaving(false);
+    await fetchVisits(scopeRef.current, selectedWorkIdRef.current);
   }
 
   if (loading && works.length === 0) {
@@ -592,7 +732,7 @@ export default function AgendaScreen() {
             <Text style={styles.sectionTitle}>Próximas visitas</Text>
             <Text style={styles.sectionCount}>{upcomingVisits.length}</Text>
             {upcomingVisits.map((visit) => (
-              <VisitCard key={visit.visit_id} visit={visit} />
+              <VisitCard key={visit.visit_id} visit={visit} onManage={openManagement} />
             ))}
           </View>
         )}
@@ -602,11 +742,166 @@ export default function AgendaScreen() {
             <Text style={styles.sectionTitle}>Histórico</Text>
             <Text style={styles.sectionCount}>{historyVisits.length}</Text>
             {historyVisits.map((visit) => (
-              <VisitCard key={visit.visit_id} visit={visit} />
+              <VisitCard key={visit.visit_id} visit={visit} onManage={openManagement} />
             ))}
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={manageOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => !manageSaving && setManageOpen(false)}
+      >
+        <SafeAreaView style={styles.modalPage}>
+          <View style={styles.modalHeader}>
+            <View style={styles.modalHeading}>
+              <Text style={styles.modalEyebrow}>VISITA</Text>
+              <Text style={styles.modalTitle}>Gerenciar compromisso</Text>
+            </View>
+            <Pressable
+              accessibilityLabel="Fechar"
+              style={styles.closeButton}
+              onPress={() => setManageOpen(false)}
+              disabled={manageSaving}
+            >
+              <Ionicons name="close-outline" size={23} color={FioColors.text} />
+            </Pressable>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.formContent}>
+            {managedVisit && (
+              <View style={styles.manageSummary}>
+                <Text style={styles.manageWork}>
+                  {managedVisit.work_code} · {managedVisit.client_name}
+                </Text>
+                <Text style={styles.manageMoment}>
+                  {formatPickerValue(new Date(managedVisit.starts_at))}
+                </Text>
+                <Text style={styles.manageStatus}>{STATUS_LABELS[managedVisit.status]}</Text>
+              </View>
+            )}
+
+            <Text style={styles.fieldLabel}>AÇÃO</Text>
+            <View style={styles.actionList}>
+              {manageActions.map((action) => {
+                const active = manageAction === action;
+                return (
+                  <Pressable
+                    key={action}
+                    style={[styles.actionButton, active && styles.actionButtonActive]}
+                    onPress={() => {
+                      setManageAction(action);
+                      setManageMessage('');
+                    }}
+                    disabled={manageSaving}
+                  >
+                    <Text style={[styles.actionButtonText, active && styles.actionButtonTextActive]}>
+                      {ACTION_LABELS[action]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {manageAction === 'reschedule' && (
+              <>
+                <Text style={styles.fieldLabel}>NOVA DATA E HORÁRIO</Text>
+                <View style={styles.dateSummary}>
+                  <Ionicons name="calendar-outline" size={19} color={FioColors.green} />
+                  <Text style={styles.dateSummaryText}>{formatPickerValue(manageStartsAt)}</Text>
+                </View>
+                {Platform.OS === 'ios' ? (
+                  <>
+                    <DateTimePicker
+                      value={manageStartsAt}
+                      mode="date"
+                      display="inline"
+                      locale="pt-BR"
+                      themeVariant="dark"
+                      accentColor={FioColors.green}
+                      minimumDate={new Date()}
+                      onChange={(_event, value) => {
+                        if (!value) return;
+                        const combined = new Date(value);
+                        combined.setHours(
+                          manageStartsAt.getHours(),
+                          manageStartsAt.getMinutes(),
+                          0,
+                          0
+                        );
+                        setManageStartsAt(combined);
+                      }}
+                    />
+                    <DateTimePicker
+                      value={manageStartsAt}
+                      mode="time"
+                      display="spinner"
+                      locale="pt-BR"
+                      themeVariant="dark"
+                      textColor={FioColors.text}
+                      minuteInterval={5}
+                      onChange={(_event, value) => {
+                        if (!value) return;
+                        const combined = new Date(manageStartsAt);
+                        combined.setHours(value.getHours(), value.getMinutes(), 0, 0);
+                        setManageStartsAt(combined);
+                      }}
+                    />
+                  </>
+                ) : (
+                  <Pressable style={styles.dateButton} onPress={openAndroidManageDateTime}>
+                    <Text style={styles.dateButtonText}>Alterar data e horário</Text>
+                  </Pressable>
+                )}
+              </>
+            )}
+
+            {(manageAction === 'reschedule' || manageAction === 'cancel') && (
+              <>
+                <Text style={styles.fieldLabel}>MOTIVO</Text>
+                <TextInput
+                  value={manageReason}
+                  onChangeText={setManageReason}
+                  placeholder={
+                    manageAction === 'reschedule'
+                      ? 'Por que a visita foi reagendada?'
+                      : 'Por que a visita foi cancelada?'
+                  }
+                  placeholderTextColor={FioColors.textSoft}
+                  multiline
+                  style={styles.observationInput}
+                />
+              </>
+            )}
+
+            {!!manageMessage && (
+              <View style={styles.errorCard}>
+                <Text style={styles.errorText}>{manageMessage}</Text>
+              </View>
+            )}
+
+            <Pressable
+              style={[
+                styles.saveButton,
+                (!manageAction || manageSaving) && styles.disabledButton,
+                manageAction === 'cancel' && styles.cancelActionButton,
+              ]}
+              onPress={saveVisitAction}
+              disabled={!manageAction || manageSaving}
+            >
+              {manageSaving ? (
+                <ActivityIndicator color={FioColors.textOnAccent} />
+              ) : (
+                <Text style={styles.saveButtonText}>
+                  {manageAction ? ACTION_LABELS[manageAction] : 'Escolha uma ação'}
+                </Text>
+              )}
+            </Pressable>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
 
       <Modal
         visible={createOpen}
@@ -661,11 +956,18 @@ export default function AgendaScreen() {
               <ActivityIndicator style={styles.formLoading} color={FioColors.gold} />
             ) : (
               <>
-                <Text style={styles.fieldLabel}>DATA E HORÁRIO</Text>
-                <View style={styles.dateSummary}>
-                  <Ionicons name="calendar-outline" size={19} color={FioColors.green} />
-                  <Text style={styles.dateSummaryText}>{formatPickerValue(startsAt)}</Text>
-                </View>
+                {quickMode ? (
+                  <View style={styles.quickNotice}>
+                    <Ionicons name="time-outline" size={18} color={FioColors.green} />
+                    <Text style={styles.quickNoticeText}>A chegada será registrada agora.</Text>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.fieldLabel}>DATA E HORÁRIO</Text>
+                    <View style={styles.dateSummary}>
+                      <Ionicons name="calendar-outline" size={19} color={FioColors.green} />
+                      <Text style={styles.dateSummaryText}>{formatPickerValue(startsAt)}</Text>
+                    </View>
                 {Platform.OS === 'ios' ? (
                   <>
                     <DateTimePicker
@@ -703,6 +1005,8 @@ export default function AgendaScreen() {
                   <Pressable style={styles.dateButton} onPress={openAndroidDateTime}>
                     <Text style={styles.dateButtonText}>Alterar data e horário</Text>
                   </Pressable>
+                )}
+                  </>
                 )}
 
                 <Text style={styles.fieldLabel}>DURAÇÃO</Text>
@@ -832,7 +1136,7 @@ export default function AgendaScreen() {
               ) : (
                 <>
                   <Ionicons name="calendar-outline" size={18} color={FioColors.textOnAccent} />
-                  <Text style={styles.saveButtonText}>Agendar visita</Text>
+                  <Text style={styles.saveButtonText}>{quickMode ? 'Registrar chegada' : 'Agendar visita'}</Text>
                 </>
               )}
             </Pressable>
@@ -955,6 +1259,8 @@ const styles = StyleSheet.create({
   detailRow: { marginBottom: 5, flexDirection: 'row', alignItems: 'center', gap: 7 },
   detailText: { flex: 1, fontSize: 10, lineHeight: 14, color: FioColors.textMuted },
   observation: { marginTop: 3, padding: 8, fontSize: 10, lineHeight: 15, color: FioColors.inkSoft, borderRadius: 9, backgroundColor: FioColors.surfaceMuted },
+  manageButton: { minHeight: 38, marginTop: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: FioColors.green, borderRadius: 10, backgroundColor: FioColors.greenSoft },
+  manageButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.green },
   modalPage: { flex: 1, backgroundColor: FioColors.canvas },
   modalHeader: {
     minHeight: 64,
@@ -977,6 +1283,8 @@ const styles = StyleSheet.create({
   dateSummaryText: { flex: 1, fontSize: 11, fontWeight: '800', color: FioColors.text },
   dateButton: { minHeight: 42, marginTop: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: FioColors.greenSoft },
   dateButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.green },
+  quickNotice: { minHeight: 48, marginTop: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, backgroundColor: FioColors.greenSoft },
+  quickNoticeText: { fontSize: 11, fontWeight: '800', color: FioColors.green },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   choiceChip: { minHeight: 38, justifyContent: 'center', paddingHorizontal: 11, borderWidth: 1, borderColor: FioColors.line, borderRadius: 999, backgroundColor: FioColors.surface },
   choiceChipActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
@@ -984,7 +1292,17 @@ const styles = StyleSheet.create({
   choiceChipText: { fontSize: 10, fontWeight: '800', color: FioColors.textMuted },
   choiceChipTextActive: { color: FioColors.green },
   observationInput: { minHeight: 92, padding: 12, textAlignVertical: 'top', fontSize: 12, lineHeight: 18, color: FioColors.text, borderWidth: 1, borderColor: FioColors.line, borderRadius: 13, backgroundColor: FioColors.surface },
+  manageSummary: { padding: 13, borderWidth: 1, borderColor: FioColors.line, borderRadius: 13, backgroundColor: FioColors.surface },
+  manageWork: { fontSize: 13, fontWeight: '900', color: FioColors.text },
+  manageMoment: { marginTop: 5, fontSize: 10, color: FioColors.textMuted },
+  manageStatus: { marginTop: 8, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 5, overflow: 'hidden', borderRadius: 999, fontSize: 8, fontWeight: '900', color: FioColors.green, backgroundColor: FioColors.greenSoft },
+  actionList: { gap: 7 },
+  actionButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 13, borderWidth: 1, borderColor: FioColors.line, borderRadius: 12, backgroundColor: FioColors.surface },
+  actionButtonActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
+  actionButtonText: { fontSize: 11, fontWeight: '900', color: FioColors.textMuted },
+  actionButtonTextActive: { color: FioColors.green },
   saveButton: { minHeight: 50, marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 13, backgroundColor: FioColors.green },
+  cancelActionButton: { backgroundColor: FioColors.danger },
   saveButtonText: { fontSize: 11, fontWeight: '900', color: FioColors.textOnAccent },
   disabledButton: { opacity: 0.55 },
 });
