@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { WorkEnvironment } from '@/components/work-central/types';
+import { FioColors } from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
 type PhotoSource = 'camera' | 'gallery';
@@ -72,12 +73,15 @@ export function WorkPhotosPanel({
   environments,
   canWrite,
   canManage,
+  coverPhotoId,
   userId,
   cameraRequest,
+  galleryRequest = 0,
   compareRequest,
   onCompareRequestHandled,
   environmentFilterId,
   onCameraRequestHandled,
+  onGalleryRequestHandled,
   onCountChange,
   onChanged,
 }: {
@@ -85,12 +89,15 @@ export function WorkPhotosPanel({
   environments: WorkEnvironment[];
   canWrite: boolean;
   canManage: boolean;
+  coverPhotoId?: string | null;
   userId: string | null;
   cameraRequest: number;
+  galleryRequest?: number;
   compareRequest: number;
   onCompareRequestHandled?: () => void;
   environmentFilterId?: string;
   onCameraRequestHandled?: () => void;
+  onGalleryRequestHandled?: () => void;
   onCountChange?: (count: number) => void;
   onChanged?: () => void;
 }) {
@@ -99,6 +106,7 @@ export function WorkPhotosPanel({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [settingCoverId, setSettingCoverId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [openGroup, setOpenGroup] = useState<GroupKey | null>(null);
@@ -162,6 +170,18 @@ export function WorkPhotosPanel({
       onCameraRequestHandled?.();
     }
   }, [cameraRequest, canWrite, environmentFilterId, onCameraRequestHandled]);
+
+  useEffect(() => {
+    if (galleryRequest > 0 && canWrite) {
+      if (environmentFilterId) {
+        void chooseTarget(environmentFilterId, 'gallery');
+      } else {
+        setPendingSource('gallery');
+        setTargetVisible(true);
+      }
+      onGalleryRequestHandled?.();
+    }
+  }, [galleryRequest, canWrite, environmentFilterId, onGalleryRequestHandled]);
 
   useEffect(() => {
     setOpenGroup(environmentFilterId ?? null);
@@ -386,6 +406,29 @@ export function WorkPhotosPanel({
     );
   }
 
+  async function setAsCover(photo: WorkPhoto) {
+    if (!canManage || settingCoverId) return;
+    if (photo.visibility !== 'shared' || photo.photo_type !== 'general') {
+      setMessage('A capa precisa ser uma foto compartilhada da galeria.');
+      return;
+    }
+
+    setSettingCoverId(photo.id);
+    setMessage('');
+    setSuccessMessage('');
+    const { error } = await supabase.rpc('set_work_cover_photo', {
+      p_work_id: workId,
+      p_photo_id: photo.id,
+    });
+
+    if (error) setMessage(error.message);
+    else {
+      setSuccessMessage('Foto definida como capa da obra.');
+      onChanged?.();
+    }
+    setSettingCoverId(null);
+  }
+
   async function deletePhoto(photo: WorkPhoto) {
     setDeletingId(photo.id);
     setMessage('');
@@ -414,7 +457,7 @@ export function WorkPhotosPanel({
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#24583E" />
+        <ActivityIndicator color={FioColors.green} />
         <Text style={styles.muted}>Carregando galeria...</Text>
       </View>
     );
@@ -448,7 +491,7 @@ export function WorkPhotosPanel({
             onPress={() => beginUpload('camera')}
             disabled={uploading}
           >
-            <Ionicons name="camera-outline" size={21} color="#FFFFFF" />
+            <Ionicons name="camera-outline" size={21} color={FioColors.textOnAccent} />
             <Text style={styles.cameraText}>Câmera</Text>
           </Pressable>
           <Pressable
@@ -456,7 +499,7 @@ export function WorkPhotosPanel({
             onPress={() => beginUpload('gallery')}
             disabled={uploading}
           >
-            <Ionicons name="images-outline" size={20} color="#24583E" />
+            <Ionicons name="images-outline" size={20} color={FioColors.green} />
             <Text style={styles.galleryText}>Selecionar várias</Text>
           </Pressable>
         </View>
@@ -464,7 +507,7 @@ export function WorkPhotosPanel({
 
       {uploading && (
         <View style={styles.uploadCard}>
-          <ActivityIndicator color="#24583E" />
+          <ActivityIndicator color={FioColors.green} />
           <Text style={styles.uploadText}>{uploadProgress}</Text>
         </View>
       )}
@@ -494,7 +537,7 @@ export function WorkPhotosPanel({
                 />
               ) : (
                 <View style={styles.groupPlaceholder}>
-                  <Ionicons name="images-outline" size={22} color="#24583E" />
+                  <Ionicons name="images-outline" size={22} color={FioColors.green} />
                 </View>
               )}
               <View style={styles.groupIdentity}>
@@ -514,7 +557,7 @@ export function WorkPhotosPanel({
               <Ionicons
                 name={open ? 'chevron-up-outline' : 'chevron-down-outline'}
                 size={21}
-                color="#34405A"
+                color={FioColors.text}
               />
             </Pressable>
 
@@ -548,16 +591,36 @@ export function WorkPhotosPanel({
                           <Text style={styles.finalTagText}>Foto final</Text>
                         </View>
                       )}
+                      {coverPhotoId === photo.id && (
+                        <View style={styles.coverTag}>
+                          <Ionicons name="home-outline" size={11} color={FioColors.orange} />
+                          <Text style={styles.coverTagText}>Capa da obra</Text>
+                        </View>
+                      )}
                       <View style={styles.visibilityTag}>
                         <Ionicons
                           name={photo.visibility === 'shared' ? 'eye-outline' : 'lock-closed-outline'}
                           size={11}
-                          color="#24583E"
+                          color={FioColors.green}
                         />
                         <Text style={styles.visibilityText}>
                           {photo.visibility === 'shared' ? 'Compartilhada' : 'Interna'}
                         </Text>
                       </View>
+                      {canManage &&
+                        photo.visibility === 'shared' &&
+                        photo.photo_type === 'general' &&
+                        coverPhotoId !== photo.id && (
+                          <Pressable
+                            style={styles.coverButton}
+                            onPress={() => setAsCover(photo)}
+                            disabled={settingCoverId !== null}
+                          >
+                            <Text style={styles.coverButtonText}>
+                              {settingCoverId === photo.id ? 'Definindo...' : 'Definir como capa'}
+                            </Text>
+                          </Pressable>
+                        )}
                       {canDelete(photo) && (
                         <Pressable
                           style={styles.deleteButton}
@@ -603,7 +666,7 @@ export function WorkPhotosPanel({
                 style={styles.closeButton}
                 onPress={() => setTargetVisible(false)}
               >
-                <Ionicons name="close-outline" size={24} color="#34405A" />
+                <Ionicons name="close-outline" size={24} color={FioColors.text} />
               </Pressable>
             </View>
 
@@ -621,14 +684,14 @@ export function WorkPhotosPanel({
                   <Ionicons
                     name={option.value === 'shared' ? 'eye-outline' : 'lock-closed-outline'}
                     size={17}
-                    color={photoVisibility === option.value ? '#24583E' : '#7B8496'}
+                    color={photoVisibility === option.value ? FioColors.green : FioColors.textMuted}
                   />
                   <View style={styles.visibilityOptionText}>
                     <Text style={styles.visibilityOptionLabel}>{option.label}</Text>
                     <Text style={styles.visibilityOptionDetail}>{option.detail}</Text>
                   </View>
                   {photoVisibility === option.value && (
-                    <Ionicons name="checkmark-circle" size={18} color="#24583E" />
+                    <Ionicons name="checkmark-circle" size={18} color={FioColors.green} />
                   )}
                 </Pressable>
               ))}
@@ -636,9 +699,9 @@ export function WorkPhotosPanel({
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <Pressable style={styles.targetButton} onPress={() => chooseTarget(null)}>
-                <Ionicons name="home-outline" size={21} color="#24583E" />
+                <Ionicons name="home-outline" size={21} color={FioColors.green} />
                 <Text style={styles.targetText}>Geral da obra</Text>
-                <Ionicons name="chevron-forward-outline" size={20} color="#7B8496" />
+                <Ionicons name="chevron-forward-outline" size={20} color={FioColors.textMuted} />
               </Pressable>
               {environments.map((environment) => (
                 <Pressable
@@ -646,9 +709,9 @@ export function WorkPhotosPanel({
                   style={styles.targetButton}
                   onPress={() => chooseTarget(environment.id)}
                 >
-                  <Ionicons name="grid-outline" size={21} color="#24583E" />
+                  <Ionicons name="grid-outline" size={21} color={FioColors.green} />
                   <Text style={styles.targetText}>{environment.name}</Text>
-                  <Ionicons name="chevron-forward-outline" size={20} color="#7B8496" />
+                  <Ionicons name="chevron-forward-outline" size={20} color={FioColors.textMuted} />
                 </Pressable>
               ))}
             </ScrollView>
@@ -675,7 +738,7 @@ export function WorkPhotosPanel({
                 style={styles.closeButton}
                 onPress={() => setCompareVisible(false)}
               >
-                <Ionicons name="close-outline" size={24} color="#34405A" />
+                <Ionicons name="close-outline" size={24} color={FioColors.text} />
               </Pressable>
             </View>
 
@@ -736,71 +799,75 @@ export function WorkPhotosPanel({
 
 const styles = StyleSheet.create({
   loading: { minHeight: 90, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  muted: { fontSize: 11, color: '#7A8394' },
+  muted: { fontSize: 11, color: FioColors.textMuted },
   summaryRow: { flexDirection: 'row', gap: 9 },
-  summaryCard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: '#F8F6F1' },
-  summaryNumber: { fontSize: 22, fontWeight: '900', color: '#24583E' },
-  summaryLabel: { marginTop: 2, fontSize: 10, color: '#6F736F' },
+  summaryCard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
+  summaryNumber: { fontSize: 22, fontWeight: '900', color: FioColors.green },
+  summaryLabel: { marginTop: 2, fontSize: 10, color: FioColors.textMuted },
   actions: { marginTop: 11, flexDirection: 'row', gap: 8 },
-  cameraButton: { minHeight: 47, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: '#24583E' },
-  cameraText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
-  galleryButton: { minHeight: 47, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#BFD0C3', borderRadius: 12 },
-  galleryText: { fontSize: 11, fontWeight: '800', color: '#24583E' },
-  uploadCard: { marginTop: 10, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 11, backgroundColor: '#F8F6F1' },
-  uploadText: { fontSize: 11, fontWeight: '700', color: '#24583E' },
-  errorCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: '#FFF0EE' },
-  errorText: { fontSize: 11, color: '#B42318' },
-  successCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: '#EEF8F1' },
-  successText: { fontSize: 11, color: '#267A48' },
-  groupCard: { marginTop: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E0E3E9', borderRadius: 13, backgroundColor: '#FFFFFF' },
+  cameraButton: { minHeight: 47, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.green },
+  cameraText: { fontSize: 11, fontWeight: '800', color: FioColors.textOnAccent },
+  galleryButton: { minHeight: 47, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
+  galleryText: { fontSize: 11, fontWeight: '800', color: FioColors.green },
+  uploadCard: { marginTop: 10, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 11, backgroundColor: FioColors.surfaceRaised },
+  uploadText: { fontSize: 11, fontWeight: '700', color: FioColors.green },
+  errorCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: FioColors.dangerSoft },
+  errorText: { fontSize: 11, color: FioColors.danger },
+  successCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: FioColors.successSoft },
+  successText: { fontSize: 11, color: FioColors.success },
+  groupCard: { marginTop: 10, overflow: 'hidden', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 13, backgroundColor: FioColors.surface },
   groupHeader: { minHeight: 68, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   groupCover: { width: 52, height: 52, borderRadius: 10 },
-  groupPlaceholder: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#E7F1E8' },
+  groupPlaceholder: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: FioColors.greenSoft },
   groupIdentity: { flex: 1 },
-  groupTitle: { fontSize: 13, fontWeight: '800', color: '#202B3D' },
-  groupCount: { marginTop: 3, fontSize: 10, color: '#778194' },
-  photoGrid: { padding: 10, paddingTop: 2, flexDirection: 'row', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, borderTopColor: '#ECEEF2' },
-  photoCard: { width: '48%', overflow: 'hidden', borderWidth: 1, borderColor: '#E4E6EB', borderRadius: 11, backgroundColor: '#FFFFFF' },
-  photo: { width: '100%', aspectRatio: 1.25, backgroundColor: '#E7E9EE' },
-  photoUnavailable: { width: '100%', aspectRatio: 1.25, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ECEEF2' },
+  groupTitle: { fontSize: 13, fontWeight: '800', color: FioColors.text },
+  groupCount: { marginTop: 3, fontSize: 10, color: FioColors.textMuted },
+  photoGrid: { padding: 10, paddingTop: 2, flexDirection: 'row', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, borderTopColor: FioColors.line },
+  photoCard: { width: '48%', overflow: 'hidden', borderWidth: 1, borderColor: FioColors.line, borderRadius: 11, backgroundColor: FioColors.surfaceRaised },
+  photo: { width: '100%', aspectRatio: 1.25, backgroundColor: '#383E39' },
+  photoUnavailable: { width: '100%', aspectRatio: 1.25, alignItems: 'center', justifyContent: 'center', backgroundColor: '#383E39' },
   unavailableText: { fontSize: 9, color: '#7D8697' },
-  photoDate: { paddingHorizontal: 8, paddingTop: 7, fontSize: 8, color: '#7D8697' },
-  finalTag: { marginTop: 5, marginHorizontal: 8, paddingHorizontal: 6, paddingVertical: 4, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: '#FFF4D8' },
-  finalTagText: { fontSize: 8, fontWeight: '900', color: '#8A5B08' },
+  photoDate: { paddingHorizontal: 8, paddingTop: 7, fontSize: 8, color: FioColors.textSoft },
+  finalTag: { marginTop: 5, marginHorizontal: 8, paddingHorizontal: 6, paddingVertical: 4, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: '#423B2D' },
+  finalTagText: { fontSize: 8, fontWeight: '900', color: FioColors.gold },
+  coverTag: { marginTop: 5, marginHorizontal: 8, paddingHorizontal: 6, paddingVertical: 4, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, backgroundColor: FioColors.orangeSoft },
+  coverTagText: { fontSize: 8, fontWeight: '900', color: FioColors.orange },
   visibilityTag: { marginTop: 5, marginHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  visibilityText: { fontSize: 8, color: '#557064' },
-  deleteButton: { minHeight: 34, margin: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#FFF0EE' },
-  deleteText: { fontSize: 9, fontWeight: '800', color: '#B42318' },
-  emptyText: { width: '100%', padding: 12, textAlign: 'center', fontSize: 10, color: '#7D8697' },
-  collectionNote: { marginTop: 12, textAlign: 'center', fontSize: 9, lineHeight: 14, color: '#8A91A0' },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(17, 25, 43, 0.38)' },
-  modalCard: { maxHeight: '82%', padding: 18, paddingBottom: 28, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#FFFFFF' },
+  visibilityText: { fontSize: 8, color: FioColors.textMuted },
+  coverButton: { minHeight: 34, marginHorizontal: 7, marginTop: 7, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.green, borderRadius: 9, backgroundColor: FioColors.greenSoft },
+  coverButtonText: { fontSize: 9, fontWeight: '900', color: FioColors.green },
+  deleteButton: { minHeight: 34, margin: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: FioColors.dangerSoft },
+  deleteText: { fontSize: 9, fontWeight: '800', color: FioColors.danger },
+  emptyText: { width: '100%', padding: 12, textAlign: 'center', fontSize: 10, color: FioColors.textMuted },
+  collectionNote: { marginTop: 12, textAlign: 'center', fontSize: 9, lineHeight: 14, color: FioColors.textSoft },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12, 15, 12, 0.68)' },
+  modalCard: { maxHeight: '82%', padding: 18, paddingBottom: 28, borderTopWidth: 2, borderColor: FioColors.lineStrong, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: FioColors.surface },
   modalHeader: { marginBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  modalTitle: { fontSize: 21, fontWeight: '900', color: '#172033' },
-  modalSubtitle: { marginTop: 3, fontSize: 11, color: '#727C8E' },
-  closeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#F1F2F5' },
-  visibilityHeading: { marginTop: 3, marginBottom: 7, fontSize: 11, fontWeight: '900', color: '#34405A' },
+  modalTitle: { fontSize: 21, fontWeight: '900', color: FioColors.text },
+  modalSubtitle: { marginTop: 3, fontSize: 11, color: FioColors.textMuted },
+  closeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: FioColors.surfaceRaised },
+  visibilityHeading: { marginTop: 3, marginBottom: 7, fontSize: 11, fontWeight: '900', color: FioColors.text },
   visibilityOptions: { gap: 7, marginBottom: 8 },
-  visibilityOption: { minHeight: 54, paddingHorizontal: 11, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: '#DFE2E8', borderRadius: 12, backgroundColor: '#FFFFFF' },
-  visibilityOptionActive: { borderColor: '#BFD0C3', backgroundColor: '#F4FAF5' },
+  visibilityOption: { minHeight: 54, paddingHorizontal: 11, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: FioColors.line, borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
+  visibilityOptionActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
   visibilityOptionText: { flex: 1 },
-  visibilityOptionLabel: { fontSize: 11, fontWeight: '900', color: '#34405A' },
-  visibilityOptionDetail: { marginTop: 2, fontSize: 9, lineHeight: 13, color: '#727C8E' },
-  compareModalCard: { maxHeight: '88%', padding: 18, paddingBottom: 28, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#FFFFFF' },
+  visibilityOptionLabel: { fontSize: 11, fontWeight: '900', color: FioColors.text },
+  visibilityOptionDetail: { marginTop: 2, fontSize: 9, lineHeight: 13, color: FioColors.textMuted },
+  compareModalCard: { maxHeight: '88%', padding: 18, paddingBottom: 28, borderTopWidth: 2, borderColor: FioColors.lineStrong, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: FioColors.surface },
   comparePicker: { gap: 8, paddingVertical: 10 },
-  comparePickerItem: { width: 86, paddingBottom: 5, overflow: 'hidden', borderWidth: 1, borderColor: '#DFE2E8', borderRadius: 10, backgroundColor: '#FFFFFF' },
-  comparePickerItemActive: { borderWidth: 2, borderColor: '#24583E' },
-  comparePickerImage: { width: '100%', height: 68, backgroundColor: '#ECEEF2' },
-  comparePickerUnavailable: { width: '100%', height: 68, backgroundColor: '#ECEEF2' },
-  comparePickerDate: { paddingHorizontal: 5, paddingTop: 4, fontSize: 7, color: '#7D8697' },
-  compareOrderBadge: { position: 'absolute', top: 5, right: 5, width: 21, height: 21, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#24583E' },
-  compareOrderText: { fontSize: 10, fontWeight: '900', color: '#FFFFFF' },
+  comparePickerItem: { width: 86, paddingBottom: 5, overflow: 'hidden', borderWidth: 1, borderColor: FioColors.line, borderRadius: 10, backgroundColor: FioColors.surfaceRaised },
+  comparePickerItemActive: { borderWidth: 2, borderColor: FioColors.green },
+  comparePickerImage: { width: '100%', height: 68, backgroundColor: FioColors.surfaceMuted },
+  comparePickerUnavailable: { width: '100%', height: 68, backgroundColor: FioColors.surfaceMuted },
+  comparePickerDate: { paddingHorizontal: 5, paddingTop: 4, fontSize: 7, color: FioColors.textSoft },
+  compareOrderBadge: { position: 'absolute', top: 5, right: 5, width: 21, height: 21, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: FioColors.green },
+  compareOrderText: { fontSize: 10, fontWeight: '900', color: FioColors.textOnAccent },
   comparePreviewRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  comparePreviewCard: { flex: 1, overflow: 'hidden', borderWidth: 1, borderColor: '#DFE2E8', borderRadius: 12, backgroundColor: '#FFFFFF' },
-  comparePreviewLabel: { paddingHorizontal: 8, paddingVertical: 6, fontSize: 9, fontWeight: '900', letterSpacing: 0.8, color: '#24583E' },
-  comparePreviewImage: { width: '100%', aspectRatio: 1, backgroundColor: '#ECEEF2' },
-  comparePreviewUnavailable: { width: '100%', aspectRatio: 1, backgroundColor: '#ECEEF2' },
-  compareHint: { padding: 14, textAlign: 'center', fontSize: 10, color: '#727C8E' },
-  targetButton: { minHeight: 54, marginTop: 8, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#DFE2E8', borderRadius: 12 },
-  targetText: { flex: 1, fontSize: 12, fontWeight: '800', color: '#34405A' },
+  comparePreviewCard: { flex: 1, overflow: 'hidden', borderWidth: 1, borderColor: FioColors.line, borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
+  comparePreviewLabel: { paddingHorizontal: 8, paddingVertical: 6, fontSize: 9, fontWeight: '900', letterSpacing: 0.8, color: FioColors.green },
+  comparePreviewImage: { width: '100%', aspectRatio: 1, backgroundColor: FioColors.surfaceMuted },
+  comparePreviewUnavailable: { width: '100%', aspectRatio: 1, backgroundColor: FioColors.surfaceMuted },
+  compareHint: { padding: 14, textAlign: 'center', fontSize: 10, color: FioColors.textMuted },
+  targetButton: { minHeight: 54, marginTop: 8, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
+  targetText: { flex: 1, fontSize: 12, fontWeight: '800', color: FioColors.text },
 });

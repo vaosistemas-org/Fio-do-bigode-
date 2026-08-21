@@ -8,6 +8,8 @@ import {
   View,
 } from 'react-native';
 
+import { FioColors } from '@/constants/fio-theme';
+
 type Props = PropsWithChildren<{
   title: string;
   subtitle: string;
@@ -52,7 +54,7 @@ export function ExpandableWorkSection({
             <Ionicons
               name={icon}
               size={19}
-              color="#FFFFFF"
+              color={FioColors.textOnAccent}
             />
           </View>
 
@@ -83,7 +85,7 @@ export function ExpandableWorkSection({
                 : 'chevron-down-outline'
             }
             size={21}
-            color="#202B34"
+            color={FioColors.text}
           />
         </Pressable>
 
@@ -104,12 +106,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#DEE2E8',
+    borderColor: FioColors.line,
     borderRadius: 15,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: FioColors.surface,
   },
   cardOpen: {
-    borderColor: '#BFD0C3',
+    borderWidth: 2,
+    borderColor: FioColors.lineStrong,
   },
   header: {
     minHeight: 66,
@@ -136,7 +139,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 11,
-    backgroundColor: '#24583E',
+    backgroundColor: FioColors.green,
   },
   identity: {
     flex: 1,
@@ -151,13 +154,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#152033',
+    color: FioColors.text,
   },
   subtitle: {
     marginTop: 2,
     fontSize: 10,
     lineHeight: 14,
-    color: '#697386',
+    color: FioColors.textMuted,
   },
   badge: {
     minWidth: 23,
@@ -165,17 +168,17 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     alignItems: 'center',
     borderRadius: 999,
-    backgroundColor: '#E7F1E8',
+    backgroundColor: FioColors.greenSoft,
   },
   badgeText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#24583E',
+    color: FioColors.green,
   },
   content: {
     padding: 12,
     paddingTop: 4,
     borderTopWidth: 1,
-    borderTopColor: '#ECEEF2',
+    borderTopColor: FioColors.line,
   },
 });

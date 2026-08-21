@@ -46,8 +46,8 @@ const ITEMS: {
     label: 'Medições',
     icon: 'resize-outline',
     countKey: 'measurements',
-    tone: '#6A685F',
-    soft: '#EEEDE8',
+    tone: FioColors.textMuted,
+    soft: FioColors.surfaceMuted,
   },
   {
     section: 'documents',
@@ -81,12 +81,14 @@ export function EnvironmentQuickCenter({
   onOpenSection,
   onCamera,
   onMore,
+  showHeaderActions = true,
 }: {
   counts: EnvironmentQuickCounts;
   canWrite: boolean;
   onOpenSection: (section: Exclude<WorkSectionKey, 'environments'>) => void;
   onCamera: () => void;
   onMore: () => void;
+  showHeaderActions?: boolean;
 }) {
   return (
     <View style={styles.wrapper}>
@@ -96,7 +98,7 @@ export function EnvironmentQuickCenter({
           <Text style={styles.heading}>Acesso rápido</Text>
         </View>
 
-        {canWrite && (
+        {canWrite && showHeaderActions && (
           <View style={styles.headingActions}>
             <Pressable
               accessibilityLabel="Adicionar foto neste ambiente"
@@ -168,9 +170,9 @@ const styles = StyleSheet.create({
     padding: 11,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.88)',
+    borderColor: FioColors.lineStrong,
     borderRadius: FioRadius.large,
-    backgroundColor: 'rgba(255, 255, 255, 0.68)',
+    backgroundColor: FioColors.surfaceRaised,
     ...FioShadow,
   },
   headingRow: {
@@ -198,9 +200,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(36, 88, 62, 0.22)',
+    borderColor: FioColors.lineStrong,
     borderRadius: FioRadius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.84)',
+    backgroundColor: FioColors.surface,
   },
   moreAction: {
     borderColor: FioColors.green,
@@ -221,9 +223,9 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 9,
     borderWidth: 1,
-    borderColor: 'rgba(214, 216, 211, 0.82)',
+    borderColor: FioColors.line,
     borderRadius: FioRadius.medium,
-    backgroundColor: 'rgba(255, 254, 251, 0.82)',
+    backgroundColor: FioColors.surface,
   },
   quickCardPressed: {
     opacity: 0.72,

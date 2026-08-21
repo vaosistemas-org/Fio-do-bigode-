@@ -336,7 +336,7 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#242824',
   },
 
   content: {
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#242824',
   },
 
   header: {
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
     letterSpacing: 2,
   },
 
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 10,
     fontWeight: '700',
-    color: '#5F7567',
+    color: '#74B892',
     letterSpacing: 2,
   },
 
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E4E7E3',
+    backgroundColor: '#383E39',
     marginBottom: 16,
   },
 
@@ -399,13 +399,13 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#5F7567',
+    color: '#74B892',
   },
 
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   subtitle: {
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
     borderRadius: 18,
     padding: 20,
     borderWidth: 1,
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontSize: 11,
     fontWeight: '800',
-    color: '#5F7567',
+    color: '#74B892',
     letterSpacing: 1.4,
   },
 
@@ -436,33 +436,33 @@ const styles = StyleSheet.create({
     marginBottom: 7,
     fontSize: 13,
     fontWeight: '700',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   input: {
     minHeight: 50,
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 12,
     paddingHorizontal: 14,
     fontSize: 15,
-    color: '#2C343A',
-    backgroundColor: '#FFFFFF',
+    color: '#F2F3EF',
+    backgroundColor: '#2E332F',
   },
 
   disabledInput: {
     minHeight: 50,
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E1E3E1',
+    borderColor: '#4C534D',
     borderRadius: 12,
     paddingHorizontal: 14,
-    backgroundColor: '#F3F4F2',
+    backgroundColor: '#292E2A',
   },
 
   disabledText: {
     fontSize: 15,
-    color: '#687177',
+    color: '#C0C7C1',
   },
 
   helper: {
@@ -480,22 +480,22 @@ const styles = StyleSheet.create({
 
   option: {
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 999,
     paddingVertical: 9,
     paddingHorizontal: 13,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   optionSelected: {
     borderColor: '#E07A3A',
-    backgroundColor: '#FFF2EA',
+    backgroundColor: '#4B3B25',
   },
 
   optionText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#596269',
+    color: '#C0C7C1',
   },
 
   optionTextSelected: {
@@ -529,16 +529,16 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   cancelButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#596269',
+    color: '#C0C7C1',
   },
 
   buttonDisabled: {

@@ -105,8 +105,7 @@ const styles =
       width: 48,
       height: 48,
       borderRadius: 24,
-      backgroundColor:
-        '#ECEEEC',
+      backgroundColor: '#383E39',
     },
 
     avatarPlaceholder: {
@@ -131,7 +130,7 @@ const styles =
       lineHeight: 16,
       fontWeight: '800',
       textAlign: 'center',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     role: {
@@ -139,7 +138,7 @@ const styles =
       fontSize: 10,
       fontWeight: '700',
       textAlign: 'center',
-      color: '#5F7567',
+      color: '#74B892',
     },
 
     detail: {

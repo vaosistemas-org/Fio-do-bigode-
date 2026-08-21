@@ -1303,8 +1303,7 @@ const styles =
   StyleSheet.create({
     page: {
       flex: 1,
-      backgroundColor:
-        '#F7F7F5',
+      backgroundColor: '#242824',
     },
 
     content: {
@@ -1320,14 +1319,13 @@ const styles =
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor:
-        '#F7F7F5',
+      backgroundColor: '#242824',
     },
 
     loadingText: {
       marginTop: 10,
       fontSize: 13,
-      color: '#777D80',
+      color: '#C0C7C1',
     },
 
     topBar: {
@@ -1342,7 +1340,7 @@ const styles =
       fontSize: 24,
       fontWeight: '800',
       letterSpacing: 2,
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     brandSubtitle: {
@@ -1350,55 +1348,53 @@ const styles =
       fontSize: 9,
       fontWeight: '700',
       letterSpacing: 1.6,
-      color: '#5F7567',
+      color: '#74B892',
     },
 
     topButton: {
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 999,
       paddingHorizontal: 14,
       paddingVertical: 9,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     topButtonText: {
       fontSize: 13,
       fontWeight: '700',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     backButton: {
       alignSelf: 'flex-start',
       marginBottom: 22,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 999,
       paddingHorizontal: 14,
       paddingVertical: 9,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     backButtonText: {
       fontSize: 13,
       fontWeight: '700',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     workCode: {
       fontSize: 10,
       fontWeight: '800',
       letterSpacing: 1,
-      color: '#5F7567',
+      color: '#74B892',
     },
 
     workName: {
       marginTop: 4,
       fontSize: 14,
       fontWeight: '700',
-      color: '#70787D',
+      color: '#C0C7C1',
     },
 
     titleRow: {
@@ -1418,7 +1414,7 @@ const styles =
       fontSize: 10,
       fontWeight: '800',
       letterSpacing: 1.2,
-      color: '#E07A3A',
+      color: '#FFB04A',
     },
 
     title: {
@@ -1426,7 +1422,7 @@ const styles =
       fontSize: 30,
       lineHeight: 36,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     newButton: {
@@ -1450,8 +1446,7 @@ const styles =
       flexDirection: 'row',
       padding: 4,
       borderRadius: 14,
-      backgroundColor:
-        '#ECEEEC',
+      backgroundColor: '#383E39',
     },
 
     tabButton: {
@@ -1463,8 +1458,7 @@ const styles =
     },
 
     tabButtonSelected: {
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     tabText: {
@@ -1474,7 +1468,7 @@ const styles =
     },
 
     tabTextSelected: {
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     summaryRow: {
@@ -1489,16 +1483,15 @@ const styles =
       paddingVertical: 14,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: '#E4E7E4',
+      borderColor: '#4C534D',
       borderRadius: 14,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     summaryValue: {
       fontSize: 20,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     summaryLabel: {
@@ -1513,14 +1506,13 @@ const styles =
       marginBottom: 16,
       padding: 15,
       borderRadius: 14,
-      backgroundColor:
-        '#F0F1EF',
+      backgroundColor: '#383E39',
     },
 
     archiveInfoTitle: {
       fontSize: 13,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     archiveInfoText: {
@@ -1534,10 +1526,9 @@ const styles =
       marginBottom: 12,
       padding: 17,
       borderWidth: 1,
-      borderColor: '#E4E7E4',
+      borderColor: '#4C534D',
       borderRadius: 18,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     cardPressed: {
@@ -1546,8 +1537,7 @@ const styles =
 
     archivedCard: {
       borderColor: '#DDDAD6',
-      backgroundColor:
-        '#FBFAF8',
+      backgroundColor: '#383E39',
     },
 
     cardTop: {
@@ -1565,7 +1555,7 @@ const styles =
     environmentName: {
       fontSize: 18,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     responsible: {
@@ -1584,7 +1574,7 @@ const styles =
       paddingVertical: 6,
       borderRadius: 999,
       backgroundColor:
-        '#FFF0E5',
+        '#4B3B25',
     },
 
     priorityBadgeText: {
@@ -1597,8 +1587,7 @@ const styles =
       paddingHorizontal: 10,
       paddingVertical: 6,
       borderRadius: 999,
-      backgroundColor:
-        '#EEF1ED',
+      backgroundColor: '#383E39',
     },
 
     statusText: {
@@ -1611,8 +1600,7 @@ const styles =
       paddingHorizontal: 10,
       paddingVertical: 6,
       borderRadius: 999,
-      backgroundColor:
-        '#EEEAE6',
+      backgroundColor: '#383E39',
     },
 
     archivedBadgeText: {
@@ -1637,7 +1625,7 @@ const styles =
     progressText: {
       fontSize: 12,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     progressTrack: {
@@ -1645,8 +1633,7 @@ const styles =
       marginTop: 8,
       overflow: 'hidden',
       borderRadius: 999,
-      backgroundColor:
-        '#E7E9E7',
+      backgroundColor: '#383E39',
     },
 
     progressFill: {
@@ -1682,7 +1669,7 @@ const styles =
       marginTop: 2,
       fontSize: 12,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     photoSummaryAction: {
@@ -1695,22 +1682,21 @@ const styles =
       paddingVertical: 5,
       borderRadius: 999,
       backgroundColor:
-        '#FFF4EC',
+        '#4B3B25',
       fontSize: 9,
       fontWeight: '800',
       color: '#A65B32',
     },
 
     photoSummaryStatusReady: {
-      backgroundColor:
-        '#EEF1ED',
+      backgroundColor: '#383E39',
       color: '#506455',
     },
 
     photoSummaryArrow: {
       fontSize: 10,
       fontWeight: '800',
-      color: '#E07A3A',
+      color: '#FFB04A',
     },
 
     cardFooter: {
@@ -1730,7 +1716,7 @@ const styles =
     openText: {
       fontSize: 11,
       fontWeight: '800',
-      color: '#E07A3A',
+      color: '#FFB04A',
     },
 
     archivedDate: {
@@ -1747,8 +1733,7 @@ const styles =
       borderWidth: 1,
       borderColor: '#5F7567',
       borderRadius: 12,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     restoreButtonDisabled: {
@@ -1765,17 +1750,16 @@ const styles =
       padding: 28,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: '#E4E7E4',
+      borderColor: '#4C534D',
       borderRadius: 18,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     emptyTitle: {
       fontSize: 17,
       fontWeight: '800',
       textAlign: 'center',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     emptyText: {
@@ -1807,11 +1791,11 @@ const styles =
       padding: 16,
       borderRadius: 14,
       backgroundColor:
-        '#FFF2F0',
+        '#4A2F2D',
     },
 
     errorText: {
       fontSize: 13,
-      color: '#B42318',
+      color: '#FF8D83',
     },
   });

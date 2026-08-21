@@ -258,7 +258,7 @@ export default function CompanyLinkRequestsScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#242824',
   },
 
   content: {
@@ -274,13 +274,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#242824',
   },
 
   loadingText: {
     marginTop: 10,
     fontSize: 13,
-    color: '#777D80',
+    color: '#C0C7C1',
   },
 
   topBar: {
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     letterSpacing: 2,
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   brandSubtitle: {
@@ -302,22 +302,22 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1.6,
-    color: '#5F7567',
+    color: '#74B892',
   },
 
   profileButton: {
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   profileButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   header: {
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#2C343A',
+    color: '#F2F3EF',
     marginBottom: 8,
   },
 
@@ -341,24 +341,24 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 999,
     paddingHorizontal: 15,
     paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   refreshButtonText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   message: {
     marginBottom: 16,
     textAlign: 'center',
     fontSize: 13,
-    color: '#5F7567',
+    color: '#74B892',
   },
 
   emptyCard: {
@@ -366,20 +366,20 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#E7E9E6',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   emptyTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   emptyText: {
     marginTop: 7,
     fontSize: 13,
     lineHeight: 19,
-    color: '#777D80',
+    color: '#C0C7C1',
   },
 
   list: {
@@ -391,19 +391,19 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#E7E9E6',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   companyName: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   divider: {
     height: 1,
     marginVertical: 16,
-    backgroundColor: '#ECEEEC',
+    backgroundColor: '#383E39',
   },
 
   label: {
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   actions: {
@@ -448,14 +448,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 13,
     borderWidth: 1,
-    borderColor: '#D8DCDA',
-    backgroundColor: '#FFFFFF',
+    borderColor: '#687069',
+    backgroundColor: '#2E332F',
   },
 
   rejectButtonText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#596269',
+    color: '#C0C7C1',
   },
 
   buttonDisabled: {

@@ -25,6 +25,20 @@ type TimelineCategory = 'all' | 'updates' | 'photos' | 'pending';
 type DiaryVisibility = 'internal' | 'shared' | 'company';
 type FioPriority = 'normal' | 'important' | 'urgent';
 type PhotoSource = 'camera' | 'gallery';
+type WorkStatus =
+  | 'agendada'
+  | 'em_andamento'
+  | 'aguardando_peca'
+  | 'aguardando_cliente'
+  | 'finalizada';
+
+const WORK_STATUS_OPTIONS: { value: WorkStatus; label: string }[] = [
+  { value: 'agendada', label: 'Agendada' },
+  { value: 'em_andamento', label: 'Em andamento' },
+  { value: 'aguardando_peca', label: 'Aguardando peça' },
+  { value: 'aguardando_cliente', label: 'Aguardando cliente' },
+  { value: 'finalizada', label: 'Finalizada' },
+];
 
 type DraftPhoto = {
   key: string;
@@ -97,6 +111,7 @@ function formatTime(value: string) {
 }
 
 function eventIcon(eventType: string | null): keyof typeof Ionicons.glyphMap {
+  if (eventType === 'ATUALIZACAO_OPERACIONAL') return 'construct-outline';
   if (eventType?.startsWith('ENTREGA_')) return 'checkmark-done-outline';
   if (eventType?.startsWith('DOCUMENTO_')) return 'document-text-outline';
   if (eventType?.startsWith('FOTO_')) return 'camera-outline';
@@ -135,6 +150,7 @@ export function WorkTimelinePanel({
   environments,
   canWrite,
   canManage = false,
+  workStatus,
   newEntryRequest = 0,
   environmentFilterId,
   onChanged,
@@ -143,6 +159,7 @@ export function WorkTimelinePanel({
   environments: WorkEnvironment[];
   canWrite: boolean;
   canManage?: boolean;
+  workStatus: string;
   newEntryRequest?: number;
   environmentFilterId?: string;
   onChanged?: () => void;
@@ -158,8 +175,10 @@ export function WorkTimelinePanel({
   const [successMessage, setSuccessMessage] = useState('');
   const [modalMessage, setModalMessage] = useState('');
   const [formVisible, setFormVisible] = useState(false);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [doneToday, setDoneToday] = useState('');
+  const [nextSteps, setNextSteps] = useState('');
+  const [blockers, setBlockers] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState<WorkStatus | null>(null);
   const [environmentId, setEnvironmentId] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<DiaryVisibility>('internal');
   const [priority, setPriority] = useState<FioPriority>('normal');
@@ -261,8 +280,10 @@ export function WorkTimelinePanel({
   }, [visibleEvents]);
 
   function resetForm() {
-    setTitle('');
-    setDescription('');
+    setDoneToday('');
+    setNextSteps('');
+    setBlockers('');
+    setSelectedStatus(null);
     setEnvironmentId(null);
     setVisibility('internal');
     setPriority('normal');
@@ -380,7 +401,7 @@ export function WorkTimelinePanel({
         file_name: draft.asset.fileName || fileName,
         mime_type: 'image/jpeg',
         size_bytes: draft.asset.fileSize ?? null,
-        caption: title.trim(),
+        caption: doneToday.trim() || 'Fotos do dia',
         taken_at:
           draft.source === 'camera' ? new Date().toISOString() : null,
         created_by: createdBy,
@@ -394,8 +415,14 @@ export function WorkTimelinePanel({
 
   async function saveEntry() {
     if (!canWrite || saving) return;
-    if (!title.trim()) {
-      setModalMessage('Informe o título da atualização.');
+    if (
+      !doneToday.trim() &&
+      !nextSteps.trim() &&
+      !blockers.trim() &&
+      selectedPhotos.length === 0 &&
+      (!selectedStatus || selectedStatus === workStatus)
+    ) {
+      setModalMessage('Registre o que foi feito, o próximo passo, um bloqueio ou uma foto.');
       return;
     }
 
@@ -413,11 +440,13 @@ export function WorkTimelinePanel({
         throw new Error('Usuário não autenticado.');
       }
 
-      const { data, error } = await supabase.rpc('create_work_diary_entry', {
+      const { data, error } = await supabase.rpc('record_work_operational_update', {
         p_work_id: workId,
         p_environment_id: environmentId,
-        p_title: title.trim(),
-        p_description: description.trim() || null,
+        p_status: canManage ? selectedStatus : null,
+        p_done_today: doneToday.trim() || (selectedPhotos.length ? 'Fotos do dia' : null),
+        p_next_steps: nextSteps.trim() || null,
+        p_blockers: blockers.trim() || null,
         p_visibility: visibility,
         p_priority: priority,
       });
@@ -494,10 +523,12 @@ export function WorkTimelinePanel({
           <Ionicons name="create-outline" size={18} color={FioColors.green} />
           <Text style={styles.summaryNumber}>
             {events.filter(
-              (event) => event.event_type === 'DIARIO_REGISTRO_MANUAL'
+              (event) =>
+                event.event_type === 'DIARIO_REGISTRO_MANUAL' ||
+                event.event_type === 'ATUALIZACAO_OPERACIONAL'
             ).length}
           </Text>
-          <Text style={styles.summaryLabel}>manuais</Text>
+          <Text style={styles.summaryLabel}>atualizações</Text>
         </View>
       </View>
 
@@ -559,7 +590,7 @@ export function WorkTimelinePanel({
 
       {!!successMessage && (
         <View style={styles.successCard}>
-          <Ionicons name="checkmark-circle-outline" size={18} color="#207A50" />
+          <Ionicons name="checkmark-circle-outline" size={18} color={FioColors.success} />
           <Text style={styles.successText}>{successMessage}</Text>
         </View>
       )}
@@ -621,7 +652,7 @@ export function WorkTimelinePanel({
                 <Ionicons
                   name={open ? 'chevron-up-outline' : 'chevron-down-outline'}
                   size={21}
-                  color="#34405A"
+                  color={FioColors.text}
                 />
               </Pressable>
 
@@ -774,10 +805,10 @@ export function WorkTimelinePanel({
                                   size={11}
                                   color={
                                     event.visibility === 'shared'
-                                      ? '#207A50'
+                                      ? FioColors.success
                                       : event.visibility === 'company'
                                       ? FioColors.green
-                                      : '#697386'
+                                      : FioColors.textMuted
                                   }
                                 />
                                 <Text
@@ -830,14 +861,14 @@ export function WorkTimelinePanel({
             <View style={styles.modalHeader}>
               <View style={styles.modalIdentity}>
                 <Text numberOfLines={1} style={styles.modalTitle}>
-                  Nova atualização
+                  Atualização do dia
                 </Text>
                 <Text style={styles.modalSubtitle}>
-                  Texto e fotos entram juntos na linha do tempo.
+                  Avanço, próximos passos, bloqueios e fotos entram no FIO.
                 </Text>
               </View>
               <Pressable style={styles.closeButton} onPress={closeForm}>
-                <Ionicons name="close-outline" size={24} color="#34405A" />
+                <Ionicons name="close-outline" size={24} color={FioColors.text} />
               </Pressable>
             </View>
 
@@ -846,24 +877,35 @@ export function WorkTimelinePanel({
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.modalContent}
             >
-              <Text style={styles.label}>Título *</Text>
+              <Text style={styles.label}>O que foi feito hoje?</Text>
               <TextInput
-                style={styles.input}
-                value={title}
-                onChangeText={setTitle}
-                placeholder="Ex.: Materiais recebidos"
-                placeholderTextColor="#98A0AE"
-                maxLength={160}
+                style={[styles.input, styles.textarea]}
+                value={doneToday}
+                onChangeText={setDoneToday}
+                placeholder="Ex.: Montagem dos armários inferiores concluída"
+                placeholderTextColor={FioColors.textSoft}
+                multiline
                 editable={!saving}
               />
 
-              <Text style={styles.label}>Descrição</Text>
+              <Text style={styles.label}>O que vem agora?</Text>
               <TextInput
-                style={[styles.input, styles.textarea]}
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Conte o que aconteceu"
-                placeholderTextColor="#98A0AE"
+                style={[styles.input, styles.textareaCompact]}
+                value={nextSteps}
+                onChangeText={setNextSteps}
+                placeholder="Ex.: Ajustar portas e instalar puxadores"
+                placeholderTextColor={FioColors.textSoft}
+                multiline
+                editable={!saving}
+              />
+
+              <Text style={styles.label}>Há algum bloqueio?</Text>
+              <TextInput
+                style={[styles.input, styles.textareaCompact]}
+                value={blockers}
+                onChangeText={setBlockers}
+                placeholder="Ex.: Aguardando pedra da bancada"
+                placeholderTextColor={FioColors.textSoft}
                 multiline
                 editable={!saving}
               />
@@ -906,6 +948,32 @@ export function WorkTimelinePanel({
                 ))}
               </View>
 
+              {canManage && (
+                <>
+                  <Text style={styles.label}>Status geral da obra</Text>
+                  <Text style={styles.fieldHelper}>
+                    O avanço percentual continua calculado pelos ambientes.
+                  </Text>
+                  <View style={styles.chips}>
+                    {WORK_STATUS_OPTIONS.map((option) => {
+                      const active = (selectedStatus ?? workStatus) === option.value;
+                      return (
+                        <Pressable
+                          key={option.value}
+                          style={[styles.chip, active && styles.chipActive]}
+                          onPress={() => setSelectedStatus(option.value)}
+                          disabled={saving}
+                        >
+                          <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                            {option.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+
               <View style={styles.photoLabelRow}>
                 <Text style={styles.label}>Fotos da atualização</Text>
                 <Text style={styles.photoLimit}>{selectedPhotos.length}/20</Text>
@@ -916,7 +984,7 @@ export function WorkTimelinePanel({
                   onPress={() => choosePhotos('camera')}
                   disabled={saving}
                 >
-                  <Ionicons name="camera-outline" size={21} color="#FFFFFF" />
+                  <Ionicons name="camera-outline" size={21} color={FioColors.textOnAccent} />
                   <Text style={styles.photoActionPrimaryText}>Câmera</Text>
                 </Pressable>
                 <Pressable
@@ -951,7 +1019,7 @@ export function WorkTimelinePanel({
                         }
                         disabled={saving}
                       >
-                        <Ionicons name="close" size={15} color="#FFFFFF" />
+                        <Ionicons name="close" size={15} color={FioColors.textOnAccent} />
                       </Pressable>
                     </View>
                   ))}
@@ -1014,7 +1082,7 @@ export function WorkTimelinePanel({
                 <Ionicons
                   name={visibility === 'internal' ? 'radio-button-on' : 'radio-button-off'}
                   size={21}
-                  color={visibility === 'internal' ? FioColors.green : '#A5ACB8'}
+                  color={visibility === 'internal' ? FioColors.green : FioColors.textSoft}
                 />
               </Pressable>
 
@@ -1027,7 +1095,7 @@ export function WorkTimelinePanel({
                 disabled={saving}
               >
                 <View style={styles.visibilityOptionIcon}>
-                  <Ionicons name="eye-outline" size={20} color="#207A50" />
+                  <Ionicons name="eye-outline" size={20} color={FioColors.success} />
                 </View>
                 <View style={styles.visibilityOptionIdentity}>
                   <Text style={styles.visibilityOptionTitle}>
@@ -1040,7 +1108,7 @@ export function WorkTimelinePanel({
                 <Ionicons
                   name={visibility === 'shared' ? 'radio-button-on' : 'radio-button-off'}
                   size={21}
-                  color={visibility === 'shared' ? FioColors.green : '#A5ACB8'}
+                  color={visibility === 'shared' ? FioColors.green : FioColors.textSoft}
                 />
               </Pressable>
 
@@ -1055,7 +1123,7 @@ export function WorkTimelinePanel({
                 onPress={saveEntry}
                 disabled={saving}
               >
-                {saving && <ActivityIndicator color="#FFFFFF" size="small" />}
+                {saving && <ActivityIndicator color={FioColors.textOnAccent} size="small" />}
                 <Text style={styles.saveText}>
                   {saving
                     ? uploadProgress || 'Registrando...'
@@ -1072,101 +1140,103 @@ export function WorkTimelinePanel({
 
 const styles = StyleSheet.create({
   loading: { minHeight: 90, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  muted: { fontSize: 11, color: '#7A8394' },
-  compactSummary: { minHeight: 48, flexDirection: 'row', alignItems: 'center', borderRadius: 12, backgroundColor: '#F8F6F1' },
+  muted: { fontSize: 11, color: FioColors.textMuted },
+  compactSummary: { minHeight: 48, flexDirection: 'row', alignItems: 'center', borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
   summaryItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
-  summaryDivider: { width: 1, height: 24, backgroundColor: '#D4E2D6' },
+  summaryDivider: { width: 1, height: 24, backgroundColor: FioColors.lineStrong },
   summaryNumber: { fontSize: 17, fontWeight: '900', color: FioColors.green },
-  summaryLabel: { fontSize: 10, color: '#6F736F' },
-  filterLabel: { marginTop: 12, fontSize: 9, fontWeight: '900', letterSpacing: 1, color: '#727B8D' },
+  summaryLabel: { fontSize: 10, color: FioColors.textMuted },
+  filterLabel: { marginTop: 12, fontSize: 9, fontWeight: '900', letterSpacing: 1, color: FioColors.textMuted },
   filters: { paddingTop: 7, paddingBottom: 2, gap: 7 },
-  filterChip: { minHeight: 38, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 999 },
+  filterChip: { minHeight: 38, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.line, borderRadius: 999 },
   filterChipActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
-  filterText: { fontSize: 10, fontWeight: '700', color: '#717B8E' },
+  filterText: { fontSize: 10, fontWeight: '700', color: FioColors.textMuted },
   filterTextActive: { color: FioColors.green },
-  successCard: { marginTop: 10, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 11, backgroundColor: '#EAF8F0' },
-  successText: { flex: 1, fontSize: 10, color: '#207A50' },
-  errorCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: '#FFF0EE' },
-  errorText: { fontSize: 11, color: '#B42318' },
-  emptyCard: { marginTop: 10, padding: 18, alignItems: 'center', borderRadius: 12, backgroundColor: '#F6F7F9' },
-  emptyTitle: { fontSize: 11, fontWeight: '700', color: '#727C8E' },
+  successCard: { marginTop: 10, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 11, backgroundColor: FioColors.successSoft },
+  successText: { flex: 1, fontSize: 10, color: FioColors.success },
+  errorCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: FioColors.dangerSoft },
+  errorText: { fontSize: 11, color: FioColors.danger },
+  emptyCard: { marginTop: 10, padding: 18, alignItems: 'center', borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
+  emptyTitle: { fontSize: 11, fontWeight: '700', color: FioColors.textMuted },
   dayGroup: { marginTop: 11 },
-  dayHeader: { minHeight: 56, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#DCE0E7', borderRadius: 13, backgroundColor: '#F8F6F1' },
+  dayHeader: { minHeight: 56, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 13, backgroundColor: FioColors.surfaceRaised },
   dayIdentity: { flex: 1, minWidth: 0 },
-  dayTitle: { fontSize: 11, fontWeight: '900', color: '#34405A' },
-  daySummary: { marginTop: 3, fontSize: 9, color: '#7A8394' },
-  dayCount: { minWidth: 26, height: 26, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#F6EDDE' },
+  dayTitle: { fontSize: 11, fontWeight: '900', color: FioColors.text },
+  daySummary: { marginTop: 3, fontSize: 9, color: FioColors.textMuted },
+  dayCount: { minWidth: 26, height: 26, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: FioColors.goldSoft },
   dayCountText: { fontSize: 10, fontWeight: '900', color: FioColors.green },
   categoryFilters: { paddingTop: 8, paddingBottom: 7, gap: 6 },
-  categoryChip: { minHeight: 34, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E0E3E9', borderRadius: 999, backgroundColor: '#FFFFFF' },
+  categoryChip: { minHeight: 34, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.line, borderRadius: 999, backgroundColor: FioColors.surface },
   categoryChipActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
-  categoryText: { fontSize: 9, fontWeight: '700', color: '#737D8F' },
+  categoryText: { fontSize: 9, fontWeight: '700', color: FioColors.textMuted },
   categoryTextActive: { color: FioColors.green },
   eventRow: { flexDirection: 'row', gap: 8 },
   timelineColumn: { width: 28, alignItems: 'center' },
   eventIcon: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: FioColors.green, zIndex: 2 },
-  timelineLine: { width: 2, flex: 1, minHeight: 35, backgroundColor: '#D4E2D6' },
-  eventCard: { flex: 1, minWidth: 0, marginBottom: 8, padding: 10, borderWidth: 1, borderColor: '#E1E4EA', borderRadius: 12, backgroundColor: '#FFFFFF' },
+  timelineLine: { width: 2, flex: 1, minHeight: 35, backgroundColor: FioColors.lineStrong },
+  eventCard: { flex: 1, minWidth: 0, marginBottom: 8, padding: 10, borderWidth: 1, borderColor: FioColors.line, borderRadius: 12, backgroundColor: FioColors.surface },
   eventTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
   eventTopMeta: { alignItems: 'flex-end', gap: 4 },
   eventPriority: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: FioColors.goldSoft },
   eventPriorityUrgent: { backgroundColor: FioColors.orange },
-  eventPriorityText: { fontSize: 7, fontWeight: '900', color: '#76571F' },
-  eventPriorityTextUrgent: { color: FioColors.white },
-  eventTitle: { flex: 1, fontSize: 11, fontWeight: '800', color: '#263146' },
-  eventTime: { fontSize: 9, color: '#8B93A2' },
-  eventDescription: { marginTop: 4, fontSize: 10, lineHeight: 15, color: '#5E687B' },
+  eventPriorityText: { fontSize: 7, fontWeight: '900', color: FioColors.gold },
+  eventPriorityTextUrgent: { color: FioColors.textOnAccent },
+  eventTitle: { flex: 1, fontSize: 11, fontWeight: '800', color: FioColors.text },
+  eventTime: { fontSize: 9, color: FioColors.textSoft },
+  eventDescription: { marginTop: 4, fontSize: 10, lineHeight: 15, color: FioColors.textMuted },
   photoStrip: { paddingTop: 8, gap: 7 },
-  timelinePhotoFrame: { width: 82, height: 68, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 9, backgroundColor: '#F6EDDE' },
+  timelinePhotoFrame: { width: 82, height: 68, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 9, backgroundColor: FioColors.surfaceMuted },
   timelinePhoto: { width: '100%', height: '100%', resizeMode: 'cover' },
   eventMetaRow: { marginTop: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 7 },
   eventScope: { flex: 1, fontSize: 9, fontWeight: '800', color: FioColors.green },
-  visibilityBadge: { minHeight: 22, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, backgroundColor: '#F0F2F5' },
-  visibilityBadgeShared: { backgroundColor: '#EAF8F0' },
-  visibilityBadgeCompany: { backgroundColor: '#E7F1E8' },
-  visibilityText: { fontSize: 8, fontWeight: '800', color: '#697386' },
-  visibilityTextShared: { color: '#207A50' },
+  visibilityBadge: { minHeight: 22, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, backgroundColor: FioColors.surfaceMuted },
+  visibilityBadgeShared: { backgroundColor: FioColors.greenSoft },
+  visibilityBadgeCompany: { backgroundColor: FioColors.greenSoft },
+  visibilityText: { fontSize: 8, fontWeight: '800', color: FioColors.textMuted },
+  visibilityTextShared: { color: FioColors.green },
   visibilityTextCompany: { color: FioColors.green },
   actorRow: { marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  eventActor: { flex: 1, fontSize: 8, color: '#7C8596' },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(17, 25, 43, 0.38)' },
-  modalCard: { maxHeight: '92%', padding: 18, paddingBottom: 10, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#FFFFFF' },
+  eventActor: { flex: 1, fontSize: 8, color: FioColors.textSoft },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12, 15, 12, 0.68)' },
+  modalCard: { maxHeight: '92%', padding: 18, paddingBottom: 10, borderTopWidth: 2, borderColor: FioColors.lineStrong, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: FioColors.surface },
   modalHeader: { marginBottom: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   modalIdentity: { flex: 1, minWidth: 0 },
-  modalTitle: { fontSize: 21, fontWeight: '900', color: '#172033' },
-  modalSubtitle: { marginTop: 3, fontSize: 10, color: '#727C8E' },
-  closeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#F1F2F5' },
+  modalTitle: { fontSize: 21, fontWeight: '900', color: FioColors.text },
+  modalSubtitle: { marginTop: 3, fontSize: 10, color: FioColors.textMuted },
+  closeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: FioColors.surfaceRaised },
   modalContent: { paddingBottom: 24 },
-  label: { marginTop: 13, marginBottom: 6, fontSize: 10, fontWeight: '800', color: '#536078' },
-  input: { minHeight: 48, paddingHorizontal: 13, borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 12, fontSize: 13, color: '#202B3D', backgroundColor: '#FAFBFC' },
+  label: { marginTop: 13, marginBottom: 6, fontSize: 10, fontWeight: '800', color: FioColors.textMuted },
+  fieldHelper: { marginTop: -2, marginBottom: 7, fontSize: 8, lineHeight: 12, color: FioColors.textSoft },
+  input: { minHeight: 48, paddingHorizontal: 13, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 12, fontSize: 13, color: FioColors.text, backgroundColor: FioColors.surfaceRaised },
   textarea: { minHeight: 96, paddingTop: 12, textAlignVertical: 'top' },
+  textareaCompact: { minHeight: 72, paddingTop: 12, textAlignVertical: 'top' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  chip: { minHeight: 40, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCE0E7', borderRadius: 999 },
+  chip: { minHeight: 40, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 999 },
   chipActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
   chipUrgent: { borderColor: FioColors.orange, backgroundColor: FioColors.orange },
-  chipText: { fontSize: 10, fontWeight: '700', color: '#697386' },
+  chipText: { fontSize: 10, fontWeight: '700', color: FioColors.textMuted },
   chipTextActive: { color: FioColors.green },
   chipTextUrgent: { color: FioColors.white },
   priorityHelper: { marginTop: 6, fontSize: 8, lineHeight: 12, color: FioColors.green },
   photoLabelRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  photoLimit: { marginBottom: 6, fontSize: 9, color: '#8A92A1' },
+  photoLimit: { marginBottom: 6, fontSize: 9, color: FioColors.textSoft },
   photoActions: { flexDirection: 'row', gap: 8 },
-  photoActionPrimary: { minHeight: 46, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.ink },
-  photoActionPrimaryText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
-  photoActionSecondary: { minHeight: 46, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#BFD0C3', borderRadius: 12, backgroundColor: FioColors.greenSoft },
+  photoActionPrimary: { minHeight: 46, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.green },
+  photoActionPrimaryText: { fontSize: 11, fontWeight: '800', color: FioColors.textOnAccent },
+  photoActionSecondary: { minHeight: 46, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 12, backgroundColor: FioColors.greenSoft },
   photoActionSecondaryText: { fontSize: 11, fontWeight: '800', color: FioColors.green },
   selectedPhotos: { paddingTop: 9, gap: 8 },
-  selectedPhotoFrame: { width: 78, height: 78, overflow: 'visible', borderRadius: 11, backgroundColor: '#F6EDDE' },
+  selectedPhotoFrame: { width: 78, height: 78, overflow: 'visible', borderRadius: 11, backgroundColor: FioColors.surfaceMuted },
   selectedPhoto: { width: '100%', height: '100%', borderRadius: 11, resizeMode: 'cover' },
   removePhoto: { position: 'absolute', top: -5, right: -5, width: 26, height: 26, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 999, backgroundColor: '#263146' },
-  visibilityOption: { minHeight: 58, marginBottom: 7, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 12, backgroundColor: '#FFFFFF' },
+  visibilityOption: { minHeight: 58, marginBottom: 7, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: FioColors.line, borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
   visibilityOptionActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
   visibilityOptionIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: FioColors.greenSoft },
   visibilityOptionIdentity: { flex: 1, minWidth: 0 },
-  visibilityOptionTitle: { fontSize: 10, fontWeight: '800', color: '#34405A' },
-  visibilityOptionSubtitle: { marginTop: 2, fontSize: 8, lineHeight: 12, color: '#7A8394' },
-  modalErrorCard: { marginTop: 9, padding: 10, borderRadius: 10, backgroundColor: '#FFF0EE' },
-  saveButton: { minHeight: 50, marginTop: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 13, backgroundColor: FioColors.ink },
+  visibilityOptionTitle: { fontSize: 10, fontWeight: '800', color: FioColors.text },
+  visibilityOptionSubtitle: { marginTop: 2, fontSize: 8, lineHeight: 12, color: FioColors.textMuted },
+  modalErrorCard: { marginTop: 9, padding: 10, borderRadius: 10, backgroundColor: FioColors.dangerSoft },
+  saveButton: { minHeight: 50, marginTop: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 13, backgroundColor: FioColors.green },
   disabledButton: { opacity: 0.55 },
-  saveText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  saveText: { fontSize: 13, fontWeight: '800', color: FioColors.textOnAccent },
 });

@@ -195,7 +195,7 @@ export default function PublicFioScreen() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centered}>
-          <ActivityIndicator color="#24583E" />
+          <ActivityIndicator color="#74B892" />
           <Text style={styles.loadingText}>Abrindo o FIO da obra...</Text>
         </View>
       </SafeAreaView>
@@ -207,7 +207,7 @@ export default function PublicFioScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centered}>
           <View style={styles.invalidIcon}>
-            <Ionicons name="link-outline" size={30} color="#24583E" />
+            <Ionicons name="link-outline" size={30} color="#74B892" />
           </View>
           <Text style={styles.invalidTitle}>Link indisponível</Text>
           <Text style={styles.invalidText}>{message}</Text>
@@ -255,7 +255,7 @@ export default function PublicFioScreen() {
         {data.documents.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="document-text-outline" size={21} color="#24583E" />
+              <Ionicons name="document-text-outline" size={21} color="#74B892" />
               <Text style={styles.sectionTitle}>Documentos da obra</Text>
               <View style={styles.countBadge}>
                 <Text style={styles.countText}>{data.documents.length}</Text>
@@ -295,7 +295,7 @@ export default function PublicFioScreen() {
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="chatbubble-ellipses-outline" size={21} color="#24583E" />
+            <Ionicons name="chatbubble-ellipses-outline" size={21} color="#74B892" />
             <Text style={styles.sectionTitle}>FIO / Diário</Text>
             <View style={styles.countBadge}>
               <Text style={styles.countText}>{data.events.length}</Text>
@@ -350,56 +350,56 @@ export default function PublicFioScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F6FA' },
+  safeArea: { flex: 1, backgroundColor: '#242824' },
   content: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 18, paddingBottom: 40 },
   centered: { flex: 1, padding: 28, alignItems: 'center', justifyContent: 'center' },
-  loadingText: { marginTop: 10, fontSize: 13, color: '#697386' },
-  invalidIcon: { width: 62, height: 62, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: '#E7F1E8' },
-  invalidTitle: { marginTop: 14, fontSize: 21, fontWeight: '900', color: '#152033' },
-  invalidText: { maxWidth: 340, marginTop: 6, textAlign: 'center', fontSize: 12, lineHeight: 18, color: '#697386' },
+  loadingText: { marginTop: 10, fontSize: 13, color: '#C0C7C1' },
+  invalidIcon: { width: 62, height: 62, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: '#30483A' },
+  invalidTitle: { marginTop: 14, fontSize: 21, fontWeight: '900', color: '#F2F3EF' },
+  invalidText: { maxWidth: 340, marginTop: 6, textAlign: 'center', fontSize: 12, lineHeight: 18, color: '#C0C7C1' },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  brandMark: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: '#24583E' },
-  brandLetter: { fontSize: 21, fontWeight: '900', color: '#FFFFFF' },
-  brandName: { fontSize: 16, fontWeight: '900', color: '#152033' },
-  readOnly: { marginTop: 1, fontSize: 10, color: '#697386' },
-  workCard: { marginTop: 16, padding: 18, borderWidth: 1, borderColor: '#E4E0D8', borderRadius: 18, backgroundColor: '#FFFFFF' },
-  workCode: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: '#24583E' },
-  workTitle: { marginTop: 4, fontSize: 24, fontWeight: '900', color: '#152033' },
+  brandMark: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: '#74B892' },
+  brandLetter: { fontSize: 21, fontWeight: '900', color: '#172119' },
+  brandName: { fontSize: 16, fontWeight: '900', color: '#F2F3EF' },
+  readOnly: { marginTop: 1, fontSize: 10, color: '#C0C7C1' },
+  workCard: { marginTop: 16, padding: 18, borderWidth: 1, borderColor: '#4C534D', borderRadius: 18, backgroundColor: '#2E332F' },
+  workCode: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: '#74B892' },
+  workTitle: { marginTop: 4, fontSize: 24, fontWeight: '900', color: '#F2F3EF' },
   workMetaRow: { marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  statusBadge: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: '#EAF8F0' },
-  statusText: { fontSize: 10, fontWeight: '800', color: '#207A50' },
-  progressLabel: { fontSize: 11, fontWeight: '800', color: '#34405A' },
-  progressTrack: { height: 7, marginTop: 9, overflow: 'hidden', borderRadius: 999, backgroundColor: '#E3E5EA' },
-  progressFill: { height: '100%', borderRadius: 999, backgroundColor: '#24583E' },
-  privacyNote: { marginTop: 14, padding: 10, borderRadius: 10, fontSize: 9, lineHeight: 14, color: '#697386', backgroundColor: '#F8F6F1' },
-  errorCard: { marginTop: 12, padding: 11, borderRadius: 11, backgroundColor: '#FFF0F0' },
-  errorText: { fontSize: 10, color: '#A34242' },
-  section: { marginTop: 14, padding: 13, borderWidth: 1, borderColor: '#E0E3E8', borderRadius: 16, backgroundColor: '#FFFFFF' },
+  statusBadge: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: '#30483A' },
+  statusText: { fontSize: 10, fontWeight: '800', color: '#74B892' },
+  progressLabel: { fontSize: 11, fontWeight: '800', color: '#F2F3EF' },
+  progressTrack: { height: 7, marginTop: 9, overflow: 'hidden', borderRadius: 999, backgroundColor: '#383E39' },
+  progressFill: { height: '100%', borderRadius: 999, backgroundColor: '#74B892' },
+  privacyNote: { marginTop: 14, padding: 10, borderRadius: 10, fontSize: 9, lineHeight: 14, color: '#C0C7C1', backgroundColor: '#383E39' },
+  errorCard: { marginTop: 12, padding: 11, borderRadius: 11, backgroundColor: '#4A2F2D' },
+  errorText: { fontSize: 10, color: '#FF8D83' },
+  section: { marginTop: 14, padding: 13, borderWidth: 1, borderColor: '#4C534D', borderRadius: 16, backgroundColor: '#2E332F' },
   sectionHeader: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sectionTitle: { flex: 1, fontSize: 16, fontWeight: '900', color: '#152033' },
-  countBadge: { minWidth: 25, paddingHorizontal: 7, paddingVertical: 4, alignItems: 'center', borderRadius: 999, backgroundColor: '#E7F1E8' },
-  countText: { fontSize: 10, fontWeight: '900', color: '#24583E' },
-  documentCard: { marginTop: 8, padding: 11, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, borderWidth: 1, borderColor: '#E6E8ED', borderRadius: 12 },
+  sectionTitle: { flex: 1, fontSize: 16, fontWeight: '900', color: '#F2F3EF' },
+  countBadge: { minWidth: 25, paddingHorizontal: 7, paddingVertical: 4, alignItems: 'center', borderRadius: 999, backgroundColor: '#30483A' },
+  countText: { fontSize: 10, fontWeight: '900', color: '#74B892' },
+  documentCard: { marginTop: 8, padding: 11, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, borderWidth: 1, borderColor: '#4C534D', borderRadius: 12 },
   documentIdentity: { flex: 1, minWidth: 210 },
-  documentTitle: { fontSize: 12, fontWeight: '800', color: '#202A3A' },
-  documentMeta: { marginTop: 2, fontSize: 9, color: '#697386' },
-  documentDescription: { marginTop: 5, fontSize: 9, lineHeight: 13, color: '#596274' },
-  openButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#24583E' },
-  downloadRule: { width: '100%', fontSize: 8, textAlign: 'right', color: '#7A8394' },
+  documentTitle: { fontSize: 12, fontWeight: '800', color: '#F2F3EF' },
+  documentMeta: { marginTop: 2, fontSize: 9, color: '#C0C7C1' },
+  documentDescription: { marginTop: 5, fontSize: 9, lineHeight: 13, color: '#C0C7C1' },
+  openButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#74B892' },
+  downloadRule: { width: '100%', fontSize: 8, textAlign: 'right', color: '#929A93' },
   emptyCard: { minHeight: 80, alignItems: 'center', justifyContent: 'center' },
-  emptyText: { fontSize: 11, color: '#7A8394' },
+  emptyText: { fontSize: 11, color: '#929A93' },
   dayGroup: { marginTop: 11 },
-  dayTitle: { marginBottom: 6, fontSize: 11, fontWeight: '900', textTransform: 'capitalize', color: '#4D586B' },
-  eventCard: { marginBottom: 8, padding: 11, borderWidth: 1, borderColor: '#E6E8ED', borderRadius: 12, backgroundColor: '#FFFFFF' },
+  dayTitle: { marginBottom: 6, fontSize: 11, fontWeight: '900', textTransform: 'capitalize', color: '#C0C7C1' },
+  eventCard: { marginBottom: 8, padding: 11, borderWidth: 1, borderColor: '#4C534D', borderRadius: 12, backgroundColor: '#2E332F' },
   eventTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  eventTitle: { flex: 1, fontSize: 12, fontWeight: '800', color: '#202A3A' },
-  eventTime: { fontSize: 9, color: '#8A92A1' },
-  eventDescription: { marginTop: 5, fontSize: 10, lineHeight: 15, color: '#596274' },
+  eventTitle: { flex: 1, fontSize: 12, fontWeight: '800', color: '#F2F3EF' },
+  eventTime: { fontSize: 9, color: '#929A93' },
+  eventDescription: { marginTop: 5, fontSize: 10, lineHeight: 15, color: '#C0C7C1' },
   photos: { marginTop: 8, gap: 7 },
-  photo: { width: 105, height: 82, borderRadius: 10, backgroundColor: '#ECE9E2' },
-  photoFallback: { width: 105, height: 82, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#E7F1E8' },
-  eventMeta: { marginTop: 8, paddingTop: 7, flexDirection: 'row', justifyContent: 'space-between', gap: 8, borderTopWidth: 1, borderTopColor: '#EFF0F3' },
-  eventScope: { flex: 1, fontSize: 8, fontWeight: '800', color: '#24583E' },
-  eventActor: { flex: 1, textAlign: 'right', fontSize: 8, color: '#7A8394' },
-  footer: { marginTop: 18, textAlign: 'center', fontSize: 9, color: '#8A92A1' },
+  photo: { width: 105, height: 82, borderRadius: 10, backgroundColor: '#383E39' },
+  photoFallback: { width: 105, height: 82, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#30483A' },
+  eventMeta: { marginTop: 8, paddingTop: 7, flexDirection: 'row', justifyContent: 'space-between', gap: 8, borderTopWidth: 1, borderTopColor: '#4C534D' },
+  eventScope: { flex: 1, fontSize: 8, fontWeight: '800', color: '#74B892' },
+  eventActor: { flex: 1, textAlign: 'right', fontSize: 8, color: '#929A93' },
+  footer: { marginTop: 18, textAlign: 'center', fontSize: 9, color: '#929A93' },
 });

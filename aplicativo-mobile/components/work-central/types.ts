@@ -13,6 +13,7 @@ export type Work = {
   project_order: string | null;
   status: string;
   progress: number;
+  cover_photo_id: string | null;
   next_visit_at: string | null;
   notes: string | null;
   updated_at: string;

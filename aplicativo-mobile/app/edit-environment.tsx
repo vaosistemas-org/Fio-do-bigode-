@@ -1009,13 +1009,13 @@ if (participantsError) {
             selectedResponsibleUserId ===
             null
               ? '#E07A3A'
-              : '#E4E7E4',
+              : '#4C534D',
 
           backgroundColor:
             selectedResponsibleUserId ===
             null
-              ? '#FFF7F1'
-              : '#FFFFFF',
+              ? '#4B3B25'
+              : '#383E39',
         },
 
         pressed && {
@@ -1073,12 +1073,12 @@ if (participantsError) {
 
                 borderColor: selected
                   ? '#E07A3A'
-                  : '#E4E7E4',
+                  : '#4C534D',
 
                 backgroundColor:
                   selected
-                    ? '#FFF7F1'
-                    : '#FFFFFF',
+                    ? '#4B3B25'
+                    : '#383E39',
               },
 
               pressed && {
@@ -1742,7 +1742,7 @@ const styles = StyleSheet.create({
 
   page: {
     flex: 1,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#242824',
   },
 
   content: {
@@ -1759,13 +1759,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 30,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#242824',
   },
 
   loadingText: {
     marginTop: 10,
     fontSize: 13,
-    color: '#777D80',
+    color: '#C0C7C1',
   },
 
   topBar: {
@@ -1779,7 +1779,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     letterSpacing: 2,
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   brandSubtitle: {
@@ -1787,53 +1787,53 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1.6,
-    color: '#5F7567',
+    color: '#74B892',
   },
 
   topButton: {
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   topButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   backButton: {
     alignSelf: 'flex-start',
     marginBottom: 22,
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   backButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   workCode: {
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1,
-    color: '#5F7567',
+    color: '#74B892',
   },
 
   workName: {
     marginTop: 4,
     fontSize: 14,
     fontWeight: '700',
-    color: '#70787D',
+    color: '#C0C7C1',
   },
 
   header: {
@@ -1845,7 +1845,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.2,
-    color: '#E07A3A',
+    color: '#FFB04A',
   },
 
   title: {
@@ -1853,23 +1853,23 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 36,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   subtitle: {
     marginTop: 7,
     fontSize: 14,
     lineHeight: 20,
-    color: '#747B80',
+    color: '#C0C7C1',
   },
 
   card: {
     marginBottom: 14,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#E4E7E4',
+    borderColor: '#4C534D',
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   sectionTitle: {
@@ -1877,7 +1877,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.2,
-    color: '#5F7567',
+    color: '#74B892',
   },
 
   fieldLabel: {
@@ -1899,20 +1899,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 13,
     borderWidth: 1,
-    borderColor: '#DDE1DE',
+    borderColor: '#687069',
     borderRadius: 999,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: '#383E39',
   },
 
   chipSelected: {
     borderColor: '#E07A3A',
-    backgroundColor: '#FFF4EC',
+    backgroundColor: '#4B3B25',
   },
 
   chipText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#747B80',
+    color: '#C0C7C1',
   },
 
   chipTextSelected: {
@@ -1921,7 +1921,7 @@ const styles = StyleSheet.create({
 
   statusSelected: {
     borderColor: '#5F7567',
-    backgroundColor: '#EEF1ED',
+    backgroundColor: '#30483A',
   },
 
   statusSelectedText: {
@@ -1932,11 +1932,11 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#DDE1DE',
+    borderColor: '#687069',
     borderRadius: 12,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: '#383E39',
     fontSize: 14,
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   textArea: {
@@ -1944,19 +1944,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#DDE1DE',
+    borderColor: '#687069',
     borderRadius: 12,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: '#383E39',
     fontSize: 14,
     lineHeight: 20,
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   helper: {
     marginTop: 7,
     fontSize: 11,
     lineHeight: 16,
-    color: '#919699',
+    color: '#929A93',
   },
 
   helperTop: {
@@ -1969,13 +1969,13 @@ const styles = StyleSheet.create({
   responsibleCard: {
     padding: 14,
     borderRadius: 12,
-    backgroundColor: '#F7F8F6',
+    backgroundColor: '#383E39',
   },
 
   responsibleName: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   responsibleHint: {
@@ -1993,7 +1993,7 @@ const styles = StyleSheet.create({
   progressBig: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   progressTrack: {
@@ -2001,7 +2001,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     overflow: 'hidden',
     borderRadius: 999,
-    backgroundColor: '#E7E9E7',
+    backgroundColor: '#383E39',
   },
 
   progressFill: {
@@ -2024,20 +2024,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#DDE1DE',
+    borderColor: '#687069',
     borderRadius: 999,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: '#383E39',
   },
 
   quickButtonSelected: {
     borderColor: '#E07A3A',
-    backgroundColor: '#FFF4EC',
+    backgroundColor: '#4B3B25',
   },
 
   quickButtonText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#747B80',
+    color: '#C0C7C1',
   },
 
   quickButtonTextSelected: {
@@ -2057,9 +2057,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   stepperButtonText: {
@@ -2073,7 +2073,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 19,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   weightCenter: {
@@ -2084,7 +2084,7 @@ const styles = StyleSheet.create({
   weightValue: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   weightLabel: {
@@ -2102,14 +2102,14 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#DDE1DE',
+    borderColor: '#687069',
     borderRadius: 14,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: '#383E39',
   },
 
   priorityButtonSelected: {
     borderColor: '#E07A3A',
-    backgroundColor: '#FFF4EC',
+    backgroundColor: '#4B3B25',
   },
 
   priorityButtonPressed: {
@@ -2123,7 +2123,7 @@ const styles = StyleSheet.create({
   priorityTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   priorityTitleSelected: {
@@ -2141,7 +2141,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: '#ECEEEC',
+    backgroundColor: '#383E39',
   },
 
   priorityMarkerSelected: {
@@ -2151,7 +2151,7 @@ const styles = StyleSheet.create({
   priorityMarkerText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#747B80',
+    color: '#C0C7C1',
   },
 
   priorityMarkerTextSelected: {
@@ -2169,12 +2169,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F1C7AA',
     borderRadius: 14,
-    backgroundColor: '#FFF7F1',
+    backgroundColor: '#4B3B25',
   },
 
   preparationSummaryReady: {
     borderColor: '#C8D8CB',
-    backgroundColor: '#F1F6F1',
+    backgroundColor: '#30483A',
   },
 
   preparationSummaryTitle: {
@@ -2184,14 +2184,14 @@ const styles = StyleSheet.create({
   },
 
   preparationSummaryTitleReady: {
-    color: '#506455',
+    color: '#74B892',
   },
 
   preparationSummaryText: {
     marginTop: 5,
     fontSize: 11,
     lineHeight: 16,
-    color: '#747B80',
+    color: '#C0C7C1',
   },
 
   preparationList: {
@@ -2210,7 +2210,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E7E9E7',
     borderRadius: 12,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: '#383E39',
   },
 
   preparationItemLabel: {
@@ -2237,7 +2237,7 @@ const styles = StyleSheet.create({
   settingTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   settingDescription: {
@@ -2250,33 +2250,33 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginVertical: 18,
-    backgroundColor: '#ECEEEC',
+    backgroundColor: '#383E39',
   },
 
   errorCard: {
     marginBottom: 14,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: '#FFF2F0',
+    backgroundColor: '#4A2F2D',
   },
 
   errorText: {
     fontSize: 13,
     lineHeight: 19,
-    color: '#B42318',
+    color: '#FF8D83',
   },
 
   successCard: {
     marginBottom: 14,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: '#EEF4EE',
+    backgroundColor: '#294536',
   },
 
   successText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#506455',
+    color: '#8AD4A8',
   },
 
   primaryButton: {
@@ -2299,15 +2299,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   secondaryButtonText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   archiveButton: {
@@ -2320,7 +2320,7 @@ const styles = StyleSheet.create({
   archiveButtonText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#B42318',
+    color: '#FF8D83',
   },
 
   disabledButton: {

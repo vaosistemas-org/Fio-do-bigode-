@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 
 import { useWorkAccess } from '@/hooks/use-work-access';
+import { FioColors } from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
 type EnvironmentStatus =
@@ -808,7 +809,7 @@ export default function EnvironmentProgressScreen() {
             >
               <ActivityIndicator
                 size="small"
-                color="#FFFFFF"
+                color={FioColors.textOnAccent}
               />
 
               <Text
@@ -855,7 +856,7 @@ const styles = StyleSheet.create({
 
   page: {
     flex: 1,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: FioColors.canvas,
   },
 
   content: {
@@ -872,13 +873,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 30,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: FioColors.canvas,
   },
 
   loadingText: {
     marginTop: 10,
     fontSize: 13,
-    color: '#777D80',
+    color: FioColors.textMuted,
   },
 
   topBar: {
@@ -893,7 +894,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     letterSpacing: 2,
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   brandSubtitle: {
@@ -901,53 +902,53 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1.6,
-    color: '#5F7567',
+    color: FioColors.green,
   },
 
   topButton: {
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: FioColors.lineStrong,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: FioColors.surface,
   },
 
   topButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   backButton: {
     alignSelf: 'flex-start',
     marginBottom: 22,
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: FioColors.lineStrong,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: FioColors.surface,
   },
 
   backButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   workCode: {
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1,
-    color: '#5F7567',
+    color: FioColors.green,
   },
 
   workName: {
     marginTop: 4,
     fontSize: 14,
     fontWeight: '700',
-    color: '#70787D',
+    color: FioColors.textMuted,
   },
 
   header: {
@@ -959,7 +960,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.3,
-    color: '#E07A3A',
+    color: FioColors.orange,
   },
 
   title: {
@@ -967,30 +968,30 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 36,
     fontWeight: '800',
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   subtitle: {
     marginTop: 8,
     fontSize: 14,
     lineHeight: 21,
-    color: '#71787D',
+    color: FioColors.textMuted,
   },
 
   card: {
     marginBottom: 14,
     padding: 18,
-    borderWidth: 1,
-    borderColor: '#E4E7E4',
+    borderWidth: 2,
+    borderColor: FioColors.lineStrong,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: FioColors.surface,
   },
 
   sectionTitle: {
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.2,
-    color: '#5F7567',
+    color: FioColors.green,
   },
 
   statusContainer: {
@@ -1005,24 +1006,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 13,
     borderWidth: 1,
-    borderColor: '#DDE1DE',
+    borderColor: FioColors.lineStrong,
     borderRadius: 999,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: FioColors.surfaceRaised,
   },
 
   statusButtonSelected: {
-    borderColor: '#5F7567',
-    backgroundColor: '#EEF1ED',
+    borderColor: FioColors.green,
+    backgroundColor: FioColors.greenSoft,
   },
 
   statusButtonText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#747B80',
+    color: FioColors.textMuted,
   },
 
   statusButtonTextSelected: {
-    color: '#44594B',
+    color: FioColors.green,
   },
 
   progressHeader: {
@@ -1035,7 +1036,7 @@ const styles = StyleSheet.create({
   progressBig: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   progressTrack: {
@@ -1043,13 +1044,13 @@ const styles = StyleSheet.create({
     marginTop: 14,
     overflow: 'hidden',
     borderRadius: 999,
-    backgroundColor: '#E7E9E7',
+    backgroundColor: FioColors.surfaceRaised,
   },
 
   progressFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#5F7567',
+    backgroundColor: FioColors.green,
   },
 
   quickProgressRow: {
@@ -1066,24 +1067,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#DDE1DE',
+    borderColor: FioColors.lineStrong,
     borderRadius: 999,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: FioColors.surfaceRaised,
   },
 
   quickProgressButtonSelected: {
-    borderColor: '#E07A3A',
-    backgroundColor: '#FFF4EC',
+    borderColor: FioColors.orange,
+    backgroundColor: FioColors.orangeSoft,
   },
 
   quickProgressText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#747B80',
+    color: FioColors.textMuted,
   },
 
   quickProgressTextSelected: {
-    color: '#A65B32',
+    color: FioColors.orange,
   },
 
   stepperRow: {
@@ -1099,15 +1100,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: FioColors.lineStrong,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: FioColors.surfaceRaised,
   },
 
   stepperButtonText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#526658',
+    color: FioColors.green,
   },
 
   currentProgress: {
@@ -1118,14 +1119,14 @@ const styles = StyleSheet.create({
   currentProgressValue: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   currentProgressLabel: {
     marginTop: 1,
     fontSize: 9,
     fontWeight: '700',
-    color: '#8B9195',
+    color: FioColors.textSoft,
   },
 
   observationInput: {
@@ -1134,32 +1135,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#DDE1DE',
+    borderColor: FioColors.lineStrong,
     borderRadius: 12,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: FioColors.surfaceRaised,
     fontSize: 14,
     lineHeight: 20,
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   helper: {
     marginTop: 7,
     fontSize: 11,
     lineHeight: 16,
-    color: '#919699',
+    color: FioColors.textSoft,
   },
 
   messageCard: {
     marginBottom: 14,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: '#FFF2F0',
+    backgroundColor: FioColors.dangerSoft,
   },
 
   messageText: {
     fontSize: 13,
     lineHeight: 19,
-    color: '#B42318',
+    color: FioColors.danger,
   },
 
   saveButton: {
@@ -1167,7 +1168,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    backgroundColor: '#E07A3A',
+    backgroundColor: FioColors.orange,
   },
 
   saveButtonDisabled: {
@@ -1177,7 +1178,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: FioColors.textOnAccent,
   },
 
   loadingRow: {
@@ -1195,7 +1196,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#697177',
+    color: FioColors.textMuted,
   },
 
   deniedPage: {
@@ -1203,14 +1204,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 28,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: FioColors.canvas,
   },
 
   deniedEyebrow: {
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.2,
-    color: '#E07A3A',
+    color: FioColors.orange,
   },
 
   deniedTitle: {
@@ -1219,7 +1220,7 @@ const styles = StyleSheet.create({
     lineHeight: 29,
     fontWeight: '800',
     textAlign: 'center',
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   deniedText: {
@@ -1227,7 +1228,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     textAlign: 'center',
-    color: '#747B80',
+    color: FioColors.textMuted,
   },
 
   deniedBackButton: {
@@ -1237,18 +1238,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 18,
     borderRadius: 12,
-    backgroundColor: '#2C343A',
+    backgroundColor: FioColors.green,
   },
 
   deniedBackButtonText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: FioColors.textOnAccent,
   },
 
   errorText: {
     fontSize: 13,
     textAlign: 'center',
-    color: '#B42318',
+    color: FioColors.danger,
   },
 });

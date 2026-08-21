@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E4E7E3',
+    backgroundColor: '#383E39',
   },
 
   avatarImage: {
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#5F7567',
+    color: '#74B892',
   },
 
   actions: {
@@ -227,20 +227,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#D8DCDA',
-    backgroundColor: '#FFFFFF',
+    borderColor: '#687069',
+    backgroundColor: '#2E332F',
   },
 
   secondaryButtonText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#596269',
+    color: '#C0C7C1',
   },
 
   message: {
     marginTop: 10,
     fontSize: 12,
     textAlign: 'center',
-    color: '#5F7567',
+    color: '#74B892',
   },
 });

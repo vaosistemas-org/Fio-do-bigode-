@@ -258,9 +258,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#5A513E',
+    borderColor: FioColors.lineStrong,
     borderRadius: 13,
-    backgroundColor: '#242622',
+    backgroundColor: FioColors.surfaceRaised,
   },
   brandLetter: {
     fontFamily: 'serif',

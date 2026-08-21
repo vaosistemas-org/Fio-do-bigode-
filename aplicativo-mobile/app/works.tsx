@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -39,6 +40,7 @@ type Work = {
   project_order: string | null;
   status: WorkStatus;
   progress: number;
+  cover_photo_id: string | null;
   next_visit_at: string | null;
   updated_at: string;
 };
@@ -50,6 +52,13 @@ type WorkAuxiliaryData = {
 };
 
 type RelatedRecord = { id: string; work_id: string };
+
+type WorkPhotoReference = RelatedRecord & {
+  environment_id: string | null;
+  storage_path: string;
+  visibility: 'internal' | 'shared';
+  photo_type: 'general' | 'delivery_final';
+};
 
 type RecentUpdate = {
   id: string;
@@ -128,6 +137,7 @@ export default function WorksScreen() {
   const [works, setWorks] = useState<Work[]>([]);
   const [recent, setRecent] = useState<RecentUpdate[]>([]);
   const [auxiliary, setAuxiliary] = useState<Record<string, WorkAuxiliaryData>>({});
+  const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
   const [expandedWork, setExpandedWork] = useState<string | null>(null);
   const [searchVisible, setSearchVisible] = useState(false);
   const [search, setSearch] = useState('');
@@ -136,14 +146,18 @@ export default function WorksScreen() {
   const [message, setMessage] = useState('');
 
   const loadWorks = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true);
+    if (refresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setMessage('');
 
     const [worksResult, feedResult] = await Promise.all([
       supabase
         .from('works')
         .select(
-          'id, code, client_name, address, project_order, status, progress, next_visit_at, updated_at'
+          'id, code, client_name, address, project_order, status, progress, cover_photo_id, next_visit_at, updated_at'
         )
         .is('archived_at', null)
         .order('updated_at', { ascending: false }),
@@ -174,7 +188,12 @@ export default function WorksScreen() {
           .select('id, work_id')
           .in('work_id', ids)
           .eq('active', true),
-        supabase.from('work_photos').select('id, work_id').in('work_id', ids),
+        supabase
+          .from('work_photos')
+          .select('id, work_id, environment_id, storage_path, visibility, photo_type')
+          .in('work_id', ids)
+          .eq('collection', 'work')
+          .order('created_at', { ascending: false }),
       ]);
 
       const counts = createAuxiliaryMap(ids);
@@ -184,12 +203,43 @@ export default function WorksScreen() {
       ((environmentsResult.data ?? []) as RelatedRecord[]).forEach((item) => {
         counts[item.work_id].environments += 1;
       });
-      ((photosResult.data ?? []) as RelatedRecord[]).forEach((item) => {
+      const photoRows = (photosResult.data ?? []) as WorkPhotoReference[];
+      photoRows.forEach((item) => {
         counts[item.work_id].photos += 1;
       });
       setAuxiliary(counts);
+
+      const covers = await Promise.all(
+        loaded.map(async (work) => {
+          const photo =
+            photoRows.find(
+              (item) =>
+                item.work_id === work.id &&
+                item.id === work.cover_photo_id &&
+                item.visibility === 'shared'
+            ) ??
+            photoRows.find(
+              (item) =>
+                item.work_id === work.id &&
+                !item.environment_id &&
+                item.visibility === 'shared' &&
+                item.photo_type === 'general'
+            );
+          if (!photo) return null;
+          const { data: signed } = await supabase.storage
+            .from('work-photos')
+            .createSignedUrl(photo.storage_path, 60 * 60);
+          return signed?.signedUrl ? ([work.id, signed.signedUrl] as const) : null;
+        })
+      );
+      setCoverUrls(
+        Object.fromEntries(
+          covers.filter((item): item is readonly [string, string] => Boolean(item))
+        )
+      );
     } else {
       setAuxiliary({});
+      setCoverUrls({});
     }
 
     setLoading(false);
@@ -273,7 +323,7 @@ export default function WorksScreen() {
             />
           </Pressable>
           <Pressable style={styles.newButton} onPress={() => router.push('/new-work')}>
-            <Ionicons name="add-outline" size={18} color={FioColors.white} />
+            <Ionicons name="add-outline" size={18} color={FioColors.textOnAccent} />
             <Text style={styles.newButtonText}>Nova obra</Text>
           </Pressable>
         </View>
@@ -369,9 +419,14 @@ export default function WorksScreen() {
                 style={styles.workHeader}
                 onPress={() => setExpandedWork(open ? null : work.id)}
               >
-                <View style={styles.cover}>
-                  <Text style={styles.coverText}>{initials(work.client_name)}</Text>
-                </View>
+                {coverUrls[work.id] ? (
+                  <Image source={{ uri: coverUrls[work.id] }} style={styles.coverImage} />
+                ) : (
+                  <View style={styles.cover}>
+                    <Ionicons name="business-outline" size={21} color={FioColors.gold} />
+                    <Text style={styles.coverText}>{initials(work.client_name)}</Text>
+                  </View>
+                )}
                 <View style={styles.workIdentity}>
                   <Text style={styles.workCode}>{work.code}</Text>
                   <Text numberOfLines={1} style={styles.clientName}>
@@ -429,7 +484,7 @@ export default function WorksScreen() {
                     onPress={() => openSection(work.id)}
                   >
                     <Text style={styles.openButtonText}>Abrir obra</Text>
-                    <Ionicons name="arrow-forward-outline" size={17} color={FioColors.white} />
+                    <Ionicons name="arrow-forward-outline" size={17} color={FioColors.textOnAccent} />
                   </Pressable>
                 </View>
               )}
@@ -482,16 +537,16 @@ const styles = StyleSheet.create({
   title: { fontSize: 25, fontWeight: '900', color: FioColors.text },
   subtitle: { marginTop: 3, fontSize: 10, color: FioColors.textMuted },
   searchIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.line, borderRadius: 13, backgroundColor: FioColors.surface },
-  newButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 13, borderRadius: 13, backgroundColor: FioColors.ink },
-  newButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.white },
+  newButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 13, borderRadius: 13, backgroundColor: FioColors.green },
+  newButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.textOnAccent },
   searchBox: { minHeight: 50, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: FioColors.gold, borderRadius: 13, backgroundColor: FioColors.surface },
   searchInput: { flex: 1, paddingVertical: 12, fontSize: 13, color: FioColors.text },
   recentSection: { marginTop: 25 },
   sectionTitle: { fontSize: 17, fontWeight: '900', color: FioColors.text },
   recentList: { paddingTop: 12, paddingBottom: 4, gap: 9 },
   recentCard: { width: 132, minHeight: 124, padding: 11, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.medium, backgroundColor: FioColors.surface },
-  recentImportant: { borderColor: FioColors.gold, backgroundColor: '#FFFAF0' },
-  recentUrgent: { borderColor: FioColors.orange, backgroundColor: '#FFF8EE' },
+  recentImportant: { borderColor: FioColors.gold, backgroundColor: FioColors.goldSoft },
+  recentUrgent: { borderColor: FioColors.orange, backgroundColor: FioColors.orangeSoft },
   recentIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: FioColors.green },
   recentName: { marginTop: 9, fontSize: 11, fontWeight: '900', color: FioColors.text },
   recentType: { marginTop: 4, fontSize: 9, fontWeight: '800', color: FioColors.green },
@@ -501,7 +556,8 @@ const styles = StyleSheet.create({
   order: { fontSize: 9, color: FioColors.textMuted },
   workCard: { marginBottom: 10, overflow: 'hidden', borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.large, backgroundColor: FioColors.surface, ...FioShadow },
   workHeader: { minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
-  cover: { width: 58, height: 66, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: FioColors.ink },
+  cover: { width: 58, height: 66, alignItems: 'center', justifyContent: 'center', gap: 3, borderRadius: 14, backgroundColor: FioColors.surfaceRaised },
+  coverImage: { width: 58, height: 66, borderRadius: 14, resizeMode: 'cover', backgroundColor: FioColors.surfaceRaised },
   coverText: { fontSize: 18, fontWeight: '900', color: FioColors.gold },
   workIdentity: { flex: 1, minWidth: 0 },
   workCode: { fontSize: 9, fontWeight: '800', color: FioColors.textMuted },
@@ -512,15 +568,15 @@ const styles = StyleSheet.create({
   statusDot: { width: 6, height: 6, borderRadius: 999, backgroundColor: FioColors.green },
   statusText: { fontSize: 8, fontWeight: '800', color: FioColors.green },
   progressText: { fontSize: 9, fontWeight: '900', color: FioColors.textMuted },
-  workBody: { padding: 12, paddingTop: 0, borderTopWidth: 1, borderTopColor: '#EEEAE2' },
+  workBody: { padding: 12, paddingTop: 0, borderTopWidth: 1, borderTopColor: FioColors.line },
   visitRow: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 5 },
   visitText: { fontSize: 9, color: FioColors.textMuted },
   shortcuts: { marginTop: 11, flexDirection: 'row', gap: 7 },
   shortcut: { minHeight: 58, flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, borderWidth: 1, borderColor: FioColors.line, borderRadius: 12, backgroundColor: FioColors.surfaceMuted },
   shortcutLabel: { fontSize: 8, color: FioColors.textMuted },
   shortcutValue: { fontSize: 13, fontWeight: '900' },
-  openButton: { minHeight: 44, marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.ink },
-  openButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.white },
+  openButton: { minHeight: 44, marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.green },
+  openButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.textOnAccent },
   emptyCard: { alignItems: 'center', padding: 28, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.large, backgroundColor: FioColors.surface },
   emptyTitle: { marginTop: 10, fontSize: 15, fontWeight: '900', color: FioColors.text },
   errorCard: { padding: 13, borderRadius: 12, backgroundColor: FioColors.dangerSoft },

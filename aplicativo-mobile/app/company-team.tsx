@@ -937,7 +937,7 @@ export default function CompanyTeamScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#242824',
   },
 
   content: {
@@ -953,13 +953,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#242824',
   },
 
   loadingText: {
     marginTop: 10,
     fontSize: 13,
-    color: '#777D80',
+    color: '#C0C7C1',
   },
 
   topBar: {
@@ -973,7 +973,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     letterSpacing: 2,
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   brandSubtitle: {
@@ -981,22 +981,22 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1.6,
-    color: '#5F7567',
+    color: '#74B892',
   },
 
   profileButton: {
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   profileButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   backButton: {
@@ -1005,22 +1005,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   backButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   eyebrow: {
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.2,
-    color: '#E07A3A',
+    color: '#FFB04A',
   },
 
   title: {
@@ -1028,7 +1028,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 36,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   subtitle: {
@@ -1036,7 +1036,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontSize: 14,
     fontWeight: '700',
-    color: '#70787D',
+    color: '#C0C7C1',
   },
 
   summaryCard: {
@@ -1046,15 +1046,15 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#E4E7E4',
+    borderColor: '#4C534D',
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   summaryValue: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   summaryLabel: {
@@ -1082,9 +1082,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     padding: 15,
     borderWidth: 1,
-    borderColor: '#E4E7E4',
+    borderColor: '#4C534D',
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   memberHeader: {
@@ -1096,27 +1096,27 @@ const styles = StyleSheet.create({
     marginTop: 14,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#F5F5F2',
+    backgroundColor: '#292E2A',
   },
 
   protectedTitle: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#626A6F',
+    color: '#C0C7C1',
   },
 
   protectedText: {
     marginTop: 3,
     fontSize: 10,
     lineHeight: 15,
-    color: '#8B9195',
+    color: '#929A93',
   },
 
   adminArea: {
     marginTop: 14,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#EEF1ED',
+    backgroundColor: '#30483A',
   },
 
   adminTitle: {
@@ -1140,7 +1140,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E6C8C3',
     borderRadius: 10,
-    backgroundColor: '#FFF8F7',
+    backgroundColor: '#4A2F2D',
   },
 
   demoteAdminButtonText: {
@@ -1148,7 +1148,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     textAlign: 'center',
-    color: '#B42318',
+    color: '#FF8D83',
   },
 
   actionRow: {
@@ -1163,15 +1163,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 11,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   editButtonText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   removeButton: {
@@ -1182,13 +1182,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E6C8C3',
     borderRadius: 11,
-    backgroundColor: '#FFF8F7',
+    backgroundColor: '#4A2F2D',
   },
 
   removeButtonText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#B42318',
+    color: '#FF8D83',
   },
 
   promoteAdminButton: {
@@ -1197,22 +1197,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 11,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   promoteAdminButtonText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#5F7567',
+    color: '#74B892',
   },
 
   editorArea: {
     marginTop: 14,
     padding: 13,
     borderRadius: 13,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#242824',
   },
 
   editorLabel: {
@@ -1227,11 +1227,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 11,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
     fontSize: 14,
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   editorActions: {
@@ -1246,9 +1246,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 11,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   cancelButtonText: {
@@ -1280,7 +1280,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     padding: 16,
     borderRadius: 14,
-    backgroundColor: '#EEF1ED',
+    backgroundColor: '#30483A',
   },
 
   infoTitle: {
@@ -1300,16 +1300,16 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E4E7E4',
+    borderColor: '#4C534D',
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   emptyTitle: {
     fontSize: 15,
     fontWeight: '800',
     textAlign: 'center',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   emptyText: {
@@ -1324,11 +1324,11 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: '#FFF2F0',
+    backgroundColor: '#4A2F2D',
   },
 
   errorText: {
     fontSize: 13,
-    color: '#B42318',
+    color: '#FF8D83',
   },
 });

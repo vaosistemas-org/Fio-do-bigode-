@@ -15,13 +15,13 @@ import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
 const COLORS = {
-  graphite: '#2C343A',
-  orange: '#E07A3A',
-  sage: '#5F7567',
-  background: '#F7F7F5',
-  white: '#FFFFFF',
-  border: '#D8D9D6',
-  muted: '#747A7E',
+  graphite: '#F2F3EF',
+  orange: '#FFB04A',
+  sage: '#74B892',
+  background: '#242824',
+  white: '#2E332F',
+  border: '#687069',
+  muted: '#C0C7C1',
 };
 
 export default function SignupScreen() {
@@ -101,7 +101,7 @@ export default function SignupScreen() {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}

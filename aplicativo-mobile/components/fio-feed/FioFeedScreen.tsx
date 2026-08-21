@@ -736,7 +736,7 @@ const styles = StyleSheet.create({
   },
   filterButtonActive: {
     borderColor: FioColors.ink,
-    backgroundColor: FioColors.ink,
+    backgroundColor: FioColors.green,
   },
   filterButtonText: {
     fontSize: 9,
@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
   eventCardImportant: {
     borderLeftWidth: 4,
     borderLeftColor: FioColors.gold,
-    backgroundColor: '#FFFCF5',
+    backgroundColor: '#423B2D',
     ...FioShadow,
   },
   eventCardUrgent: {

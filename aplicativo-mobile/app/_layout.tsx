@@ -1,6 +1,5 @@
 import {
   DarkTheme,
-  DefaultTheme,
   ThemeProvider,
 } from '@react-navigation/native';
 import { Stack, usePathname } from 'expo-router';
@@ -16,18 +15,28 @@ import {
   FIO_SIDEBAR_RAIL_WIDTH,
   FioGlobalSidebar,
 } from '@/components/fio-shell/FioGlobalSidebar';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { FioColors } from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
+const FioNavigationTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: FioColors.green,
+    background: FioColors.canvas,
+    card: FioColors.surfaceMuted,
+    text: FioColors.text,
+    border: FioColors.line,
+    notification: FioColors.orange,
+  },
+};
+
 export default function RootLayout() {
   const pathname = usePathname();
-  const colorScheme =
-    useColorScheme();
-
   const [
     isAuthenticated,
     setIsAuthenticated,
@@ -145,13 +154,7 @@ export default function RootLayout() {
     !pathname.startsWith('/fio/');
 
   return (
-    <ThemeProvider
-      value={
-        colorScheme === 'dark'
-          ? DarkTheme
-          : DefaultTheme
-      }
-    >
+    <ThemeProvider value={FioNavigationTheme}>
       <View style={styles.application}>
         <View
           style={[
@@ -320,7 +323,7 @@ export default function RootLayout() {
         {showInternalShell && <FioGlobalSidebar />}
       </View>
 
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
     </ThemeProvider>
   );
 }

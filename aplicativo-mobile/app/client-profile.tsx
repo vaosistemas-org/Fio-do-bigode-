@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
   dataIdentity: { flex: 1 },
   dataLabel: { fontSize: 8, fontWeight: '800', color: FioColors.textMuted },
   dataValue: { marginTop: 3, fontSize: 11, lineHeight: 16, fontWeight: '700', color: FioColors.text },
-  workButton: { width: '100%', minHeight: 46, marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.ink },
+  workButton: { width: '100%', minHeight: 46, marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.green },
   workButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.white },
   error: { padding: 12, color: FioColors.danger, backgroundColor: FioColors.dangerSoft },
 });

@@ -17,6 +17,7 @@ import DateTimePicker, {
     DateTimePickerAndroid,
 } from '@react-native-community/datetimepicker';
 
+import { FioColors } from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
 type WorkStatus =
@@ -469,6 +470,7 @@ export default function NewWorkScreen() {
         pathname: '/works/[id]',
         params: {
           id: workId,
+          newWork: '1',
         },
       });
     } catch (error) {
@@ -887,7 +889,7 @@ export default function NewWorkScreen() {
               >
                 <ActivityIndicator
                   size="small"
-                  color="#FFFFFF"
+                  color={FioColors.textOnAccent}
                 />
 
                 <Text
@@ -1171,7 +1173,7 @@ const styles = StyleSheet.create({
 
   page: {
     flex: 1,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: FioColors.canvas,
   },
 
   content: {
@@ -1194,7 +1196,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     letterSpacing: 2,
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   brandSubtitle: {
@@ -1202,39 +1204,39 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1.6,
-    color: '#5F7567',
+    color: FioColors.green,
   },
 
   topButton: {
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: FioColors.lineStrong,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: FioColors.surface,
   },
 
   topButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   backButton: {
     alignSelf: 'flex-start',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: FioColors.lineStrong,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: FioColors.surface,
   },
 
   backButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   header: {
@@ -1245,7 +1247,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.4,
-    color: '#E07A3A',
+    color: FioColors.orange,
   },
 
   title: {
@@ -1253,23 +1255,23 @@ const styles = StyleSheet.create({
     fontSize: 31,
     lineHeight: 37,
     fontWeight: '800',
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   subtitle: {
     marginTop: 9,
     fontSize: 14,
     lineHeight: 21,
-    color: '#71787D',
+    color: FioColors.textMuted,
   },
 
   card: {
     marginBottom: 14,
     padding: 19,
-    borderWidth: 1,
-    borderColor: '#E4E7E4',
+    borderWidth: 2,
+    borderColor: FioColors.lineStrong,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: FioColors.surface,
   },
 
   sectionTitle: {
@@ -1277,7 +1279,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.2,
-    color: '#5F7567',
+    color: FioColors.green,
   },
 
   label: {
@@ -1285,7 +1287,7 @@ const styles = StyleSheet.create({
     marginBottom: 7,
     fontSize: 12,
     fontWeight: '700',
-    color: '#555E64',
+    color: FioColors.textMuted,
   },
 
   input: {
@@ -1293,11 +1295,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#DDE1DE',
+    borderColor: FioColors.lineStrong,
     borderRadius: 12,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: FioColors.surfaceRaised,
     fontSize: 15,
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   multilineInput: {
@@ -1311,7 +1313,7 @@ const styles = StyleSheet.create({
   helper: {
     marginTop: 6,
     fontSize: 11,
-    color: '#919699',
+    color: FioColors.textSoft,
   },
 
   statusContainer: {
@@ -1324,24 +1326,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderWidth: 1,
-    borderColor: '#DDE1DE',
+    borderColor: FioColors.lineStrong,
     borderRadius: 999,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: FioColors.surfaceRaised,
   },
 
   statusButtonSelected: {
-    borderColor: '#5F7567',
-    backgroundColor: '#EEF1ED',
+    borderColor: FioColors.green,
+    backgroundColor: FioColors.greenSoft,
   },
 
   statusButtonText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#747B80',
+    color: FioColors.textMuted,
   },
 
   statusButtonTextSelected: {
-    color: '#44594B',
+    color: FioColors.green,
   },
 
   progressInputRow: {
@@ -1354,18 +1356,18 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#DDE1DE',
+    borderColor: FioColors.lineStrong,
     borderRadius: 12,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: FioColors.surfaceRaised,
     fontSize: 15,
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   percentSymbol: {
     marginLeft: 9,
     fontSize: 15,
     fontWeight: '700',
-    color: '#596269',
+    color: FioColors.textMuted,
   },
 
   visitLabelRow: {
@@ -1378,7 +1380,7 @@ const styles = StyleSheet.create({
     marginBottom: 7,
     fontSize: 11,
     fontWeight: '700',
-    color: '#A65B32',
+    color: FioColors.orange,
   },
 
   dateSelector: {
@@ -1391,14 +1393,14 @@ const styles = StyleSheet.create({
     paddingRight: 8,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#DDE1DE',
+    borderColor: FioColors.lineStrong,
     borderRadius: 12,
-    backgroundColor: '#FAFAF8',
+    backgroundColor: FioColors.surfaceRaised,
   },
 
   dateSelectorSelected: {
-    borderColor: '#BCC9C0',
-    backgroundColor: '#F7F9F6',
+    borderColor: FioColors.green,
+    backgroundColor: FioColors.greenSoft,
   },
 
   dateSelectorText: {
@@ -1408,18 +1410,18 @@ const styles = StyleSheet.create({
   dateMainText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   datePlaceholder: {
     fontWeight: '600',
-    color: '#858C90',
+    color: FioColors.textSoft,
   },
 
   dateHelperText: {
     marginTop: 4,
     fontSize: 10,
-    color: '#999EA1',
+    color: FioColors.textSoft,
   },
 
   calendarButton: {
@@ -1428,26 +1430,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: '#EEF1ED',
+    backgroundColor: FioColors.greenSoft,
   },
 
   calendarButtonText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#526658',
+    color: FioColors.green,
   },
 
   messageCard: {
     marginBottom: 14,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: '#FFF2F0',
+    backgroundColor: FioColors.dangerSoft,
   },
 
   messageText: {
     fontSize: 13,
     lineHeight: 19,
-    color: '#B42318',
+    color: FioColors.danger,
   },
 
   createButton: {
@@ -1455,7 +1457,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    backgroundColor: '#E07A3A',
+    backgroundColor: FioColors.orange,
   },
 
   createButtonDisabled: {
@@ -1465,7 +1467,7 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: FioColors.textOnAccent,
   },
 
   loadingRow: {
@@ -1484,14 +1486,14 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#697177',
+    color: FioColors.textMuted,
   },
 
   modalBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor:
-      'rgba(44, 52, 58, 0.35)',
+      'rgba(12, 15, 12, 0.68)',
   },
 
   pickerModal: {
@@ -1501,7 +1503,9 @@ const styles = StyleSheet.create({
     paddingBottom: 34,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    backgroundColor: '#FFFFFF',
+    borderTopWidth: 2,
+    borderColor: FioColors.lineStrong,
+    backgroundColor: FioColors.surface,
   },
 
   pickerHeader: {
@@ -1515,14 +1519,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.2,
-    color: '#E07A3A',
+    color: FioColors.orange,
   },
 
   pickerTitle: {
     marginTop: 4,
     fontSize: 22,
     fontWeight: '800',
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   modalCloseButton: {
@@ -1530,13 +1534,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: '#F2F3F1',
+    backgroundColor: FioColors.surfaceRaised,
   },
 
   modalCloseText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#697177',
+    color: FioColors.textMuted,
   },
 
   quickDates: {
@@ -1551,15 +1555,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 15,
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: FioColors.lineStrong,
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: FioColors.surfaceRaised,
   },
 
   quickDateText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#526658',
+    color: FioColors.green,
   },
 
   datePicker: {
@@ -1571,16 +1575,16 @@ const styles = StyleSheet.create({
     marginTop: 18,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E4E7E4',
+    borderColor: FioColors.lineStrong,
     borderRadius: 14,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: FioColors.surfaceRaised,
   },
 
   selectedDateLabel: {
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1,
-    color: '#8A9094',
+    color: FioColors.textSoft,
   },
 
   selectedDateText: {
@@ -1588,14 +1592,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     fontWeight: '700',
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   changeDateText: {
     marginTop: 8,
     fontSize: 12,
     fontWeight: '800',
-    color: '#E07A3A',
+    color: FioColors.orange,
   },
 
   selectedVisitPreview: {
@@ -1604,7 +1608,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
-    color: '#2C343A',
+    color: FioColors.text,
   },
 
   confirmVisitButton: {
@@ -1612,12 +1616,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    backgroundColor: '#5F7567',
+    backgroundColor: FioColors.green,
   },
 
   confirmVisitButtonText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: FioColors.textOnAccent,
   },
 });

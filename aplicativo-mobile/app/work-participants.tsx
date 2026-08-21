@@ -843,8 +843,7 @@ const styles =
   StyleSheet.create({
     page: {
       flex: 1,
-      backgroundColor:
-        '#F7F7F5',
+      backgroundColor: '#242824',
     },
 
     content: {
@@ -860,14 +859,13 @@ const styles =
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor:
-        '#F7F7F5',
+      backgroundColor: '#242824',
     },
 
     loadingText: {
       marginTop: 10,
       fontSize: 13,
-      color: '#777D80',
+      color: '#C0C7C1',
     },
 
     backButton: {
@@ -876,23 +874,22 @@ const styles =
       paddingHorizontal: 14,
       paddingVertical: 9,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 999,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     backButtonText: {
       fontSize: 13,
       fontWeight: '700',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     eyebrow: {
       fontSize: 10,
       fontWeight: '800',
       letterSpacing: 1.2,
-      color: '#E07A3A',
+      color: '#FFB04A',
     },
 
     title: {
@@ -900,7 +897,7 @@ const styles =
       fontSize: 30,
       lineHeight: 36,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     subtitle: {
@@ -908,7 +905,7 @@ const styles =
       marginBottom: 18,
       fontSize: 13,
       lineHeight: 19,
-      color: '#70787D',
+      color: '#C0C7C1',
     },
 
     addButton: {
@@ -937,23 +934,22 @@ const styles =
     summaryValue: {
       fontSize: 22,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     summaryText: {
       fontSize: 11,
       fontWeight: '700',
-      color: '#777D80',
+      color: '#C0C7C1',
     },
 
     participantCard: {
       marginBottom: 10,
       padding: 14,
       borderWidth: 1,
-      borderColor: '#E4E7E4',
+      borderColor: '#4C534D',
       borderRadius: 15,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     youText: {
@@ -961,7 +957,7 @@ const styles =
       textAlign: 'center',
       fontSize: 9,
       fontWeight: '800',
-      color: '#E07A3A',
+      color: '#FFB04A',
     },
 
     actions: {
@@ -976,16 +972,15 @@ const styles =
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 10,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     editButtonText: {
       fontSize: 11,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     removeButton: {
@@ -997,21 +992,20 @@ const styles =
       borderColor: '#E6C8C3',
       borderRadius: 10,
       backgroundColor:
-        '#FFF8F7',
+        '#4A2F2D',
     },
 
     removeButtonText: {
       fontSize: 11,
       fontWeight: '800',
-      color: '#B42318',
+      color: '#FF8D83',
     },
 
     editor: {
       marginTop: 14,
       padding: 12,
       borderRadius: 12,
-      backgroundColor:
-        '#F7F7F5',
+      backgroundColor: '#242824',
     },
 
     editorLabel: {
@@ -1030,12 +1024,11 @@ const styles =
       minHeight: 44,
       paddingHorizontal: 12,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 10,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
       fontSize: 14,
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     accessOptions: {
@@ -1048,22 +1041,20 @@ const styles =
       paddingHorizontal: 11,
       paddingVertical: 8,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 999,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     accessOptionSelected: {
       borderColor: '#5F7567',
-      backgroundColor:
-        '#EEF1ED',
+      backgroundColor: '#383E39',
     },
 
     accessOptionText: {
       fontSize: 10,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     editorActions: {
@@ -1078,10 +1069,9 @@ const styles =
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 10,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     cancelButtonText: {
@@ -1110,8 +1100,7 @@ const styles =
       marginTop: 10,
       padding: 15,
       borderRadius: 13,
-      backgroundColor:
-        '#EEF1ED',
+      backgroundColor: '#383E39',
     },
 
     infoTitle: {
@@ -1132,13 +1121,13 @@ const styles =
       padding: 13,
       borderRadius: 11,
       backgroundColor:
-        '#FFF2F0',
+        '#4A2F2D',
     },
 
     errorText: {
       fontSize: 12,
       lineHeight: 17,
-      color: '#B42318',
+      color: '#FF8D83',
     },
 
     buttonPressed: {

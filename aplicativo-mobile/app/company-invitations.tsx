@@ -490,8 +490,7 @@ const styles =
   StyleSheet.create({
     page: {
       flex: 1,
-      backgroundColor:
-        '#F7F7F5',
+      backgroundColor: '#242824',
     },
 
     content: {
@@ -507,14 +506,13 @@ const styles =
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor:
-        '#F7F7F5',
+      backgroundColor: '#242824',
     },
 
     loadingText: {
       marginTop: 10,
       fontSize: 13,
-      color: '#777D80',
+      color: '#C0C7C1',
     },
 
     backButton: {
@@ -523,23 +521,22 @@ const styles =
       paddingHorizontal: 14,
       paddingVertical: 9,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 999,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     backButtonText: {
       fontSize: 13,
       fontWeight: '700',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     eyebrow: {
       fontSize: 10,
       fontWeight: '800',
       letterSpacing: 1.2,
-      color: '#E07A3A',
+      color: '#FFB04A',
     },
 
     title: {
@@ -547,7 +544,7 @@ const styles =
       fontSize: 30,
       lineHeight: 36,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     subtitle: {
@@ -555,31 +552,29 @@ const styles =
       marginBottom: 22,
       fontSize: 13,
       lineHeight: 19,
-      color: '#70787D',
+      color: '#C0C7C1',
     },
 
     invitationCard: {
       marginBottom: 12,
       padding: 17,
       borderWidth: 1,
-      borderColor: '#E4E7E4',
+      borderColor: '#4C534D',
       borderRadius: 16,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     companyName: {
       fontSize: 17,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     roleArea: {
       marginTop: 13,
       padding: 12,
       borderRadius: 12,
-      backgroundColor:
-        '#F7F7F5',
+      backgroundColor: '#242824',
     },
 
     roleLabel: {
@@ -593,7 +588,7 @@ const styles =
       marginTop: 4,
       fontSize: 13,
       fontWeight: '800',
-      color: '#5F7567',
+      color: '#74B892',
     },
 
     invitedBy: {
@@ -617,13 +612,13 @@ const styles =
       borderColor: '#E6C8C3',
       borderRadius: 12,
       backgroundColor:
-        '#FFF8F7',
+        '#4A2F2D',
     },
 
     rejectButtonText: {
       fontSize: 11,
       fontWeight: '800',
-      color: '#B42318',
+      color: '#FF8D83',
     },
 
     acceptButton: {
@@ -654,17 +649,16 @@ const styles =
       padding: 24,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: '#E4E7E4',
+      borderColor: '#4C534D',
       borderRadius: 16,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     emptyTitle: {
       fontSize: 15,
       fontWeight: '800',
       textAlign: 'center',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     emptyText: {
@@ -679,8 +673,7 @@ const styles =
       marginTop: 18,
       padding: 16,
       borderRadius: 14,
-      backgroundColor:
-        '#EEF1ED',
+      backgroundColor: '#383E39',
     },
 
     infoTitle: {
@@ -701,12 +694,12 @@ const styles =
       padding: 14,
       borderRadius: 12,
       backgroundColor:
-        '#FFF2F0',
+        '#4A2F2D',
     },
 
     errorText: {
       fontSize: 12,
       lineHeight: 17,
-      color: '#B42318',
+      color: '#FF8D83',
     },
   });

@@ -840,7 +840,7 @@ export function WorkDocumentsPanel({
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#24583E" />
+        <ActivityIndicator color={FioColors.green} />
         <Text style={styles.muted}>Carregando documentos...</Text>
       </View>
     );
@@ -932,7 +932,7 @@ export function WorkDocumentsPanel({
 
       {!!successMessage && (
         <View style={styles.successCard}>
-          <Ionicons name="checkmark-circle-outline" size={18} color="#207A50" />
+          <Ionicons name="checkmark-circle-outline" size={18} color={FioColors.success} />
           <Text style={styles.successText}>{successMessage}</Text>
         </View>
       )}
@@ -1063,7 +1063,7 @@ export function WorkDocumentsPanel({
                   <Text style={styles.versionText}>{formatSize(document.size_bytes)}</Text>
                 )}
                 {document.is_referenced && (
-                  <Ionicons name="bookmark" size={13} color="#24583E" />
+                  <Ionicons name="bookmark" size={13} color={FioColors.green} />
                 )}
               </View>
               {!!document.description && (
@@ -1073,13 +1073,13 @@ export function WorkDocumentsPanel({
               )}
               {!!document.reference_note && (
                 <View style={styles.referenceNote}>
-                  <Ionicons name="bookmark-outline" size={13} color="#24583E" />
+                  <Ionicons name="bookmark-outline" size={13} color={FioColors.green} />
                   <Text style={styles.referenceNoteText}>{document.reference_note}</Text>
                 </View>
               )}
               <View style={styles.actionRow}>
                 <Pressable style={styles.smallAction} onPress={() => openDocument(document)}>
-                  <Ionicons name="eye-outline" size={16} color="#24583E" />
+                  <Ionicons name="eye-outline" size={16} color={FioColors.green} />
                   <Text style={styles.smallActionText}>
                     {projectMode ? 'Ver mais recente' : 'Visualizar'}
                   </Text>
@@ -1089,7 +1089,7 @@ export function WorkDocumentsPanel({
                     style={styles.smallAction}
                     onPress={() => setVersionHistoryDocument(document)}
                   >
-                    <Ionicons name="layers-outline" size={16} color="#24583E" />
+                    <Ionicons name="layers-outline" size={16} color={FioColors.green} />
                     <Text style={styles.smallActionText}>Versões</Text>
                   </Pressable>
                 )}
@@ -1098,7 +1098,7 @@ export function WorkDocumentsPanel({
                     <Ionicons
                       name={document.is_referenced ? 'bookmark' : 'bookmark-outline'}
                       size={16}
-                      color="#24583E"
+                      color={FioColors.green}
                     />
                     <Text style={styles.smallActionText}>
                       {document.is_referenced ? 'Referenciado' : 'Referenciar'}
@@ -1111,13 +1111,13 @@ export function WorkDocumentsPanel({
                     style={styles.smallAction}
                     onPress={() => openEdit(document)}
                   >
-                    <Ionicons name="cloud-upload-outline" size={16} color="#24583E" />
+                    <Ionicons name="cloud-upload-outline" size={16} color={FioColors.green} />
                     <Text style={styles.smallActionText}>Editar / versão</Text>
                   </Pressable>
                 )}
                 {document.can_manage && (
                   <Pressable style={styles.iconAction} onPress={() => confirmArchive(document)}>
-                    <Ionicons name="archive-outline" size={18} color="#A34242" />
+                    <Ionicons name="archive-outline" size={18} color={FioColors.danger} />
                   </Pressable>
                 )}
               </View>
@@ -1155,18 +1155,18 @@ export function WorkDocumentsPanel({
                 </Text>
               </View>
               <Pressable style={styles.closeButton} onPress={closeForm}>
-                <Ionicons name="close-outline" size={24} color="#34405A" />
+                <Ionicons name="close-outline" size={24} color={FioColors.text} />
               </Pressable>
             </View>
 
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.formBody}>
               <View style={styles.fileActions}>
                 <Pressable style={styles.fileButton} onPress={chooseDocument}>
-                  <Ionicons name="attach-outline" size={21} color="#24583E" />
+                  <Ionicons name="attach-outline" size={21} color={FioColors.green} />
                   <Text style={styles.fileButtonText}>Escolher arquivo</Text>
                 </Pressable>
                 <Pressable style={styles.fileButton} onPress={takePhoto}>
-                  <Ionicons name="camera-outline" size={21} color="#24583E" />
+                  <Ionicons name="camera-outline" size={21} color={FioColors.green} />
                   <Text style={styles.fileButtonText}>
                     {measurementMode ? 'Fotografar medição' : 'Foto rápida'}
                   </Text>
@@ -1174,7 +1174,7 @@ export function WorkDocumentsPanel({
               </View>
               {!!selectedFile && (
                 <View style={styles.selectedFile}>
-                  <Ionicons name="checkmark-circle" size={19} color="#207A50" />
+                  <Ionicons name="checkmark-circle" size={19} color={FioColors.success} />
                   <View style={styles.selectedFileIdentity}>
                     <Text numberOfLines={1} style={styles.selectedFileName}>
                       {selectedFile.name}
@@ -1182,7 +1182,7 @@ export function WorkDocumentsPanel({
                     <Text style={styles.selectedFileSize}>{formatSize(selectedFile.size)}</Text>
                   </View>
                   <Pressable onPress={() => setSelectedFile(null)}>
-                    <Ionicons name="close-circle-outline" size={21} color="#7A8394" />
+                    <Ionicons name="close-circle-outline" size={21} color={FioColors.textSoft} />
                   </Pressable>
                 </View>
               )}
@@ -1323,7 +1323,7 @@ export function WorkDocumentsPanel({
                   onPress={() => setVisibility(option.value)}
                 >
                   <View style={styles.permissionIcon}>
-                    <Ionicons name={option.icon} size={20} color="#24583E" />
+                    <Ionicons name={option.icon} size={20} color={FioColors.green} />
                   </View>
                   <View style={styles.permissionIdentity}>
                     <Text style={styles.permissionTitle}>{option.label}</Text>
@@ -1336,7 +1336,7 @@ export function WorkDocumentsPanel({
                   <Ionicons
                     name={visibility === option.value ? 'radio-button-on' : 'radio-button-off'}
                     size={20}
-                    color={visibility === option.value ? '#24583E' : '#A5ACB8'}
+                    color={visibility === option.value ? FioColors.green : FioColors.textSoft}
                   />
                 </Pressable>
               ))}
@@ -1353,7 +1353,7 @@ export function WorkDocumentsPanel({
                     value={allowDownload}
                     onValueChange={setAllowDownload}
                     trackColor={{ false: '#D9DDE4', true: '#AFA7F4' }}
-                    thumbColor={allowDownload ? '#24583E' : '#FFFFFF'}
+                    thumbColor={allowDownload ? FioColors.green : FioColors.textSoft}
                   />
                 </View>
               )}
@@ -1413,7 +1413,7 @@ export function WorkDocumentsPanel({
                 disabled={approvingVersion !== null}
                 onPress={() => setVersionHistoryDocument(null)}
               >
-                <Ionicons name="close-outline" size={24} color="#34405A" />
+                <Ionicons name="close-outline" size={24} color={FioColors.text} />
               </Pressable>
             </View>
 
@@ -1479,7 +1479,7 @@ export function WorkDocumentsPanel({
                           openProjectVersion(versionHistoryDocument, version)
                         }
                       >
-                        <Ionicons name="eye-outline" size={16} color="#24583E" />
+                        <Ionicons name="eye-outline" size={16} color={FioColors.green} />
                         <Text style={styles.smallActionText}>Visualizar</Text>
                       </Pressable>
 
@@ -1601,73 +1601,73 @@ export function WorkDocumentsPanel({
 
 const styles = StyleSheet.create({
   loading: { minHeight: 110, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  muted: { fontSize: 11, color: '#7A8394' },
+  muted: { fontSize: 11, color: FioColors.textMuted },
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   summaryTextWrap: { flex: 1, minWidth: 0 },
-  summaryTitle: { fontSize: 15, fontWeight: '800', color: '#152033' },
-  summarySubtitle: { marginTop: 2, fontSize: 10, lineHeight: 14, color: '#697386' },
+  summaryTitle: { fontSize: 15, fontWeight: '800', color: FioColors.text },
+  summarySubtitle: { marginTop: 2, fontSize: 10, lineHeight: 14, color: FioColors.textMuted },
   addButton: { minHeight: 40, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: FioRadius.pill, backgroundColor: FioColors.green },
-  addButtonText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
+  addButtonText: { fontSize: 10, fontWeight: '800', color: FioColors.textOnAccent },
   filters: { paddingVertical: 12, gap: 7 },
-  filterChip: { minHeight: 36, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 999, backgroundColor: '#FFFFFF' },
-  filterChipActive: { borderColor: '#24583E', backgroundColor: '#E7F1E8' },
-  filterText: { fontSize: 10, fontWeight: '700', color: '#697386' },
-  filterTextActive: { color: '#24583E' },
-  successCard: { marginBottom: 9, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 10, backgroundColor: '#EAF8F0' },
-  successText: { flex: 1, fontSize: 10, color: '#207A50' },
-  errorCard: { marginTop: 9, padding: 10, borderRadius: 10, backgroundColor: '#FFF0F0' },
-  errorText: { fontSize: 10, lineHeight: 14, color: '#A34242' },
-  emptyCard: { minHeight: 125, padding: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E4E9', borderRadius: 13, backgroundColor: '#FAFAFC' },
-  emptyTitle: { marginTop: 7, fontSize: 12, fontWeight: '800', color: '#34405A' },
-  emptyText: { maxWidth: 320, marginTop: 4, textAlign: 'center', fontSize: 9, lineHeight: 13, color: '#7A8394' },
-  documentCard: { marginBottom: 8, padding: 10, flexDirection: 'row', gap: 9, borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)', borderRadius: FioRadius.medium, backgroundColor: 'rgba(255,255,255,0.78)', ...FioShadow },
-  documentIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#E7F1E8' },
+  filterChip: { minHeight: 36, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 999, backgroundColor: FioColors.surface },
+  filterChipActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
+  filterText: { fontSize: 10, fontWeight: '700', color: FioColors.textMuted },
+  filterTextActive: { color: FioColors.green },
+  successCard: { marginBottom: 9, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 10, backgroundColor: FioColors.successSoft },
+  successText: { flex: 1, fontSize: 10, color: FioColors.success },
+  errorCard: { marginTop: 9, padding: 10, borderRadius: 10, backgroundColor: FioColors.dangerSoft },
+  errorText: { fontSize: 10, lineHeight: 14, color: FioColors.danger },
+  emptyCard: { minHeight: 125, padding: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.line, borderRadius: 13, backgroundColor: FioColors.surfaceRaised },
+  emptyTitle: { marginTop: 7, fontSize: 12, fontWeight: '800', color: FioColors.text },
+  emptyText: { maxWidth: 320, marginTop: 4, textAlign: 'center', fontSize: 9, lineHeight: 13, color: FioColors.textMuted },
+  documentCard: { marginBottom: 8, padding: 10, flexDirection: 'row', gap: 9, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: FioRadius.medium, backgroundColor: FioColors.surface, ...FioShadow },
+  documentIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: FioColors.greenSoft },
   measurementIcon: { backgroundColor: FioColors.goldSoft },
-  projectIcon: { backgroundColor: '#F5EEDC' },
+  projectIcon: { backgroundColor: FioColors.goldSoft },
   documentIdentity: { flex: 1, minWidth: 0 },
-  documentTitle: { fontSize: 12, fontWeight: '800', color: '#202A3A' },
-  documentMeta: { marginTop: 2, fontSize: 9, color: '#697386' },
+  documentTitle: { fontSize: 12, fontWeight: '800', color: FioColors.text },
+  documentMeta: { marginTop: 2, fontSize: 9, color: FioColors.textMuted },
   authorDateRow: { marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 4 },
   authorDateText: { flex: 1, minWidth: 0, fontSize: 8, color: FioColors.textMuted },
   tagRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   projectStatusTag: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 999 },
-  projectStatusCurrent: { backgroundColor: '#DDF3E6' },
-  projectStatusPending: { backgroundColor: '#FFF0D6' },
-  projectStatusOld: { backgroundColor: '#ECEEF2' },
-  projectStatusText: { fontSize: 7, fontWeight: '900', color: '#34405A' },
-  visibilityTag: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: '#E7F1E8' },
-  visibilityTagText: { fontSize: 8, fontWeight: '800', color: '#24583E' },
-  versionText: { fontSize: 8, fontWeight: '700', color: '#7A8394' },
-  documentDescription: { marginTop: 6, fontSize: 9, lineHeight: 13, color: '#596274' },
-  referenceNote: { marginTop: 6, padding: 7, flexDirection: 'row', alignItems: 'flex-start', gap: 5, borderRadius: 8, backgroundColor: '#E7F1E8' },
-  referenceNoteText: { flex: 1, fontSize: 8, lineHeight: 12, color: '#596274' },
+  projectStatusCurrent: { backgroundColor: FioColors.successSoft },
+  projectStatusPending: { backgroundColor: '#423B2D' },
+  projectStatusOld: { backgroundColor: FioColors.surfaceMuted },
+  projectStatusText: { fontSize: 7, fontWeight: '900', color: FioColors.textMuted },
+  visibilityTag: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: FioColors.greenSoft },
+  visibilityTagText: { fontSize: 8, fontWeight: '800', color: FioColors.green },
+  versionText: { fontSize: 8, fontWeight: '700', color: FioColors.textSoft },
+  documentDescription: { marginTop: 6, fontSize: 9, lineHeight: 13, color: FioColors.textMuted },
+  referenceNote: { marginTop: 6, padding: 7, flexDirection: 'row', alignItems: 'flex-start', gap: 5, borderRadius: 8, backgroundColor: FioColors.greenSoft },
+  referenceNoteText: { flex: 1, fontSize: 8, lineHeight: 12, color: FioColors.textMuted },
   actionRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  smallAction: { minHeight: 34, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderColor: '#D9D5F8', borderRadius: 9, backgroundColor: '#FAF9FF' },
-  smallActionText: { fontSize: 8, fontWeight: '800', color: '#24583E' },
-  iconAction: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E0E3E8', borderRadius: 9, backgroundColor: '#FFFFFF' },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(16, 24, 40, 0.35)' },
-  modalSheet: { maxHeight: '94%', overflow: 'hidden', borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#FFFFFF' },
-  modalHeader: { paddingHorizontal: 18, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: '#ECEEF2' },
+  smallAction: { minHeight: 34, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 9, backgroundColor: FioColors.surfaceRaised },
+  smallActionText: { fontSize: 8, fontWeight: '800', color: FioColors.green },
+  iconAction: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 9, backgroundColor: FioColors.surfaceRaised },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12, 15, 12, 0.68)' },
+  modalSheet: { maxHeight: '94%', overflow: 'hidden', borderTopWidth: 2, borderColor: FioColors.lineStrong, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: FioColors.surface },
+  modalHeader: { paddingHorizontal: 18, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: FioColors.line },
   modalHeaderText: { flex: 1, minWidth: 0 },
-  modalTitle: { fontSize: 21, fontWeight: '900', color: '#152033' },
-  modalSubtitle: { marginTop: 2, fontSize: 10, color: '#697386' },
-  closeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: '#F2F3F7' },
+  modalTitle: { fontSize: 21, fontWeight: '900', color: FioColors.text },
+  modalSubtitle: { marginTop: 2, fontSize: 10, color: FioColors.textMuted },
+  closeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: FioColors.surfaceRaised },
   formBody: { padding: 18, paddingBottom: 34 },
   fileActions: { flexDirection: 'row', gap: 8 },
-  fileButton: { minHeight: 48, flex: 1, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#CBC6F5', borderRadius: 12, backgroundColor: '#F8F7FF' },
-  fileButtonText: { fontSize: 10, fontWeight: '800', color: '#24583E' },
-  selectedFile: { marginTop: 9, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, backgroundColor: '#EDF8F2' },
+  fileButton: { minHeight: 48, flex: 1, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
+  fileButtonText: { fontSize: 10, fontWeight: '800', color: FioColors.green },
+  selectedFile: { marginTop: 9, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, backgroundColor: FioColors.successSoft },
   selectedFileIdentity: { flex: 1, minWidth: 0 },
-  selectedFileName: { fontSize: 10, fontWeight: '800', color: '#315847' },
-  selectedFileSize: { marginTop: 1, fontSize: 8, color: '#58806E' },
-  label: { marginTop: 14, marginBottom: 6, fontSize: 10, fontWeight: '800', color: '#4D586B' },
-  input: { minHeight: 48, paddingHorizontal: 13, borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 12, fontSize: 12, color: '#202A3A', backgroundColor: '#FFFFFF' },
+  selectedFileName: { fontSize: 10, fontWeight: '800', color: FioColors.success },
+  selectedFileSize: { marginTop: 1, fontSize: 8, color: FioColors.textMuted },
+  label: { marginTop: 14, marginBottom: 6, fontSize: 10, fontWeight: '800', color: FioColors.textMuted },
+  input: { minHeight: 48, paddingHorizontal: 13, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 12, fontSize: 12, color: FioColors.text, backgroundColor: FioColors.surfaceRaised },
   textArea: { minHeight: 82, paddingTop: 12, textAlignVertical: 'top' },
   choiceRow: { gap: 7 },
-  choiceChip: { minHeight: 38, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 999, backgroundColor: '#FFFFFF' },
-  choiceChipActive: { borderColor: '#24583E', backgroundColor: '#E7F1E8' },
-  choiceText: { fontSize: 9, fontWeight: '700', color: '#697386' },
-  choiceTextActive: { color: '#24583E' },
+  choiceChip: { minHeight: 38, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 999, backgroundColor: FioColors.surface },
+  choiceChipActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
+  choiceText: { fontSize: 9, fontWeight: '700', color: FioColors.textMuted },
+  choiceTextActive: { color: FioColors.green },
   lockedEnvironment: {
     minHeight: 58,
     flexDirection: 'row',
@@ -1675,9 +1675,9 @@ const styles = StyleSheet.create({
     gap: 9,
     padding: 9,
     borderWidth: 1,
-    borderColor: 'rgba(191, 208, 195, 0.78)',
+    borderColor: FioColors.lineStrong,
     borderRadius: FioRadius.medium,
-    backgroundColor: 'rgba(231, 241, 232, 0.68)',
+    backgroundColor: FioColors.greenSoft,
   },
   lockedEnvironmentIcon: {
     width: 38,
@@ -1685,7 +1685,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.78)',
+    backgroundColor: FioColors.surfaceRaised,
   },
   lockedEnvironmentIdentity: { flex: 1, minWidth: 0 },
   lockedEnvironmentLabel: {
@@ -1700,48 +1700,48 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: FioColors.green,
   },
-  permissionOption: { minHeight: 68, marginBottom: 7, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 12, backgroundColor: '#FFFFFF' },
-  permissionOptionActive: { borderColor: '#24583E', backgroundColor: '#E7F1E8' },
-  permissionIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#E7F1E8' },
+  permissionOption: { minHeight: 68, marginBottom: 7, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
+  permissionOptionActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
+  permissionIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: FioColors.greenSoft },
   permissionIdentity: { flex: 1, minWidth: 0 },
-  permissionTitle: { fontSize: 10, fontWeight: '800', color: '#34405A' },
-  permissionDetail: { marginTop: 2, fontSize: 8, lineHeight: 12, color: '#7A8394' },
-  switchRow: { minHeight: 62, marginTop: 2, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, backgroundColor: '#F7F7FA' },
+  permissionTitle: { fontSize: 10, fontWeight: '800', color: FioColors.text },
+  permissionDetail: { marginTop: 2, fontSize: 8, lineHeight: 12, color: FioColors.textMuted },
+  switchRow: { minHeight: 62, marginTop: 2, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
   switchIdentity: { flex: 1, minWidth: 0 },
-  switchTitle: { fontSize: 10, fontWeight: '800', color: '#34405A' },
-  switchDetail: { marginTop: 2, fontSize: 8, lineHeight: 12, color: '#7A8394' },
-  uploadLabel: { marginTop: 10, textAlign: 'center', fontSize: 10, color: '#24583E' },
-  saveButton: { minHeight: 52, marginTop: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: '#24583E' },
-  saveButtonText: { fontSize: 13, fontWeight: '900', color: '#FFFFFF' },
-  referenceBackdrop: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(16, 24, 40, 0.4)' },
-  referenceCard: { width: '100%', maxWidth: 420, padding: 18, borderRadius: 18, backgroundColor: '#FFFFFF' },
-  referenceTitle: { fontSize: 16, fontWeight: '900', color: '#152033' },
-  referenceSubtitle: { marginTop: 4, fontSize: 9, lineHeight: 14, color: '#697386' },
+  switchTitle: { fontSize: 10, fontWeight: '800', color: FioColors.text },
+  switchDetail: { marginTop: 2, fontSize: 8, lineHeight: 12, color: FioColors.textMuted },
+  uploadLabel: { marginTop: 10, textAlign: 'center', fontSize: 10, color: FioColors.green },
+  saveButton: { minHeight: 52, marginTop: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: FioColors.green },
+  saveButtonText: { fontSize: 13, fontWeight: '900', color: FioColors.textOnAccent },
+  referenceBackdrop: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(12, 15, 12, 0.72)' },
+  referenceCard: { width: '100%', maxWidth: 420, padding: 18, borderWidth: 2, borderColor: FioColors.lineStrong, borderRadius: 18, backgroundColor: FioColors.surface },
+  referenceTitle: { fontSize: 16, fontWeight: '900', color: FioColors.text },
+  referenceSubtitle: { marginTop: 4, fontSize: 9, lineHeight: 14, color: FioColors.textMuted },
   referenceInput: { minHeight: 76, marginTop: 13, paddingTop: 11, textAlignVertical: 'top' },
   referenceActions: { marginTop: 13, flexDirection: 'row', gap: 8 },
-  referenceCancel: { minHeight: 44, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 11 },
-  referenceCancelText: { fontSize: 10, fontWeight: '800', color: '#596274' },
-  referenceSave: { minHeight: 44, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#24583E' },
-  referenceSaveText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
-  versionSheet: { maxHeight: '90%', overflow: 'hidden', borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#FFFFFF' },
+  referenceCancel: { minHeight: 44, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 11 },
+  referenceCancelText: { fontSize: 10, fontWeight: '800', color: FioColors.textMuted },
+  referenceSave: { minHeight: 44, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: FioColors.green },
+  referenceSaveText: { fontSize: 10, fontWeight: '800', color: FioColors.textOnAccent },
+  versionSheet: { maxHeight: '90%', overflow: 'hidden', borderTopWidth: 2, borderColor: FioColors.lineStrong, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: FioColors.surface },
   versionList: { padding: 14, paddingBottom: 30, gap: 9 },
-  versionCard: { padding: 11, borderWidth: 1, borderColor: '#DFE2E8', borderRadius: 13, backgroundColor: '#FFFFFF' },
+  versionCard: { padding: 11, borderWidth: 1, borderColor: FioColors.line, borderRadius: 13, backgroundColor: FioColors.surfaceRaised },
   versionHeading: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   versionNumberBadge: { minWidth: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: FioColors.goldSoft },
   versionNumberText: { fontSize: 11, fontWeight: '900', color: FioColors.gold },
   versionIdentity: { flex: 1, minWidth: 0 },
-  versionFileName: { fontSize: 11, fontWeight: '800', color: '#34405A' },
-  versionMeta: { marginTop: 3, fontSize: 8, color: '#7A8394' },
+  versionFileName: { fontSize: 11, fontWeight: '800', color: FioColors.text },
+  versionMeta: { marginTop: 3, fontSize: 8, color: FioColors.textMuted },
   versionStatus: { alignSelf: 'flex-start', marginTop: 9, paddingHorizontal: 7, paddingVertical: 4, borderRadius: 999 },
-  versionStatusCurrent: { backgroundColor: '#DDF3E6' },
-  versionStatusPending: { backgroundColor: '#FFF0D6' },
-  versionStatusOld: { backgroundColor: '#ECEEF2' },
-  versionStatusText: { fontSize: 7, fontWeight: '900', color: '#34405A' },
+  versionStatusCurrent: { backgroundColor: FioColors.successSoft },
+  versionStatusPending: { backgroundColor: '#423B2D' },
+  versionStatusOld: { backgroundColor: FioColors.surfaceMuted },
+  versionStatusText: { fontSize: 7, fontWeight: '900', color: FioColors.textMuted },
   versionActions: { marginTop: 8, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   approveProjectButton: { minHeight: 34, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 9, backgroundColor: FioColors.green },
-  approveProjectText: { fontSize: 8, fontWeight: '900', color: '#FFFFFF' },
-  previewScreen: { flex: 1, backgroundColor: '#101522' },
-  previewHeader: { minHeight: 72, paddingTop: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#101522' },
+  approveProjectText: { fontSize: 8, fontWeight: '900', color: FioColors.textOnAccent },
+  previewScreen: { flex: 1, backgroundColor: FioColors.canvas },
+  previewHeader: { minHeight: 72, paddingTop: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: FioColors.surfaceMuted },
   previewTitle: { flex: 1, fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
   previewClose: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.12)' },
   previewImage: { flex: 1, width: '100%' },

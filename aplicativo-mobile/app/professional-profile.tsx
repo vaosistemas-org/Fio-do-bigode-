@@ -846,8 +846,7 @@ const styles =
   StyleSheet.create({
     page: {
       flex: 1,
-      backgroundColor:
-        '#F7F7F5',
+      backgroundColor: '#242824',
     },
 
     content: {
@@ -864,21 +863,20 @@ const styles =
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 30,
-      backgroundColor:
-        '#F7F7F5',
+      backgroundColor: '#242824',
     },
 
     loadingText: {
       marginTop: 10,
       fontSize: 13,
-      color: '#777D80',
+      color: '#C0C7C1',
     },
 
     errorText: {
       fontSize: 13,
       lineHeight: 19,
       textAlign: 'center',
-      color: '#B42318',
+      color: '#FF8D83',
     },
 
     returnButton: {
@@ -908,7 +906,7 @@ const styles =
       fontSize: 24,
       fontWeight: '800',
       letterSpacing: 2,
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     brandSubtitle: {
@@ -916,23 +914,22 @@ const styles =
       fontSize: 9,
       fontWeight: '700',
       letterSpacing: 1.6,
-      color: '#5F7567',
+      color: '#74B892',
     },
 
     profileButton: {
       paddingHorizontal: 14,
       paddingVertical: 9,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 999,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     profileButtonText: {
       fontSize: 13,
       fontWeight: '700',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     backButton: {
@@ -941,16 +938,15 @@ const styles =
       paddingHorizontal: 14,
       paddingVertical: 9,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 999,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     backButtonText: {
       fontSize: 13,
       fontWeight: '700',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     identityCard: {
@@ -960,10 +956,9 @@ const styles =
       alignItems: 'center',
       gap: 15,
       borderWidth: 1,
-      borderColor: '#E4E7E4',
+      borderColor: '#4C534D',
       borderRadius: 18,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     logoPlaceholder: {
@@ -999,14 +994,14 @@ const styles =
       fontSize: 21,
       lineHeight: 26,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     businessType: {
       marginTop: 5,
       fontSize: 13,
       fontWeight: '700',
-      color: '#5F7567',
+      color: '#74B892',
     },
 
     legalName: {
@@ -1019,13 +1014,11 @@ const styles =
       paddingHorizontal: 8,
       paddingVertical: 5,
       borderRadius: 999,
-      backgroundColor:
-        '#EEF1ED',
+      backgroundColor: '#383E39',
     },
 
     statusBadgeInactive: {
-      backgroundColor:
-        '#F0ECE8',
+      backgroundColor: '#383E39',
     },
 
     statusText: {
@@ -1045,7 +1038,7 @@ const styles =
       borderColor: '#F1D6C5',
       borderRadius: 14,
       backgroundColor:
-        '#FFF7F1',
+        '#4B3B25',
     },
 
     adminNoticeTitle: {
@@ -1065,10 +1058,9 @@ const styles =
       marginBottom: 14,
       padding: 18,
       borderWidth: 1,
-      borderColor: '#E4E7E4',
+      borderColor: '#4C534D',
       borderRadius: 18,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     sectionTitle: {
@@ -1076,13 +1068,13 @@ const styles =
       fontSize: 10,
       fontWeight: '800',
       letterSpacing: 1.2,
-      color: '#5F7567',
+      color: '#74B892',
     },
 
     description: {
       fontSize: 14,
       lineHeight: 21,
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     emptyText: {
@@ -1101,8 +1093,7 @@ const styles =
       paddingHorizontal: 11,
       paddingVertical: 7,
       borderRadius: 999,
-      backgroundColor:
-        '#EEF1ED',
+      backgroundColor: '#383E39',
     },
 
     serviceText: {
@@ -1128,7 +1119,7 @@ const styles =
     infoValue: {
       fontSize: 14,
       lineHeight: 20,
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     messageCard: {
@@ -1136,13 +1127,13 @@ const styles =
       padding: 14,
       borderRadius: 12,
       backgroundColor:
-        '#FFF2F0',
+        '#4A2F2D',
     },
 
     messageText: {
       fontSize: 13,
       lineHeight: 19,
-      color: '#B42318',
+      color: '#FF8D83',
     },
 
     editProfileButton: {
@@ -1172,13 +1163,13 @@ teamCardTitle: {
   marginBottom: 5,
   fontSize: 15,
   fontWeight: '800',
-  color: '#2C343A',
+  color: '#F2F3EF',
 },
 
 teamOpenText: {
   marginTop: 12,
   fontSize: 11,
   fontWeight: '800',
-  color: '#E07A3A',
+  color: '#FFB04A',
 },
   });

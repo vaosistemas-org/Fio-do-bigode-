@@ -563,8 +563,7 @@ const styles =
   StyleSheet.create({
     page: {
       flex: 1,
-      backgroundColor:
-        '#F7F7F5',
+      backgroundColor: '#242824',
     },
 
     content: {
@@ -582,23 +581,22 @@ const styles =
       paddingHorizontal: 14,
       paddingVertical: 9,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 999,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     backButtonText: {
       fontSize: 13,
       fontWeight: '700',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     eyebrow: {
       fontSize: 10,
       fontWeight: '800',
       letterSpacing: 1.2,
-      color: '#E07A3A',
+      color: '#FFB04A',
     },
 
     title: {
@@ -606,7 +604,7 @@ const styles =
       fontSize: 30,
       lineHeight: 36,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     subtitle: {
@@ -614,7 +612,7 @@ const styles =
       marginBottom: 24,
       fontSize: 13,
       lineHeight: 19,
-      color: '#70787D',
+      color: '#C0C7C1',
     },
 
     fieldLabel: {
@@ -629,12 +627,11 @@ const styles =
       minHeight: 50,
       paddingHorizontal: 14,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 14,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
       fontSize: 15,
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     helperText: {
@@ -666,17 +663,16 @@ const styles =
       padding: 14,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: '#E4E7E4',
+      borderColor: '#4C534D',
       borderRadius: 15,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     selectText: {
       marginTop: 9,
       fontSize: 10,
       fontWeight: '800',
-      color: '#E07A3A',
+      color: '#FFB04A',
     },
 
     selectedCard: {
@@ -685,8 +681,7 @@ const styles =
       borderWidth: 1,
       borderColor: '#DADFDA',
       borderRadius: 15,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     changeButton: {
@@ -694,14 +689,14 @@ const styles =
       paddingHorizontal: 13,
       paddingVertical: 8,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 999,
     },
 
     changeButtonText: {
       fontSize: 10,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     roleLabel: {
@@ -712,12 +707,11 @@ const styles =
       minHeight: 50,
       paddingHorizontal: 14,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 14,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
       fontSize: 15,
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     inviteButton: {
@@ -749,17 +743,16 @@ const styles =
       padding: 22,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: '#E4E7E4',
+      borderColor: '#4C534D',
       borderRadius: 15,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     emptyTitle: {
       fontSize: 14,
       fontWeight: '800',
       textAlign: 'center',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     emptyText: {
@@ -774,8 +767,7 @@ const styles =
       marginTop: 24,
       padding: 16,
       borderRadius: 14,
-      backgroundColor:
-        '#EEF1ED',
+      backgroundColor: '#383E39',
     },
 
     infoTitle: {
@@ -796,12 +788,12 @@ const styles =
       padding: 14,
       borderRadius: 12,
       backgroundColor:
-        '#FFF2F0',
+        '#4A2F2D',
     },
 
     errorText: {
       fontSize: 12,
       lineHeight: 17,
-      color: '#B42318',
+      color: '#FF8D83',
     },
   });

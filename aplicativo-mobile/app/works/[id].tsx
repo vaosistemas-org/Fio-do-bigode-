@@ -64,8 +64,10 @@ const ENVIRONMENT_STATUS_LABELS: Record<
 };
 
 type PhotoReference = {
+  id: string;
   environment_id: string | null;
   storage_path: string;
+  visibility: 'internal' | 'shared';
   photo_type: 'general' | 'delivery_final';
 };
 
@@ -155,9 +157,11 @@ export default function WorkDetailsScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const sectionsOffset = useRef(0);
   const sectionOffsets = useRef<Partial<Record<WorkSectionKey, number>>>({});
-  const { id, section } = useLocalSearchParams<{
+  const { id, section, environmentId, newWork } = useLocalSearchParams<{
     id: string;
     section?: string;
+    environmentId?: string;
+    newWork?: string;
   }>();
   const [work, setWork] = useState<Work | null>(null);
   const [environments, setEnvironments] =
@@ -192,6 +196,7 @@ export default function WorkDetailsScreen() {
   const [pendingCount, setPendingCount] = useState(0);
   const [galleryCount, setGalleryCount] = useState(0);
   const [cameraRequest, setCameraRequest] = useState(0);
+  const [galleryUploadRequest, setGalleryUploadRequest] = useState(0);
   const [galleryCompareRequest, setGalleryCompareRequest] = useState(0);
   const [pendingCreateRequest, setPendingCreateRequest] = useState(0);
   const [timelineCreateRequest, setTimelineCreateRequest] = useState(0);
@@ -204,6 +209,7 @@ export default function WorkDetailsScreen() {
   const [deliveryBlockerCount, setDeliveryBlockerCount] = useState(0);
   const [deliveryReady, setDeliveryReady] = useState(false);
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
+  const [coverPromptVisible, setCoverPromptVisible] = useState(newWork === '1');
   const [actionEnvironmentId, setActionEnvironmentId] =
     useState<string | null>(null);
 
@@ -244,7 +250,7 @@ export default function WorkDetailsScreen() {
               .from('works')
               .select(`
                 id, code, client_name, client_phone, address,
-                project_order, status, progress, next_visit_at,
+                project_order, status, progress, cover_photo_id, next_visit_at,
                 notes, updated_at
               `)
               .eq('id', id)
@@ -265,7 +271,7 @@ export default function WorkDetailsScreen() {
             }),
             supabase
               .from('work_photos')
-              .select('environment_id, storage_path, photo_type')
+              .select('id, environment_id, storage_path, visibility, photo_type')
               .eq('work_id', id)
               .eq('collection', 'work')
               .order('created_at', { ascending: false }),
@@ -300,7 +306,8 @@ export default function WorkDetailsScreen() {
         if (environmentResult.error) throw environmentResult.error;
         if (peopleResult.error) throw peopleResult.error;
 
-        setWork(workResult.data as Work);
+        const workRow = workResult.data as Work;
+        setWork(workRow);
         const environmentRows =
           (environmentResult.data ?? []) as WorkEnvironment[];
         setEnvironments(environmentRows);
@@ -392,9 +399,14 @@ export default function WorkDetailsScreen() {
           setFinalPhotoCounts(finalCounts);
           setGalleryCount(photos.length);
 
-          const cover = photos.find(
-            (photo) => !photo.environment_id
-          );
+          const cover =
+            photos.find((photo) => photo.id === workRow.cover_photo_id) ??
+            photos.find(
+              (photo) =>
+                !photo.environment_id &&
+                photo.visibility === 'shared' &&
+                photo.photo_type === 'general'
+            );
           if (!cover) {
             setCoverUrl(null);
           } else {
@@ -488,8 +500,9 @@ export default function WorkDetailsScreen() {
       section === 'delivery'
     ) {
       setOpenSection(section);
+      setEnvironmentFilterId(environmentId ?? null);
     }
-  }, [section]);
+  }, [environmentId, section]);
 
   const names = useMemo(
     () =>
@@ -560,9 +573,25 @@ export default function WorkDetailsScreen() {
     scrollToSection('photos');
   }
 
+  function startCoverPhoto(source: 'camera' | 'gallery') {
+    setCoverPromptVisible(false);
+    setEnvironmentFilterId(null);
+    setOpenSection('photos');
+    if (source === 'camera') setCameraRequest((current) => current + 1);
+    else setGalleryUploadRequest((current) => current + 1);
+    scrollToSection('photos');
+  }
+
   function openEnvironmentActions(environmentId: string) {
     setActionEnvironmentId(environmentId);
     setActionMenuVisible(true);
+  }
+
+  function openEnvironmentPage(environmentId: string) {
+    router.push({
+      pathname: '/environment/[id]',
+      params: { id: environmentId },
+    });
   }
 
   function clearEnvironmentFilter() {
@@ -704,6 +733,27 @@ export default function WorkDetailsScreen() {
                   />
                 </View>
 
+                {canWrite && (
+                  <Pressable
+                    style={styles.dailyUpdateButton}
+                    onPress={() => {
+                      setEnvironmentFilterId(null);
+                      setOpenSection('fio');
+                      setTimelineCreateRequest((current) => current + 1);
+                      scrollToSection('fio');
+                    }}
+                  >
+                    <Ionicons name="create-outline" size={18} color={FioColors.textOnAccent} />
+                    <View style={styles.dailyUpdateIdentity}>
+                      <Text style={styles.dailyUpdateTitle}>Atualizar a obra</Text>
+                      <Text style={styles.dailyUpdateSubtitle}>
+                        Feito hoje, próximos passos, bloqueios e fotos
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward-outline" size={18} color={FioColors.textOnAccent} />
+                  </Pressable>
+                )}
+
                 <View style={styles.teamRow}>
                   <View style={styles.teamIdentity}>
                     <View style={styles.teamHeading}>
@@ -797,15 +847,14 @@ export default function WorkDetailsScreen() {
                           key={environment.id}
                           style={styles.environmentCard}
                         >
-                          <Pressable
-                            style={styles.environmentHeader}
-                            onPress={() =>
-                              setOpenEnvironmentId(
-                                expanded ? null : environment.id
-                              )
-                            }
-                          >
-                            <View style={styles.environmentIdentity}>
+                          <View style={styles.environmentHeader}>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`Abrir ambiente ${environment.name}`}
+                              style={styles.environmentOpen}
+                              onPress={() => openEnvironmentPage(environment.id)}
+                            >
+                              <View style={styles.environmentIdentity}>
                               <Text style={styles.environmentName}>
                                 {environment.name}
                               </Text>
@@ -814,7 +863,8 @@ export default function WorkDetailsScreen() {
                                 {' · '}
                                 {environment.progress}%
                               </Text>
-                            </View>
+                              </View>
+                            </Pressable>
                             {environment.installation_priority && (
                               <View style={styles.priorityBadge}>
                                 <Text style={styles.priorityText}>
@@ -822,16 +872,39 @@ export default function WorkDetailsScreen() {
                                 </Text>
                               </View>
                             )}
-                            <Ionicons
-                              name={
-                                expanded
-                                  ? 'chevron-up-outline'
-                                  : 'chevron-down-outline'
+                            {canWrite && (
+                              <>
+                                <Pressable
+                                  accessibilityLabel={`Adicionar foto em ${environment.name}`}
+                                  style={styles.environmentIconAction}
+                                  onPress={() => openEnvironmentCamera(environment.id)}
+                                >
+                                  <Ionicons name="camera-outline" size={19} color={FioColors.green} />
+                                </Pressable>
+                                <Pressable
+                                  accessibilityLabel={`Abrir ações de ${environment.name}`}
+                                  style={[styles.environmentIconAction, styles.environmentAddAction]}
+                                  onPress={() => openEnvironmentActions(environment.id)}
+                                >
+                                  <Ionicons name="add-outline" size={21} color={FioColors.textOnAccent} />
+                                </Pressable>
+                              </>
+                            )}
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`${expanded ? 'Recolher' : 'Expandir'} ações rápidas de ${environment.name}`}
+                              style={styles.environmentChevron}
+                              onPress={() =>
+                                setOpenEnvironmentId(expanded ? null : environment.id)
                               }
-                              size={20}
-                              color="#34405A"
-                            />
-                          </Pressable>
+                            >
+                              <Ionicons
+                                name={expanded ? 'chevron-up-outline' : 'chevron-down-outline'}
+                                size={20}
+                                color={FioColors.text}
+                              />
+                            </Pressable>
+                          </View>
                           <View style={styles.environmentTrack}>
                             <View
                               style={[
@@ -878,6 +951,7 @@ export default function WorkDetailsScreen() {
                                 onMore={() =>
                                   openEnvironmentActions(environment.id)
                                 }
+                                showHeaderActions={false}
                               />
                             </View>
                           )}
@@ -957,6 +1031,7 @@ export default function WorkDetailsScreen() {
                     environments={environments}
                     canWrite={canWrite}
                     canManage={canManage}
+                    workStatus={work.status}
                     newEntryRequest={timelineCreateRequest}
                     environmentFilterId={environmentFilterId ?? undefined}
                     onChanged={() => loadCentral(true)}
@@ -995,14 +1070,17 @@ export default function WorkDetailsScreen() {
                     environments={environments}
                     canWrite={canWrite}
                     canManage={canManage}
+                    coverPhotoId={work.cover_photo_id}
                     userId={userId}
                     cameraRequest={cameraRequest}
+                    galleryRequest={galleryUploadRequest}
                     compareRequest={galleryCompareRequest}
                     onCompareRequestHandled={() => setGalleryCompareRequest(0)}
                     environmentFilterId={environmentFilterId ?? undefined}
                     onCameraRequestHandled={() =>
                       setCameraRequest(0)
                     }
+                    onGalleryRequestHandled={() => setGalleryUploadRequest(0)}
                     onCountChange={setGalleryCount}
                     onChanged={() => loadCentral(true)}
                   />
@@ -1175,6 +1253,38 @@ export default function WorkDetailsScreen() {
 
         {work && (
           <Modal
+            visible={coverPromptVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setCoverPromptVisible(false)}
+          >
+            <View style={styles.coverPromptBackdrop}>
+              <View style={styles.coverPromptCard}>
+                <View style={styles.coverPromptIcon}>
+                  <Ionicons name="home-outline" size={25} color={FioColors.green} />
+                </View>
+                <Text style={styles.coverPromptTitle}>Foto da entrada do local</Text>
+                <Text style={styles.coverPromptText}>
+                  Fotografe a fachada, a entrada da casa, do prédio ou o acesso principal. Essa imagem será usada como capa da obra e dos cards.
+                </Text>
+                <Pressable style={styles.coverPromptPrimary} onPress={() => startCoverPhoto('camera')}>
+                  <Ionicons name="camera-outline" size={19} color={FioColors.textOnAccent} />
+                  <Text style={styles.coverPromptPrimaryText}>Tirar foto agora</Text>
+                </Pressable>
+                <Pressable style={styles.coverPromptSecondary} onPress={() => startCoverPhoto('gallery')}>
+                  <Ionicons name="images-outline" size={19} color={FioColors.green} />
+                  <Text style={styles.coverPromptSecondaryText}>Escolher da galeria</Text>
+                </Pressable>
+                <Pressable style={styles.coverPromptLater} onPress={() => setCoverPromptVisible(false)}>
+                  <Text style={styles.coverPromptLaterText}>Fazer depois</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
+        )}
+
+        {work && (
+          <Modal
             visible={actionMenuVisible}
             transparent
             animationType="slide"
@@ -1199,7 +1309,7 @@ export default function WorkDetailsScreen() {
                     style={styles.actionClose}
                     onPress={() => setActionMenuVisible(false)}
                   >
-                    <Ionicons name="close-outline" size={23} color="#34405A" />
+                    <Ionicons name="close-outline" size={23} color={FioColors.text} />
                   </Pressable>
                 </View>
 
@@ -1235,7 +1345,7 @@ export default function WorkDetailsScreen() {
                     <View style={styles.actionIcon}>
                       <Ionicons name="create-outline" size={21} color={FioColors.green} />
                     </View>
-                    <Text style={styles.actionText}>Atualizar FIO</Text>
+                    <Text style={styles.actionText}>Atualizar obra</Text>
                   </Pressable>
 
                   <Pressable
@@ -1394,7 +1504,7 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: FioColors.canvas,
   },
-  loadingText: { fontSize: 13, color: '#697386' },
+  loadingText: { fontSize: 13, color: FioColors.textMuted },
   backButton: {
     minHeight: 40,
     alignSelf: 'flex-start',
@@ -1405,10 +1515,10 @@ const styles = StyleSheet.create({
   backText: { fontSize: 13, fontWeight: '800', color: FioColors.green },
   workCard: {
     padding: 13,
-    borderWidth: 1,
-    borderColor: '#DCE1EA',
+    borderWidth: 2,
+    borderColor: FioColors.lineStrong,
     borderRadius: 17,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: FioColors.surface,
   },
   identityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   cover: { width: 72, height: 72, borderRadius: 15 },
@@ -1420,7 +1530,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     backgroundColor: FioColors.goldSoft,
   },
-  coverInitials: { fontSize: 22, fontWeight: '900', color: FioColors.ink },
+  coverInitials: { fontSize: 22, fontWeight: '900', color: FioColors.text },
   workIdentity: { flex: 1, minWidth: 0 },
   clientProfileLink: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   workCode: {
@@ -1436,7 +1546,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 21,
     fontWeight: '900',
-    color: '#10192B',
+    color: FioColors.text,
   },
   infoLine: {
     marginTop: 3,
@@ -1444,7 +1554,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 5,
   },
-  infoText: { flex: 1, minWidth: 0, fontSize: 10, lineHeight: 14, color: '#5A6680' },
+  infoText: { flex: 1, minWidth: 0, fontSize: 10, lineHeight: 14, color: FioColors.textMuted },
   statusRow: {
     marginTop: 12,
     flexDirection: 'row',
@@ -1459,25 +1569,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     borderRadius: 999,
-    backgroundColor: '#EEF8F1',
+    borderWidth: 1,
+    borderColor: FioColors.green,
+    backgroundColor: FioColors.greenSoft,
   },
-  statusDot: { width: 8, height: 8, borderRadius: 999, backgroundColor: '#2EA35E' },
-  statusText: { fontSize: 10, fontWeight: '800', color: '#267A48' },
-  progressText: { fontSize: 11, fontWeight: '800', color: '#47536A' },
+  statusDot: { width: 8, height: 8, borderRadius: 999, backgroundColor: FioColors.green },
+  statusText: { fontSize: 10, fontWeight: '800', color: FioColors.green },
+  progressText: { fontSize: 11, fontWeight: '800', color: FioColors.textMuted },
   progressTrack: {
     height: 6,
     marginTop: 8,
     overflow: 'hidden',
     borderRadius: 999,
-    backgroundColor: '#E6E8EE',
+    backgroundColor: FioColors.surfaceRaised,
   },
   progressFill: { height: '100%', borderRadius: 999, backgroundColor: FioColors.green },
+  dailyUpdateButton: {
+    minHeight: 58,
+    marginTop: 13,
+    paddingHorizontal: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 14,
+    backgroundColor: FioColors.green,
+  },
+  dailyUpdateIdentity: { flex: 1, minWidth: 0 },
+  dailyUpdateTitle: { fontSize: 12, fontWeight: '900', color: FioColors.textOnAccent },
+  dailyUpdateSubtitle: { marginTop: 2, fontSize: 9, color: FioColors.textOnAccent },
   teamRow: {
     marginTop: 13,
   },
   teamIdentity: { flex: 1 },
   teamHeading: { marginBottom: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  teamTitle: { fontSize: 11, fontWeight: '800', color: '#34405A' },
+  teamTitle: { fontSize: 11, fontWeight: '800', color: FioColors.text },
   avatars: { flexDirection: 'row', alignItems: 'center' },
   avatar: {
     width: 34,
@@ -1487,7 +1612,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: FioColors.surface,
     borderRadius: 999,
     backgroundColor: FioColors.greenSoft,
   },
@@ -1500,10 +1625,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#BFD0C3',
+    borderColor: FioColors.lineStrong,
     borderRadius: 999,
   },
-  teamCount: { fontSize: 9, color: '#768096' },
+  teamCount: { fontSize: 9, color: FioColors.textSoft },
   readOnly: {
     marginTop: 16,
     padding: 11,
@@ -1511,9 +1636,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderRadius: 12,
-    backgroundColor: '#F0F2F6',
+    backgroundColor: FioColors.surfaceRaised,
   },
-  readOnlyText: { flex: 1, fontSize: 11, color: '#5B657B' },
+  readOnlyText: { flex: 1, fontSize: 11, color: FioColors.textMuted },
   sections: { marginTop: 10 },
   placeholder: {
     minHeight: 64,
@@ -1528,10 +1653,10 @@ const styles = StyleSheet.create({
   environmentCard: {
     marginTop: 10,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.9)',
+    borderWidth: 2,
+    borderColor: FioColors.lineStrong,
     borderRadius: 19,
-    backgroundColor: 'rgba(250, 249, 246, 0.88)',
+    backgroundColor: FioColors.surface,
   },
   environmentHeader: {
     minHeight: 58,
@@ -1541,28 +1666,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  environmentOpen: { flex: 1, minWidth: 0, minHeight: 44, justifyContent: 'center' },
   environmentIdentity: { flex: 1 },
-  environmentName: { fontSize: 14, fontWeight: '800', color: '#202B3D' },
-  environmentMeta: { marginTop: 3, fontSize: 11, color: '#737D91' },
-  priorityBadge: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 999, backgroundColor: '#FFF0E6' },
-  priorityText: { fontSize: 9, fontWeight: '800', color: '#B85C24' },
+  environmentName: { fontSize: 14, fontWeight: '800', color: FioColors.text },
+  environmentMeta: { marginTop: 3, fontSize: 11, color: FioColors.textMuted },
+  priorityBadge: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 999, backgroundColor: FioColors.orangeSoft },
+  priorityText: { fontSize: 9, fontWeight: '800', color: FioColors.orange },
+  environmentIconAction: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 999, backgroundColor: FioColors.surfaceRaised },
+  environmentAddAction: { borderColor: FioColors.green, backgroundColor: FioColors.green },
+  environmentChevron: { width: 38, height: 40, alignItems: 'center', justifyContent: 'center' },
   environmentTrack: {
     height: 5,
     marginHorizontal: 13,
     marginBottom: 10,
     overflow: 'hidden',
     borderRadius: 999,
-    backgroundColor: '#E4E7EC',
+    backgroundColor: FioColors.surfaceRaised,
   },
   environmentFill: { height: '100%', borderRadius: 999, backgroundColor: FioColors.green },
   environmentBody: {
     padding: 13,
     paddingTop: 3,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(220, 221, 216, 0.72)',
-    backgroundColor: 'rgba(244, 242, 237, 0.52)',
+    borderTopColor: FioColors.line,
+    backgroundColor: FioColors.surfaceMuted,
   },
-  environmentDetail: { marginTop: 8, fontSize: 12, lineHeight: 17, color: '#5D687C' },
+  environmentDetail: { marginTop: 8, fontSize: 12, lineHeight: 17, color: FioColors.textMuted },
   environmentFilter: {
     marginBottom: 11,
     minHeight: 54,
@@ -1571,9 +1700,9 @@ const styles = StyleSheet.create({
     gap: 9,
     padding: 8,
     borderWidth: 1,
-    borderColor: 'rgba(191, 208, 195, 0.78)',
+    borderColor: FioColors.green,
     borderRadius: 16,
-    backgroundColor: 'rgba(231, 241, 232, 0.72)',
+    backgroundColor: FioColors.greenSoft,
   },
   environmentFilterIcon: {
     width: 36,
@@ -1581,7 +1710,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.76)',
+    backgroundColor: FioColors.surfaceRaised,
   },
   environmentFilterIdentity: { flex: 1, minWidth: 0 },
   environmentFilterLabel: {
@@ -1603,9 +1732,9 @@ const styles = StyleSheet.create({
     gap: 3,
     paddingHorizontal: 9,
     borderWidth: 1,
-    borderColor: 'rgba(36, 88, 62, 0.18)',
+    borderColor: FioColors.lineStrong,
     borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    backgroundColor: FioColors.surface,
   },
   environmentFilterClearText: {
     fontSize: 9,
@@ -1618,9 +1747,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#BFD0C3',
+    borderColor: FioColors.lineStrong,
     borderRadius: 999,
-    backgroundColor: '#F4FAF5',
+    backgroundColor: FioColors.surfaceRaised,
   },
   environmentActions: { marginTop: 13, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   secondaryButton: {
@@ -1632,7 +1761,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderWidth: 1,
-    borderColor: '#BFD0C3',
+    borderColor: FioColors.lineStrong,
     borderRadius: 12,
   },
   secondaryWide: {
@@ -1640,7 +1769,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#BFD0C3',
+    borderColor: FioColors.lineStrong,
     borderRadius: 12,
   },
   secondaryText: { fontSize: 11, fontWeight: '800', color: FioColors.green },
@@ -1652,9 +1781,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 7,
     borderRadius: 13,
-    backgroundColor: FioColors.ink,
+    backgroundColor: FioColors.green,
   },
-  primaryText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  primaryText: { fontSize: 13, fontWeight: '800', color: FioColors.textOnAccent },
   floatingAction: {
     position: 'absolute',
     right: 16,
@@ -1665,7 +1794,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 999,
     backgroundColor: FioColors.orange,
-    shadowColor: FioColors.ink,
+    shadowColor: '#111411',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.28,
     shadowRadius: 9,
@@ -1674,7 +1803,7 @@ const styles = StyleSheet.create({
   actionBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(17, 25, 43, 0.42)',
+    backgroundColor: 'rgba(12, 15, 12, 0.64)',
   },
   actionSheet: {
     paddingHorizontal: 16,
@@ -1682,14 +1811,14 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: FioColors.surface,
   },
   actionHandle: {
     width: 38,
     height: 4,
     alignSelf: 'center',
     borderRadius: 999,
-    backgroundColor: '#D9DCE3',
+    backgroundColor: FioColors.lineStrong,
   },
   actionHeader: {
     marginTop: 10,
@@ -1698,15 +1827,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   actionHeaderIdentity: { flex: 1, minWidth: 0 },
-  actionTitle: { fontSize: 18, fontWeight: '900', color: '#172033' },
-  actionSubtitle: { marginTop: 2, fontSize: 10, color: '#727C8E' },
+  actionTitle: { fontSize: 18, fontWeight: '900', color: FioColors.text },
+  actionSubtitle: { marginTop: 2, fontSize: 10, color: FioColors.textMuted },
   actionClose: {
     width: 42,
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 999,
-    backgroundColor: '#F1F2F5',
+    backgroundColor: FioColors.surfaceRaised,
   },
   actionGrid: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   actionItem: {
@@ -1718,9 +1847,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 9,
     borderWidth: 1,
-    borderColor: '#E0E2E8',
+    borderColor: FioColors.line,
     borderRadius: 13,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: FioColors.surfaceRaised,
   },
   actionIcon: {
     width: 36,
@@ -1730,9 +1859,20 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: FioColors.greenSoft,
   },
-  actionText: { flex: 1, fontSize: 11, lineHeight: 14, fontWeight: '800', color: '#34405A' },
-  errorCard: { marginTop: 12, padding: 14, borderRadius: 13, backgroundColor: '#FFF0EE' },
-  errorText: { fontSize: 12, lineHeight: 18, color: '#B42318' },
-  permissionNote: { marginTop: 5, textAlign: 'center', fontSize: 10, color: '#8991A0' },
+  actionText: { flex: 1, fontSize: 11, lineHeight: 14, fontWeight: '800', color: FioColors.text },
+  coverPromptBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 18, backgroundColor: 'rgba(12, 15, 12, 0.72)' },
+  coverPromptCard: { width: '100%', maxWidth: 420, padding: 20, borderWidth: 2, borderColor: FioColors.lineStrong, borderRadius: 22, backgroundColor: FioColors.surface },
+  coverPromptIcon: { width: 50, height: 50, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: FioColors.greenSoft },
+  coverPromptTitle: { marginTop: 14, fontSize: 20, fontWeight: '900', color: FioColors.text },
+  coverPromptText: { marginTop: 7, fontSize: 11, lineHeight: 17, color: FioColors.textMuted },
+  coverPromptPrimary: { minHeight: 48, marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 13, backgroundColor: FioColors.green },
+  coverPromptPrimaryText: { fontSize: 11, fontWeight: '900', color: FioColors.textOnAccent },
+  coverPromptSecondary: { minHeight: 48, marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 13, backgroundColor: FioColors.surfaceRaised },
+  coverPromptSecondaryText: { fontSize: 11, fontWeight: '900', color: FioColors.green },
+  coverPromptLater: { minHeight: 42, marginTop: 5, alignItems: 'center', justifyContent: 'center' },
+  coverPromptLaterText: { fontSize: 10, fontWeight: '800', color: FioColors.textMuted },
+  errorCard: { marginTop: 12, padding: 14, borderRadius: 13, backgroundColor: FioColors.dangerSoft },
+  errorText: { fontSize: 12, lineHeight: 18, color: FioColors.danger },
+  permissionNote: { marginTop: 5, textAlign: 'center', fontSize: 10, color: FioColors.textSoft },
   pressed: { opacity: 0.65 },
 });

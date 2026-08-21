@@ -1106,7 +1106,7 @@ export default function EnvironmentPhotosScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#242824',
   },
 
   content: {
@@ -1123,13 +1123,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 30,
-    backgroundColor: '#F7F7F5',
+    backgroundColor: '#242824',
   },
 
   loadingText: {
     marginTop: 10,
     fontSize: 13,
-    color: '#777D80',
+    color: '#C0C7C1',
   },
 
   topBar: {
@@ -1144,7 +1144,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     letterSpacing: 2,
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   brandSubtitle: {
@@ -1152,53 +1152,53 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1.6,
-    color: '#5F7567',
+    color: '#74B892',
   },
 
   topButton: {
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   topButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   backButton: {
     alignSelf: 'flex-start',
     marginBottom: 22,
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   backButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   workCode: {
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1,
-    color: '#5F7567',
+    color: '#74B892',
   },
 
   workName: {
     marginTop: 4,
     fontSize: 14,
     fontWeight: '700',
-    color: '#70787D',
+    color: '#C0C7C1',
   },
 
   header: {
@@ -1210,7 +1210,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.2,
-    color: '#E07A3A',
+    color: '#FFB04A',
   },
 
   title: {
@@ -1218,14 +1218,14 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 36,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   subtitle: {
     marginTop: 7,
     fontSize: 14,
     lineHeight: 20,
-    color: '#747B80',
+    color: '#C0C7C1',
   },
 
   readOnlyCard: {
@@ -1234,7 +1234,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#DADFDA',
     borderRadius: 14,
-    backgroundColor: '#EEF1ED',
+    backgroundColor: '#30483A',
   },
 
   readOnlyTitle: {
@@ -1259,15 +1259,15 @@ const styles = StyleSheet.create({
     justifyContent:
       'space-between',
     borderWidth: 1,
-    borderColor: '#E4E7E4',
+    borderColor: '#4C534D',
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   counterValue: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   counterLabel: {
@@ -1281,11 +1281,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: '#FFF4EC',
+    backgroundColor: '#4B3B25',
   },
 
   readinessBadgeComplete: {
-    backgroundColor: '#EEF1ED',
+    backgroundColor: '#30483A',
   },
 
   readinessText: {
@@ -1325,15 +1325,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#D8DCDA',
+    borderColor: '#687069',
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   galleryButtonText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   disabledButton: {
@@ -1348,7 +1348,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   uploadText: {
@@ -1361,26 +1361,26 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: '#FFF2F0',
+    backgroundColor: '#4A2F2D',
   },
 
   errorText: {
     fontSize: 13,
     lineHeight: 19,
-    color: '#B42318',
+    color: '#FF8D83',
   },
 
   successCard: {
     marginBottom: 14,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: '#EEF4EE',
+    backgroundColor: '#294536',
   },
 
   successText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#506455',
+    color: '#8AD4A8',
   },
 
   galleryHeader: {
@@ -1396,7 +1396,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.2,
-    color: '#5F7567',
+    color: '#74B892',
   },
 
   photoCount: {
@@ -1409,15 +1409,15 @@ const styles = StyleSheet.create({
     padding: 28,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E4E7E4',
+    borderColor: '#4C534D',
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   emptyTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#2C343A',
+    color: '#F2F3EF',
   },
 
   emptyText: {
@@ -1438,15 +1438,15 @@ const styles = StyleSheet.create({
     width: '48%',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E4E7E4',
+    borderColor: '#4C534D',
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2E332F',
   },
 
   photo: {
     width: '100%',
     aspectRatio: 1,
-    backgroundColor: '#ECEEEC',
+    backgroundColor: '#383E39',
   },
 
   photoUnavailable: {
@@ -1455,7 +1455,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 12,
-    backgroundColor: '#ECEEEC',
+    backgroundColor: '#383E39',
   },
 
   photoUnavailableText: {
@@ -1480,6 +1480,6 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#B42318',
+    color: '#FF8D83',
   },
 });

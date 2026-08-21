@@ -675,7 +675,7 @@ export function WorkPendingPanel({
                 <Ionicons
                   name={expanded ? 'chevron-up-outline' : 'chevron-down-outline'}
                   size={20}
-                  color="#34405A"
+                  color={FioColors.text}
                 />
               </Pressable>
 
@@ -693,7 +693,7 @@ export function WorkPendingPanel({
                     <View style={styles.evidenceFolder}>
                       <View style={styles.evidenceHeader}>
                         <View style={styles.evidenceIcon}>
-                          <Ionicons name="folder-outline" size={19} color="#24583E" />
+                          <Ionicons name="folder-outline" size={19} color={FioColors.green} />
                         </View>
                         <View style={styles.evidenceIdentity}>
                           <Text numberOfLines={1} style={styles.evidenceTitle}>B.O. interno</Text>
@@ -744,7 +744,7 @@ export function WorkPendingPanel({
 
                       {uploadingId === item.id ? (
                         <View style={styles.uploadingRow}>
-                          <ActivityIndicator size="small" color="#24583E" />
+                          <ActivityIndicator size="small" color={FioColors.green} />
                           <Text style={styles.uploadingText}>{uploadProgress}</Text>
                         </View>
                       ) : (
@@ -762,7 +762,7 @@ export function WorkPendingPanel({
                             onPress={() => choosePhotos(item.id, 'gallery')}
                             disabled={uploadingId !== null}
                           >
-                            <Ionicons name="images-outline" size={18} color="#24583E" />
+                            <Ionicons name="images-outline" size={18} color={FioColors.green} />
                             <Text numberOfLines={1} style={styles.evidenceSecondaryText}>Galeria</Text>
                           </Pressable>
                         </View>
@@ -814,7 +814,7 @@ export function WorkPendingPanel({
                 {editingId ? 'Editar pendência' : 'Nova pendência'}
               </Text>
               <Pressable style={styles.closeButton} onPress={() => setFormVisible(false)}>
-                <Ionicons name="close-outline" size={25} color="#34405A" />
+                <Ionicons name="close-outline" size={25} color={FioColors.text} />
               </Pressable>
             </View>
 
@@ -913,7 +913,7 @@ export function WorkPendingPanel({
               <Text style={styles.label}>Prazo</Text>
               <View style={styles.dateRow}>
                 <Pressable style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-                  <Ionicons name="calendar-outline" size={18} color="#24583E" />
+                  <Ionicons name="calendar-outline" size={18} color={FioColors.green} />
                   <Text style={styles.dateText}>{formatDate(dueDate)}</Text>
                 </Pressable>
                 {!!dueDate && (
@@ -945,7 +945,7 @@ export function WorkPendingPanel({
                   value={blocksDelivery}
                   onValueChange={setBlocksDelivery}
                   trackColor={{ false: '#D6DAE2', true: '#BEB7F4' }}
-                  thumbColor={blocksDelivery ? '#24583E' : '#FFFFFF'}
+                  thumbColor={blocksDelivery ? FioColors.green : FioColors.textSoft}
                 />
               </View>
 
@@ -968,92 +968,92 @@ export function WorkPendingPanel({
 
 const styles = StyleSheet.create({
   loading: { minHeight: 90, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  muted: { fontSize: 11, color: '#7A8394' },
+  muted: { fontSize: 11, color: FioColors.textMuted },
   summaryRow: { flexDirection: 'row', gap: 9 },
-  summaryCard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: '#F8F6F1' },
+  summaryCard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
   summaryNumber: { fontSize: 22, fontWeight: '900', color: FioColors.green },
-  summaryLabel: { marginTop: 2, fontSize: 10, color: '#6F736F' },
-  newButton: { minHeight: 46, marginTop: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.ink },
-  newButtonText: { fontSize: 12, fontWeight: '800', color: '#FFFFFF' },
+  summaryLabel: { marginTop: 2, fontSize: 10, color: FioColors.textMuted },
+  newButton: { minHeight: 46, marginTop: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.green },
+  newButtonText: { fontSize: 12, fontWeight: '800', color: FioColors.textOnAccent },
   tabs: { marginTop: 13, flexDirection: 'row', gap: 8 },
-  tab: { minHeight: 40, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#F0F2F5' },
+  tab: { minHeight: 40, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: FioColors.surfaceRaised },
   tabActive: { backgroundColor: FioColors.greenSoft },
-  tabText: { fontSize: 10, fontWeight: '700', color: '#737C8D' },
+  tabText: { fontSize: 10, fontWeight: '700', color: FioColors.textMuted },
   tabTextActive: { color: FioColors.green },
-  errorCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: '#FFF0EE' },
-  errorText: { fontSize: 11, lineHeight: 16, color: '#B42318' },
-  emptyCard: { marginTop: 10, padding: 18, alignItems: 'center', borderRadius: 12, backgroundColor: '#F6F7F9' },
-  emptyTitle: { fontSize: 12, fontWeight: '700', color: '#70798B' },
-  itemCard: { marginTop: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#E0E3E9', borderRadius: 12, backgroundColor: '#FFFFFF' },
+  errorCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: FioColors.dangerSoft },
+  errorText: { fontSize: 11, lineHeight: 16, color: FioColors.danger },
+  emptyCard: { marginTop: 10, padding: 18, alignItems: 'center', borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
+  emptyTitle: { fontSize: 12, fontWeight: '700', color: FioColors.textMuted },
+  itemCard: { marginTop: 8, overflow: 'hidden', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 12, backgroundColor: FioColors.surface },
   itemHeader: { minHeight: 64, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
   itemIdentity: { flex: 1 },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
   priorityBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999 },
-  priority_low: { backgroundColor: '#EEF4F8' },
+  priority_low: { backgroundColor: FioColors.surfaceMuted },
   priority_normal: { backgroundColor: FioColors.greenSoft },
   priority_high: { backgroundColor: FioColors.goldSoft },
   priority_urgent: { backgroundColor: FioColors.orangeSoft },
-  priorityText: { fontSize: 8, fontWeight: '800', color: '#4D5668' },
-  blockBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: '#FFE1DD' },
-  blockText: { fontSize: 8, fontWeight: '900', color: '#B42318' },
-  itemTitle: { marginTop: 5, fontSize: 12, fontWeight: '800', color: '#202B3D' },
-  itemMeta: { marginTop: 3, fontSize: 10, color: '#798294' },
+  priorityText: { fontSize: 8, fontWeight: '800', color: FioColors.textMuted },
+  blockBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: FioColors.dangerSoft },
+  blockText: { fontSize: 8, fontWeight: '900', color: FioColors.danger },
+  itemTitle: { marginTop: 5, fontSize: 12, fontWeight: '800', color: FioColors.text },
+  itemMeta: { marginTop: 3, fontSize: 10, color: FioColors.textMuted },
   photoCountRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  photoCountText: { fontSize: 9, fontWeight: '700', color: '#6B5FC7' },
-  itemBody: { padding: 10, paddingTop: 2, borderTopWidth: 1, borderTopColor: '#ECEEF2' },
-  description: { marginTop: 9, fontSize: 12, lineHeight: 17, color: '#4F5B70' },
-  detail: { marginTop: 8, fontSize: 10, color: '#707A8E' },
-  evidenceFolder: { marginTop: 10, padding: 9, borderWidth: 1, borderColor: '#DCD8F5', borderRadius: 11, backgroundColor: '#F8F7FF' },
+  photoCountText: { fontSize: 9, fontWeight: '700', color: FioColors.gold },
+  itemBody: { padding: 10, paddingTop: 2, borderTopWidth: 1, borderTopColor: FioColors.line },
+  description: { marginTop: 9, fontSize: 12, lineHeight: 17, color: FioColors.textMuted },
+  detail: { marginTop: 8, fontSize: 10, color: FioColors.textMuted },
+  evidenceFolder: { marginTop: 10, padding: 9, borderWidth: 1, borderColor: FioColors.line, borderRadius: 11, backgroundColor: FioColors.surfaceRaised },
   evidenceHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  evidenceIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: '#F6EDDE' },
+  evidenceIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: FioColors.goldSoft },
   evidenceIdentity: { flex: 1, minWidth: 0 },
-  evidenceTitle: { fontSize: 10, fontWeight: '900', color: '#2C3150' },
-  evidenceHelp: { marginTop: 2, fontSize: 8, lineHeight: 12, color: '#72798A' },
-  evidenceCount: { minWidth: 26, height: 26, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#24583E' },
-  evidenceCountText: { fontSize: 10, fontWeight: '900', color: '#FFFFFF' },
+  evidenceTitle: { fontSize: 10, fontWeight: '900', color: FioColors.text },
+  evidenceHelp: { marginTop: 2, fontSize: 8, lineHeight: 12, color: FioColors.textMuted },
+  evidenceCount: { minWidth: 26, height: 26, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: FioColors.green },
+  evidenceCountText: { fontSize: 10, fontWeight: '900', color: FioColors.textOnAccent },
   evidenceGallery: { paddingTop: 10, gap: 8 },
-  evidencePhotoCard: { width: 76, height: 76, overflow: 'hidden', borderRadius: 9, backgroundColor: '#E8EAF0' },
+  evidencePhotoCard: { width: 76, height: 76, overflow: 'hidden', borderRadius: 9, backgroundColor: FioColors.surfaceMuted },
   evidencePhoto: { width: '100%', height: '100%' },
   evidencePhotoFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   deletePhotoButton: { position: 'absolute', top: 5, right: 5, width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: 'rgba(150, 28, 20, 0.9)' },
   evidenceActions: { marginTop: 9, flexDirection: 'row', gap: 7 },
-  evidencePrimaryButton: { minHeight: 42, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, backgroundColor: '#24583E' },
-  evidencePrimaryText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
-  evidenceSecondaryButton: { minHeight: 42, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderColor: '#CFC9F4', borderRadius: 10, backgroundColor: '#FFFFFF' },
-  evidenceSecondaryText: { fontSize: 10, fontWeight: '800', color: '#24583E' },
+  evidencePrimaryButton: { minHeight: 42, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, backgroundColor: FioColors.green },
+  evidencePrimaryText: { fontSize: 10, fontWeight: '800', color: FioColors.textOnAccent },
+  evidenceSecondaryButton: { minHeight: 42, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 10, backgroundColor: FioColors.surfaceRaised },
+  evidenceSecondaryText: { fontSize: 10, fontWeight: '800', color: FioColors.green },
   uploadingRow: { minHeight: 44, marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
-  uploadingText: { fontSize: 10, fontWeight: '700', color: '#5C6474' },
-  photoErrorCard: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: '#FFF0EE' },
+  uploadingText: { fontSize: 10, fontWeight: '700', color: FioColors.textMuted },
+  photoErrorCard: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: FioColors.dangerSoft },
   itemActions: { marginTop: 12, flexDirection: 'row', gap: 8 },
-  editButton: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#BFD0C3', borderRadius: 11 },
-  editText: { fontSize: 11, fontWeight: '800', color: '#24583E' },
-  finishButton: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#24583E' },
-  finishText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(17, 25, 43, 0.38)' },
-  modalCard: { maxHeight: '92%', padding: 18, paddingBottom: 26, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#FFFFFF' },
+  editButton: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 11 },
+  editText: { fontSize: 11, fontWeight: '800', color: FioColors.green },
+  finishButton: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: FioColors.green },
+  finishText: { fontSize: 11, fontWeight: '800', color: FioColors.textOnAccent },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12, 15, 12, 0.68)' },
+  modalCard: { maxHeight: '92%', padding: 18, paddingBottom: 26, borderTopWidth: 2, borderColor: FioColors.lineStrong, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: FioColors.surface },
   modalHeader: { marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  modalTitle: { fontSize: 21, fontWeight: '900', color: '#172033' },
-  closeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#F1F2F5' },
-  label: { marginTop: 14, marginBottom: 6, fontSize: 10, fontWeight: '800', color: '#536078' },
-  input: { minHeight: 48, paddingHorizontal: 13, borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 12, fontSize: 13, color: '#202B3D', backgroundColor: '#FAFBFC' },
+  modalTitle: { fontSize: 21, fontWeight: '900', color: FioColors.text },
+  closeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: FioColors.surfaceRaised },
+  label: { marginTop: 14, marginBottom: 6, fontSize: 10, fontWeight: '800', color: FioColors.textMuted },
+  input: { minHeight: 48, paddingHorizontal: 13, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 12, fontSize: 13, color: FioColors.text, backgroundColor: FioColors.surfaceRaised },
   textarea: { minHeight: 90, paddingTop: 12, textAlignVertical: 'top' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  chip: { minHeight: 38, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCE0E7', borderRadius: 999, backgroundColor: '#FFFFFF' },
+  chip: { minHeight: 38, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 999, backgroundColor: FioColors.surface },
   chipActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
-  chipText: { fontSize: 10, fontWeight: '700', color: '#697386' },
+  chipText: { fontSize: 10, fontWeight: '700', color: FioColors.textMuted },
   chipTextActive: { color: FioColors.green },
   priorityInfo: { marginTop: 8, flexDirection: 'row', alignItems: 'flex-start', gap: 5 },
   priorityInfoText: { flex: 1, fontSize: 8, lineHeight: 12, color: FioColors.green },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dateButton: { minHeight: 44, flex: 1, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderColor: '#DCE0E7', borderRadius: 11 },
-  dateText: { fontSize: 11, fontWeight: '700', color: '#4F5B70' },
+  dateButton: { minHeight: 44, flex: 1, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 11 },
+  dateText: { fontSize: 11, fontWeight: '700', color: FioColors.textMuted },
   clearDateButton: { minHeight: 44, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
   clearDateText: { fontSize: 10, fontWeight: '800', color: '#B42318' },
-  switchRow: { marginTop: 17, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, backgroundColor: '#E7F1E8' },
+  switchRow: { marginTop: 17, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, backgroundColor: '#30483A' },
   switchIdentity: { flex: 1 },
-  switchTitle: { fontSize: 12, fontWeight: '800', color: '#2B3548' },
-  switchHelp: { marginTop: 3, fontSize: 10, lineHeight: 15, color: '#70798C' },
-  saveButton: { minHeight: 50, marginTop: 18, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: FioColors.ink },
+  switchTitle: { fontSize: 12, fontWeight: '800', color: FioColors.text },
+  switchHelp: { marginTop: 3, fontSize: 10, lineHeight: 15, color: FioColors.textMuted },
+  saveButton: { minHeight: 50, marginTop: 18, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: FioColors.green },
   disabledButton: { opacity: 0.55 },
-  saveText: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  saveText: { fontSize: 13, fontWeight: '800', color: FioColors.textOnAccent },
 });

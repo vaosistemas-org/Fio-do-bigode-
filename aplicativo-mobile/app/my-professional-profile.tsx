@@ -68,6 +68,6 @@ const styles = StyleSheet.create({
   role: { marginTop: 4, fontSize: 13, fontWeight: '800', color: FioColors.green },
   location: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }, locationText: { fontSize: 11, color: FioColors.textMuted },
   publicInfo: { marginTop: 22, flexDirection: 'row', gap: 8, padding: 13, borderRadius: 12, backgroundColor: FioColors.greenSoft }, publicText: { flex: 1, fontSize: 10, lineHeight: 15, color: FioColors.green },
-  editButton: { minHeight: 46, marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.ink }, editText: { fontSize: 11, fontWeight: '900', color: FioColors.white },
+  editButton: { minHeight: 46, marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.green }, editText: { fontSize: 11, fontWeight: '900', color: FioColors.textOnAccent },
   error: { padding: 12, color: FioColors.danger, backgroundColor: FioColors.dangerSoft },
 });

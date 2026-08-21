@@ -802,8 +802,7 @@ const styles =
   StyleSheet.create({
     page: {
       flex: 1,
-      backgroundColor:
-        '#F7F7F5',
+      backgroundColor: '#242824',
     },
 
     content: {
@@ -819,14 +818,13 @@ const styles =
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor:
-        '#F7F7F5',
+      backgroundColor: '#242824',
     },
 
     loadingText: {
       marginTop: 10,
       fontSize: 13,
-      color: '#777D80',
+      color: '#C0C7C1',
     },
 
     backButton: {
@@ -835,23 +833,22 @@ const styles =
       paddingHorizontal: 14,
       paddingVertical: 9,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 999,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     backButtonText: {
       fontSize: 13,
       fontWeight: '700',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     eyebrow: {
       fontSize: 10,
       fontWeight: '800',
       letterSpacing: 1.2,
-      color: '#E07A3A',
+      color: '#FFB04A',
     },
 
     title: {
@@ -859,7 +856,7 @@ const styles =
       fontSize: 30,
       lineHeight: 36,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     subtitle: {
@@ -867,7 +864,7 @@ const styles =
       marginBottom: 20,
       fontSize: 13,
       lineHeight: 19,
-      color: '#70787D',
+      color: '#C0C7C1',
     },
 
     fieldLabel: {
@@ -886,12 +883,11 @@ const styles =
       minHeight: 48,
       paddingHorizontal: 13,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 12,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
       fontSize: 14,
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     helperText: {
@@ -919,17 +915,16 @@ const styles =
       padding: 13,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: '#E4E7E4',
+      borderColor: '#4C534D',
       borderRadius: 14,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     selectText: {
       marginTop: 8,
       fontSize: 10,
       fontWeight: '800',
-      color: '#E07A3A',
+      color: '#FFB04A',
     },
 
     selectedCard: {
@@ -938,8 +933,7 @@ const styles =
       borderWidth: 1,
       borderColor: '#DADFDA',
       borderRadius: 14,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     changeButton: {
@@ -947,26 +941,25 @@ const styles =
       paddingHorizontal: 12,
       paddingVertical: 7,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 999,
     },
 
     changeButtonText: {
       fontSize: 10,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     input: {
       minHeight: 48,
       paddingHorizontal: 13,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 12,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
       fontSize: 14,
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     accessOptions: {
@@ -976,29 +969,27 @@ const styles =
     accessOption: {
       padding: 13,
       borderWidth: 1,
-      borderColor: '#D8DCDA',
+      borderColor: '#687069',
       borderRadius: 12,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     accessOptionSelected: {
       borderColor: '#5F7567',
-      backgroundColor:
-        '#EEF1ED',
+      backgroundColor: '#383E39',
     },
 
     accessOptionTitle: {
       fontSize: 12,
       fontWeight: '800',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     accessOptionText: {
       marginTop: 3,
       fontSize: 10,
       lineHeight: 15,
-      color: '#777D80',
+      color: '#C0C7C1',
     },
 
     saveButton: {
@@ -1021,17 +1012,16 @@ const styles =
       padding: 20,
       alignItems: 'center',
       borderWidth: 1,
-      borderColor: '#E4E7E4',
+      borderColor: '#4C534D',
       borderRadius: 14,
-      backgroundColor:
-        '#FFFFFF',
+      backgroundColor: '#2E332F',
     },
 
     emptyTitle: {
       fontSize: 14,
       fontWeight: '800',
       textAlign: 'center',
-      color: '#2C343A',
+      color: '#F2F3EF',
     },
 
     emptyText: {
@@ -1047,13 +1037,13 @@ const styles =
       padding: 13,
       borderRadius: 11,
       backgroundColor:
-        '#FFF2F0',
+        '#4A2F2D',
     },
 
     errorText: {
       fontSize: 12,
       lineHeight: 17,
-      color: '#B42318',
+      color: '#FF8D83',
     },
 
     buttonPressed: {

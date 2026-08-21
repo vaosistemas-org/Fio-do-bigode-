@@ -13,6 +13,7 @@ import {
 // @ts-ignore installed from the dependency declared in package.json
 import QRCode from 'react-native-qrcode-svg';
 
+import { FioColors } from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
 type GeneralLink = {
@@ -150,7 +151,7 @@ export function WorkGeneralLinkManager({
     <View style={styles.card}>
       <Pressable style={styles.header} onPress={() => setExpanded((value) => !value)}>
         <View style={styles.iconBox}>
-          <Ionicons name="qr-code-outline" size={19} color="#24583E" />
+          <Ionicons name="qr-code-outline" size={19} color={FioColors.green} />
         </View>
         <View style={styles.identity}>
           <Text style={styles.title}>Leitura por link ou QR</Text>
@@ -159,12 +160,12 @@ export function WorkGeneralLinkManager({
           </Text>
         </View>
         {loading ? (
-          <ActivityIndicator size="small" color="#24583E" />
+          <ActivityIndicator size="small" color={FioColors.green} />
         ) : (
           <Ionicons
             name={expanded ? 'chevron-up-outline' : 'chevron-down-outline'}
             size={20}
-            color="#34405A"
+            color={FioColors.text}
           />
         )}
       </Pressable>
@@ -202,7 +203,7 @@ export function WorkGeneralLinkManager({
                   style={[styles.secondaryAction, !url && styles.disabled]}
                   onPress={() => setQrVisible(true)}
                 >
-                  <Ionicons name="qr-code-outline" size={17} color="#24583E" />
+                  <Ionicons name="qr-code-outline" size={17} color={FioColors.green} />
                   <Text style={styles.secondaryActionText}>Ver QR</Text>
                 </Pressable>
               </View>
@@ -237,7 +238,7 @@ export function WorkGeneralLinkManager({
             onPress={confirmGenerate}
           >
             {saving ? (
-              <ActivityIndicator color="#24583E" />
+              <ActivityIndicator color={FioColors.green} />
             ) : (
               <Text style={styles.generateText}>{link ? 'Gerar novo link' : 'Gerar link e QR'}</Text>
             )}
@@ -255,7 +256,7 @@ export function WorkGeneralLinkManager({
         <View style={styles.modalBackdrop}>
           <View style={styles.qrCard}>
             <Pressable style={styles.closeButton} onPress={() => setQrVisible(false)}>
-              <Ionicons name="close-outline" size={24} color="#34405A" />
+              <Ionicons name="close-outline" size={24} color={FioColors.text} />
             </Pressable>
             <Text style={styles.qrTitle}>FIO geral da obra</Text>
             <Text style={styles.qrSubtitle}>Aponte a câmera para abrir em modo somente leitura.</Text>
@@ -275,45 +276,45 @@ export function WorkGeneralLinkManager({
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#DCD8F5', borderRadius: 13, backgroundColor: '#FAF9FF' },
+  card: { marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 13, backgroundColor: FioColors.surfaceRaised },
   header: { minHeight: 62, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  iconBox: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: '#E7F1E8' },
+  iconBox: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: FioColors.greenSoft },
   identity: { flex: 1, minWidth: 0 },
-  title: { fontSize: 11, fontWeight: '800', color: '#34405A' },
-  subtitle: { marginTop: 2, fontSize: 8, lineHeight: 12, color: '#7A8394' },
-  body: { padding: 11, paddingTop: 3, borderTopWidth: 1, borderTopColor: '#E8E5F8' },
+  title: { fontSize: 11, fontWeight: '800', color: FioColors.text },
+  subtitle: { marginTop: 2, fontSize: 8, lineHeight: 12, color: FioColors.textMuted },
+  body: { padding: 11, paddingTop: 3, borderTopWidth: 1, borderTopColor: FioColors.line },
   activeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  activeBadge: { paddingHorizontal: 8, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, backgroundColor: '#EAF8F0' },
+  activeBadge: { paddingHorizontal: 8, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, backgroundColor: '#30483A' },
   activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#2D9B65' },
-  activeText: { fontSize: 8, fontWeight: '800', color: '#207A50' },
-  accessText: { fontSize: 8, color: '#7A8394' },
-  urlText: { marginTop: 8, fontSize: 9, lineHeight: 13, color: '#24583E' },
+  activeText: { fontSize: 8, fontWeight: '800', color: FioColors.success },
+  accessText: { fontSize: 8, color: FioColors.textSoft },
+  urlText: { marginTop: 8, fontSize: 9, lineHeight: 13, color: FioColors.green },
   pendingUrlText: { marginTop: 8, fontSize: 9, lineHeight: 13, color: '#A06A24' },
-  expiryText: { marginTop: 3, fontSize: 8, color: '#7A8394' },
+  expiryText: { marginTop: 3, fontSize: 8, color: FioColors.textSoft },
   actionRow: { marginTop: 9, flexDirection: 'row', gap: 7 },
-  primaryAction: { minHeight: 40, flex: 1, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, backgroundColor: '#24583E' },
+  primaryAction: { minHeight: 40, flex: 1, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, backgroundColor: FioColors.green },
   primaryActionText: { fontSize: 9, fontWeight: '800', color: '#FFFFFF' },
-  secondaryAction: { minHeight: 40, flex: 1, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderColor: '#CBC6F5', borderRadius: 10, backgroundColor: '#FFFFFF' },
-  secondaryActionText: { fontSize: 9, fontWeight: '800', color: '#24583E' },
-  explanation: { fontSize: 9, lineHeight: 14, color: '#596274' },
-  label: { marginTop: 11, marginBottom: 6, fontSize: 8, fontWeight: '800', color: '#596274' },
+  secondaryAction: { minHeight: 40, flex: 1, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 10, backgroundColor: FioColors.surface },
+  secondaryActionText: { fontSize: 9, fontWeight: '800', color: FioColors.green },
+  explanation: { fontSize: 9, lineHeight: 14, color: FioColors.textMuted },
+  label: { marginTop: 11, marginBottom: 6, fontSize: 8, fontWeight: '800', color: FioColors.textMuted },
   expiryRow: { flexDirection: 'row', gap: 6 },
-  expiryChip: { minHeight: 34, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DDE1E8', borderRadius: 999, backgroundColor: '#FFFFFF' },
-  expiryChipActive: { borderColor: '#24583E', backgroundColor: '#E7F1E8' },
-  expiryChipText: { fontSize: 8, fontWeight: '700', color: '#697386' },
-  expiryChipTextActive: { color: '#24583E' },
-  generateButton: { minHeight: 42, marginTop: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#CBC6F5', borderRadius: 10, backgroundColor: '#FFFFFF' },
-  generateText: { fontSize: 9, fontWeight: '800', color: '#24583E' },
+  expiryChip: { minHeight: 34, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 999, backgroundColor: FioColors.surface },
+  expiryChipActive: { borderColor: FioColors.green, backgroundColor: '#30483A' },
+  expiryChipText: { fontSize: 8, fontWeight: '700', color: FioColors.textMuted },
+  expiryChipTextActive: { color: FioColors.green },
+  generateButton: { minHeight: 42, marginTop: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 10, backgroundColor: FioColors.surface },
+  generateText: { fontSize: 9, fontWeight: '800', color: FioColors.green },
   revokeButton: { minHeight: 38, marginTop: 5, alignItems: 'center', justifyContent: 'center' },
-  revokeText: { fontSize: 8, fontWeight: '700', color: '#A34242' },
-  errorText: { marginTop: 7, fontSize: 8, lineHeight: 12, color: '#A34242' },
+  revokeText: { fontSize: 8, fontWeight: '700', color: FioColors.danger },
+  errorText: { marginTop: 7, fontSize: 8, lineHeight: 12, color: FioColors.danger },
   disabled: { opacity: 0.5 },
-  modalBackdrop: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(16, 24, 40, 0.42)' },
-  qrCard: { width: '100%', maxWidth: 370, padding: 22, alignItems: 'center', borderRadius: 22, backgroundColor: '#FFFFFF' },
-  closeButton: { position: 'absolute', top: 10, right: 10, width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 21, backgroundColor: '#F2F3F7' },
-  qrTitle: { marginTop: 14, fontSize: 19, fontWeight: '900', color: '#152033' },
-  qrSubtitle: { maxWidth: 280, marginTop: 4, textAlign: 'center', fontSize: 10, lineHeight: 15, color: '#697386' },
-  qrFrame: { marginTop: 18, padding: 15, borderWidth: 1, borderColor: '#E0E3E8', borderRadius: 16, backgroundColor: '#FFFFFF' },
-  qrShareButton: { minHeight: 46, width: '100%', marginTop: 18, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#24583E' },
+  modalBackdrop: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(12, 15, 12, 0.72)' },
+  qrCard: { width: '100%', maxWidth: 370, padding: 22, alignItems: 'center', borderWidth: 2, borderColor: FioColors.lineStrong, borderRadius: 22, backgroundColor: FioColors.surface },
+  closeButton: { position: 'absolute', top: 10, right: 10, width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 21, backgroundColor: FioColors.surfaceRaised },
+  qrTitle: { marginTop: 14, fontSize: 19, fontWeight: '900', color: FioColors.text },
+  qrSubtitle: { maxWidth: 280, marginTop: 4, textAlign: 'center', fontSize: 10, lineHeight: 15, color: FioColors.textMuted },
+  qrFrame: { marginTop: 18, padding: 15, borderWidth: 1, borderColor: '#E0E3E8', borderRadius: 16, backgroundColor: '#2E332F' },
+  qrShareButton: { minHeight: 46, width: '100%', marginTop: 18, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: FioColors.green },
   qrShareText: { fontSize: 11, fontWeight: '900', color: '#FFFFFF' },
 });
