@@ -551,6 +551,12 @@ export default function WorkDetailsScreen() {
     scrollToSection(section);
   }
 
+  function openBlockingPending(environmentId: string | null) {
+    setEnvironmentFilterId(environmentId);
+    setOpenSection('pending');
+    scrollToSection('pending');
+  }
+
   function environmentCounts(environmentId: string): EnvironmentQuickCounts {
     return {
       pending: environmentPendingCounts[environmentId] ?? 0,
@@ -1213,6 +1219,7 @@ export default function WorkDetailsScreen() {
                       setDeliveryBlockerCount(blockers);
                       setDeliveryReady(ready);
                     }}
+                    onOpenPending={openBlockingPending}
                     onChanged={() => loadCentral(true)}
                   />
                 </ExpandableWorkSection>

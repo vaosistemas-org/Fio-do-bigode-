@@ -59,6 +59,7 @@ type BlockingPending = {
 type FinalPhoto = {
   id: string;
   environment_id: string | null;
+  delivery_checklist_item_id: string | null;
 };
 
 type EnvironmentDeliverySummary = {
@@ -107,6 +108,7 @@ export function WorkDeliveryPanel({
   userId,
   environmentFilterId,
   onSummaryChange,
+  onOpenPending,
   onChanged,
 }: {
   workId: string;
@@ -117,6 +119,7 @@ export function WorkDeliveryPanel({
   userId: string | null;
   environmentFilterId?: string;
   onSummaryChange?: (blockers: number, ready: boolean) => void;
+  onOpenPending?: (environmentId: string | null) => void;
   onChanged?: () => void;
 }) {
   const [deliveryState, setDeliveryState] =
@@ -130,6 +133,7 @@ export function WorkDeliveryPanel({
   const [saving, setSaving] = useState(false);
   const [uploadingEnvironmentId, setUploadingEnvironmentId] =
     useState<string | null>(null);
+  const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
   const [changingItemId, setChangingItemId] = useState<string | null>(null);
   const [changingMinimumId, setChangingMinimumId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -148,6 +152,9 @@ export function WorkDeliveryPanel({
   const [itemResponsibleId, setItemResponsibleId] =
     useState<string | null>(null);
   const [itemRequired, setItemRequired] = useState(true);
+  const [observationItemId, setObservationItemId] = useState<string | null>(null);
+  const [itemObservation, setItemObservation] = useState('');
+  const [savingObservation, setSavingObservation] = useState(false);
 
   const activeEnvironments = useMemo(
     () => environments.filter((environment) => environment.status !== 'cancelado'),
@@ -223,7 +230,7 @@ export function WorkDeliveryPanel({
           .order('created_at', { ascending: true }),
         supabase
           .from('work_photos')
-          .select('id, environment_id')
+          .select('id, environment_id, delivery_checklist_item_id')
           .eq('work_id', workId)
           .eq('collection', 'work')
           .eq('photo_type', 'delivery_final'),
@@ -333,9 +340,8 @@ export function WorkDeliveryPanel({
     });
     if (error) setMessage(error.message);
     else {
+      setDeliveryState((current) => ({ ...current, notes: notes || null }));
       setSuccessMessage('Orientações da entrega salvas.');
-      await loadDelivery();
-      onChanged?.();
     }
     setSaving(false);
   }
@@ -363,7 +369,7 @@ export function WorkDeliveryPanel({
 
     setSaving(true);
     clearFeedback();
-    const { error } = await supabase.rpc(
+    const { data: savedItemId, error } = await supabase.rpc(
       'save_work_delivery_checklist_item',
       {
         p_work_id: workId,
@@ -378,12 +384,34 @@ export function WorkDeliveryPanel({
 
     if (error) setMessage(error.message);
     else {
+      const nextId = (savedItemId as string | null) ?? editingItemId;
+      const existingItem = items.find((item) => item.id === editingItemId);
+      const nextItem: ChecklistItem = {
+        id: nextId ?? `local-${Date.now()}`,
+        work_id: workId,
+        environment_id: itemEnvironmentId,
+        default_key: null,
+        sort_order: 1000,
+        title: itemTitle.trim(),
+        description: itemDescription.trim() || null,
+        required: itemRequired,
+        responsible_user_id: itemResponsibleId,
+        status: existingItem?.status ?? 'open',
+        completed_by: existingItem?.completed_by ?? null,
+        completed_at: existingItem?.completed_at ?? null,
+        created_at: existingItem?.created_at ?? new Date().toISOString(),
+      };
+      setItems((current) =>
+        editingItemId
+          ? current.map((item) =>
+              item.id === editingItemId ? { ...item, ...nextItem, id: item.id } : item
+            )
+          : [...current, nextItem]
+      );
       setFormVisible(false);
       setSuccessMessage(
         editingItemId ? 'Item atualizado.' : 'Item adicionado ao checklist.'
       );
-      await loadDelivery();
-      onChanged?.();
     }
     setSaving(false);
   }
@@ -396,17 +424,34 @@ export function WorkDeliveryPanel({
 
     setChangingItemId(item.id);
     clearFeedback();
+    const nextCompleted = item.status !== 'completed';
+    const optimisticItem: ChecklistItem = {
+      ...item,
+      status: nextCompleted ? 'completed' : 'open',
+      completed_by: nextCompleted ? userId : null,
+      completed_at: nextCompleted ? new Date().toISOString() : null,
+    };
+    setItems((current) =>
+      current.map((currentItem) =>
+        currentItem.id === item.id ? optimisticItem : currentItem
+      )
+    );
     const { error } = await supabase.rpc(
       'set_work_delivery_item_completed',
       {
         p_item_id: item.id,
-        p_completed: item.status !== 'completed',
+        p_completed: nextCompleted,
       }
     );
-    if (error) setMessage(error.message);
-    else {
-      await loadDelivery();
-      onChanged?.();
+    if (error) {
+      setItems((current) =>
+        current.map((currentItem) =>
+          currentItem.id === item.id ? item : currentItem
+        )
+      );
+      setMessage(error.message);
+    } else {
+      setSuccessMessage(nextCompleted ? 'Item concluído.' : 'Item reaberto.');
     }
     setChangingItemId(null);
   }
@@ -436,9 +481,8 @@ export function WorkDeliveryPanel({
     );
     if (error) setMessage(error.message);
     else {
+      setItems((current) => current.filter((currentItem) => currentItem.id !== item.id));
       setSuccessMessage('Item removido do checklist.');
-      await loadDelivery();
-      onChanged?.();
     }
     setSaving(false);
   }
@@ -466,23 +510,68 @@ export function WorkDeliveryPanel({
     setChangingMinimumId(null);
   }
 
+  function openObservation(item: ChecklistItem) {
+    setObservationItemId(item.id);
+    setItemObservation(item.description ?? '');
+    clearFeedback();
+  }
+
+  async function saveObservation() {
+    if (!observationItemId || savingObservation) return;
+    const item = items.find((currentItem) => currentItem.id === observationItemId);
+    if (!item) return;
+
+    const previousObservation = item.description;
+    const nextObservation = itemObservation.trim() || null;
+    setSavingObservation(true);
+    setItems((current) =>
+      current.map((currentItem) =>
+        currentItem.id === item.id
+          ? { ...currentItem, description: nextObservation }
+          : currentItem
+      )
+    );
+
+    const { error } = await supabase.rpc(
+      'save_work_delivery_item_observation',
+      {
+        p_item_id: item.id,
+        p_observation: nextObservation,
+      }
+    );
+
+    if (error) {
+      setItems((current) =>
+        current.map((currentItem) =>
+          currentItem.id === item.id
+            ? { ...currentItem, description: previousObservation }
+            : currentItem
+        )
+      );
+      setMessage(error.message);
+    } else {
+      setObservationItemId(null);
+      setSuccessMessage('Observação salva.');
+    }
+    setSavingObservation(false);
+  }
+
   async function uploadAsset(
     asset: ImagePicker.ImagePickerAsset,
-    environmentId: string,
-    source: PhotoSource
+    environmentId: string | null,
+    source: PhotoSource,
+    item?: ChecklistItem
   ) {
     if (!asset.base64) {
       throw new Error('Não foi possível ler a imagem selecionada.');
     }
 
-    const { data: authData, error: authError } =
-      await supabase.auth.getUser();
-    if (authError || !authData.user) {
+    if (!userId) {
       throw new Error('Usuário não autenticado.');
     }
 
     const fileName = makeFileName();
-    const storagePath = `${workId}/${environmentId}/${fileName}`;
+    const storagePath = `${workId}/${environmentId ?? 'general'}/${fileName}`;
     const { error: uploadError } = await supabase.storage
       .from('work-photos')
       .upload(storagePath, decode(asset.base64), {
@@ -492,27 +581,32 @@ export function WorkDeliveryPanel({
       });
     if (uploadError) throw uploadError;
 
-    const { error: insertError } = await supabase
+    const { data: insertedPhoto, error: insertError } = await supabase
       .from('work_photos')
       .insert({
         work_id: workId,
         environment_id: environmentId,
+        delivery_checklist_item_id: item?.id ?? null,
         collection: 'work',
         photo_type: 'delivery_final',
         storage_path: storagePath,
         file_name: asset.fileName || fileName,
         mime_type: 'image/jpeg',
         size_bytes: asset.fileSize ?? null,
-        caption: 'Foto final de entrega',
+        caption: item?.title ?? 'Foto final de entrega',
         visibility: photoVisibility,
         taken_at: source === 'camera' ? new Date().toISOString() : null,
-        created_by: authData.user.id,
-      });
+        created_by: userId,
+      })
+      .select('id, environment_id, delivery_checklist_item_id')
+      .single();
 
     if (insertError) {
       await supabase.storage.from('work-photos').remove([storagePath]);
       throw insertError;
     }
+
+    return insertedPhoto as FinalPhoto;
   }
 
   async function addFinalPhotos(
@@ -566,14 +660,14 @@ export function WorkDeliveryPanel({
     setUploadingEnvironmentId(environmentId);
     try {
       for (const asset of assets) {
-        await uploadAsset(asset, environmentId, source);
+        const insertedPhoto = await uploadAsset(asset, environmentId, source);
+        setFinalPhotos((current) => [...current, insertedPhoto]);
       }
       setSuccessMessage(
         assets.length === 1
           ? 'Foto final adicionada.'
           : `${assets.length} fotos finais adicionadas.`
       );
-      await loadDelivery();
       onChanged?.();
     } catch (error) {
       setMessage(
@@ -583,6 +677,49 @@ export function WorkDeliveryPanel({
       );
     } finally {
       setUploadingEnvironmentId(null);
+    }
+  }
+
+  async function addChecklistPhoto(item: ChecklistItem) {
+    if (!canWrite || uploadingItemId || uploadingEnvironmentId) return;
+    clearFeedback();
+
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        'Câmera não autorizada',
+        'Permita o acesso à câmera para registrar a foto deste item.'
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.75,
+      base64: true,
+      allowsEditing: false,
+    });
+    if (result.canceled) return;
+
+    setUploadingItemId(item.id);
+    try {
+      const insertedPhoto = await uploadAsset(
+        result.assets[0],
+        item.environment_id,
+        'camera',
+        item
+      );
+      setFinalPhotos((current) => [...current, insertedPhoto]);
+      setSuccessMessage('Foto adicionada ao item.');
+      onChanged?.();
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível adicionar a foto ao item.'
+      );
+    } finally {
+      setUploadingItemId(null);
     }
   }
 
@@ -596,9 +733,13 @@ export function WorkDeliveryPanel({
     );
     if (error) setMessage(error.message);
     else {
+      setDeliveryState((current) => ({
+        ...current,
+        status: 'ready',
+        ready_by: userId,
+        ready_at: new Date().toISOString(),
+      }));
       setSuccessMessage('Obra marcada como pronta para entrega.');
-      await loadDelivery();
-      onChanged?.();
     }
     setSaving(false);
   }
@@ -612,9 +753,13 @@ export function WorkDeliveryPanel({
     });
     if (error) setMessage(error.message);
     else {
+      setDeliveryState((current) => ({
+        ...current,
+        status: 'preparing',
+        ready_by: null,
+        ready_at: null,
+      }));
       setSuccessMessage('Preparação para entrega reaberta.');
-      await loadDelivery();
-      onChanged?.();
     }
     setSaving(false);
   }
@@ -645,6 +790,9 @@ export function WorkDeliveryPanel({
         ) : (
           scopedItems.map((item) => {
             const completed = item.status === 'completed';
+            const itemPhotoCount = finalPhotos.filter(
+              (photo) => photo.delivery_checklist_item_id === item.id
+            ).length;
             const canToggle =
               canManage ||
               (!!userId && item.responsible_user_id === userId && canWrite);
@@ -662,15 +810,11 @@ export function WorkDeliveryPanel({
                   onPress={() => void toggleItem(item)}
                   disabled={!canToggle || changingItemId !== null}
                 >
-                  {changingItemId === item.id ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Ionicons
-                      name={completed ? 'checkmark-outline' : 'ellipse-outline'}
-                      size={21}
-                      color={completed ? '#FFFFFF' : FioColors.green}
-                    />
-                  )}
+                  <Ionicons
+                    name={completed ? 'checkmark-outline' : 'ellipse-outline'}
+                    size={21}
+                    color={completed ? '#FFFFFF' : FioColors.green}
+                  />
                 </Pressable>
 
                 <View style={styles.itemIdentity}>
@@ -716,22 +860,52 @@ export function WorkDeliveryPanel({
                   )}
                 </View>
 
-                {canManage && !item.default_key && (
+                {canWrite && (
                   <View style={styles.itemActions}>
                     <Pressable
-                      accessibilityLabel="Editar item"
+                      accessibilityLabel={`Adicionar foto a ${item.title}`}
                       style={styles.iconAction}
-                      onPress={() => openItemForm(scopeEnvironmentId, item)}
+                      onPress={() => void addChecklistPhoto(item)}
+                      disabled={uploadingItemId !== null || uploadingEnvironmentId !== null}
                     >
-                      <Ionicons name="create-outline" size={18} color={FioColors.green} />
+                      {uploadingItemId === item.id ? (
+                        <ActivityIndicator size="small" color={FioColors.green} />
+                      ) : (
+                        <Ionicons name="camera-outline" size={18} color={FioColors.green} />
+                      )}
+                      {itemPhotoCount > 0 && (
+                        <Text style={styles.iconActionCount}>{itemPhotoCount}</Text>
+                      )}
                     </Pressable>
                     <Pressable
-                      accessibilityLabel="Remover item"
+                      accessibilityLabel={`Escrever observação em ${item.title}`}
                       style={styles.iconAction}
-                      onPress={() => confirmArchive(item)}
+                      onPress={() => openObservation(item)}
                     >
-                      <Ionicons name="trash-outline" size={18} color="#B42318" />
+                      <Ionicons
+                        name={item.description ? 'document-text' : 'document-text-outline'}
+                        size={18}
+                        color={item.description ? FioColors.orange : FioColors.green}
+                      />
                     </Pressable>
+                    {canManage && !item.default_key && (
+                      <>
+                        <Pressable
+                          accessibilityLabel="Editar item"
+                          style={styles.iconAction}
+                          onPress={() => openItemForm(scopeEnvironmentId, item)}
+                        >
+                          <Ionicons name="create-outline" size={18} color={FioColors.green} />
+                        </Pressable>
+                        <Pressable
+                          accessibilityLabel="Remover item"
+                          style={styles.iconAction}
+                          onPress={() => confirmArchive(item)}
+                        >
+                          <Ionicons name="trash-outline" size={18} color="#B42318" />
+                        </Pressable>
+                      </>
+                    )}
                   </View>
                 )}
               </View>
@@ -848,7 +1022,20 @@ export function WorkDeliveryPanel({
           )}
 
           {(generalPendingCount > 0 || generalChecklistCount > 0) && (
-            <View style={styles.blockerNotice}>
+            <Pressable
+              accessibilityRole={generalPendingCount > 0 ? 'button' : undefined}
+              accessibilityLabel={
+                generalPendingCount > 0
+                  ? 'Abrir pendências bloqueadoras gerais'
+                  : undefined
+              }
+              style={styles.blockerNotice}
+              onPress={
+                generalPendingCount > 0
+                  ? () => onOpenPending?.(null)
+                  : undefined
+              }
+            >
               <Ionicons name="alert-circle-outline" size={19} color="#B54708" />
               <Text style={styles.blockerNoticeText}>
                 {plural(
@@ -857,7 +1044,10 @@ export function WorkDeliveryPanel({
                   'bloqueios gerais precisam ser resolvidos.'
                 )}
               </Text>
-            </View>
+              {generalPendingCount > 0 && (
+                <Ionicons name="chevron-forward-outline" size={17} color={FioColors.orange} />
+              )}
+            </Pressable>
           )}
 
           {renderChecklist(null)}
@@ -1021,7 +1211,20 @@ export function WorkDeliveryPanel({
                   </View>
 
                   {(summary.pending > 0 || summary.checklist > 0) && (
-                    <View style={styles.blockerNotice}>
+                    <Pressable
+                      accessibilityRole={summary.pending > 0 ? 'button' : undefined}
+                      accessibilityLabel={
+                        summary.pending > 0
+                          ? `Abrir pendências bloqueadoras de ${environment.name}`
+                          : undefined
+                      }
+                      style={styles.blockerNotice}
+                      onPress={
+                        summary.pending > 0
+                          ? () => onOpenPending?.(environment.id)
+                          : undefined
+                      }
+                    >
                       <Ionicons name="alert-circle-outline" size={19} color="#B54708" />
                       <Text style={styles.blockerNoticeText}>
                         {summary.pending > 0
@@ -1040,7 +1243,10 @@ export function WorkDeliveryPanel({
                             )
                           : ''}
                       </Text>
-                    </View>
+                      {summary.pending > 0 && (
+                        <Ionicons name="chevron-forward-outline" size={17} color={FioColors.orange} />
+                      )}
+                    </Pressable>
                   )}
 
                   {renderChecklist(environment.id)}
@@ -1090,6 +1296,50 @@ export function WorkDeliveryPanel({
       <Text style={styles.futureNote}>
         A confirmação do cliente e o aceite formal serão adicionados no Portal do Cliente.
       </Text>
+
+      <Modal
+        visible={observationItemId !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setObservationItemId(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.observationModalCard}>
+            <View style={styles.modalHeader}>
+              <View style={styles.headingIdentity}>
+                <Text style={styles.modalTitle}>Observação do item</Text>
+                <Text style={styles.modalSubtitle}>
+                  {items.find((item) => item.id === observationItemId)?.title ?? ''}
+                </Text>
+              </View>
+              <Pressable
+                style={styles.closeButton}
+                onPress={() => setObservationItemId(null)}
+              >
+                <Ionicons name="close-outline" size={24} color={FioColors.text} />
+              </Pressable>
+            </View>
+            <TextInput
+              autoFocus
+              style={[styles.input, styles.observationInput]}
+              value={itemObservation}
+              onChangeText={setItemObservation}
+              placeholder="Escreva uma observação sobre este item"
+              placeholderTextColor="#9299A6"
+              multiline
+            />
+            <Pressable
+              style={styles.saveItemButton}
+              onPress={() => void saveObservation()}
+              disabled={savingObservation}
+            >
+              <Text style={styles.saveItemText}>
+                {savingObservation ? 'Salvando...' : 'Salvar observação'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={formVisible}
@@ -1282,8 +1532,9 @@ const styles = StyleSheet.create({
   itemDescription: { marginTop: 4, fontSize: 9, lineHeight: 14, color: FioColors.textMuted },
   itemMeta: { marginTop: 5, fontSize: 8, color: FioColors.textSoft },
   itemCompletedAt: { marginTop: 2, fontSize: 7, color: FioColors.success },
-  itemActions: { gap: 4 },
-  iconAction: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: FioColors.surfaceRaised },
+  itemActions: { width: 68, flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  iconAction: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: FioColors.surface },
+  iconActionCount: { position: 'absolute', top: 1, right: 3, fontSize: 7, fontWeight: '900', color: FioColors.orange },
   environmentsHeading: { marginTop: 16, paddingHorizontal: 2 },
   emptyEnvironmentText: { marginTop: 9, padding: 14, textAlign: 'center', fontSize: 10, color: FioColors.textMuted },
   environmentCard: { marginTop: 9, overflow: 'hidden', borderWidth: 2, borderColor: FioColors.lineStrong, borderRadius: 13, backgroundColor: FioColors.surface },
@@ -1321,6 +1572,7 @@ const styles = StyleSheet.create({
   futureNote: { marginTop: 12, paddingHorizontal: 8, textAlign: 'center', fontSize: 8, lineHeight: 13, color: FioColors.textSoft },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12, 15, 12, 0.68)' },
   modalCard: { maxHeight: '90%', padding: 18, paddingBottom: 28, borderTopWidth: 2, borderColor: FioColors.lineStrong, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: FioColors.surface },
+  observationModalCard: { padding: 18, paddingBottom: 28, borderTopWidth: 2, borderColor: FioColors.lineStrong, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: FioColors.surface },
   modalHeader: { marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
   modalTitle: { fontSize: 20, fontWeight: '900', color: FioColors.text },
   modalSubtitle: { marginTop: 3, fontSize: 10, color: FioColors.textMuted },
@@ -1328,6 +1580,7 @@ const styles = StyleSheet.create({
   fieldLabel: { marginTop: 10, marginBottom: 6, fontSize: 8, fontWeight: '900', letterSpacing: 0.7, color: FioColors.textMuted },
   input: { minHeight: 48, paddingHorizontal: 12, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 11, fontSize: 11, color: FioColors.text, backgroundColor: FioColors.surfaceRaised },
   descriptionInput: { minHeight: 82, paddingTop: 11, textAlignVertical: 'top' },
+  observationInput: { minHeight: 110, paddingTop: 11, textAlignVertical: 'top' },
   optionButton: { minHeight: 48, marginBottom: 6, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 11 },
   optionButtonActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
   optionText: { flex: 1, fontSize: 10, fontWeight: '800', color: FioColors.text },
