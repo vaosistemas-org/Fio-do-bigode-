@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FioColors, FioShadow } from '@/constants/fio-theme';
+import { supabase } from '@/lib/supabase';
 
 type SidebarLevel = 0 | 2;
 
@@ -113,6 +114,15 @@ export function FioGlobalSidebar() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const [level, setLevel] = useState<SidebarLevel>(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    supabase.rpc('get_my_notification_unread_count').then(({ data }) => {
+      if (active) setUnreadNotifications(Number(data ?? 0));
+    });
+    return () => { active = false; };
+  }, [pathname]);
 
   const activeItem = useMemo(
     () => NAVIGATION.find((item) => item.match(pathname)) ?? NAVIGATION[0],
@@ -275,12 +285,14 @@ export function FioGlobalSidebar() {
                   }
                 />
                 {level === 2 && (
-                  <Text
-                    numberOfLines={1}
-                    style={[styles.itemLabel, active && styles.itemLabelActive]}
-                  >
-                    {item.label}
-                  </Text>
+                  <View style={styles.itemLabelRow}>
+                    <Text numberOfLines={1} style={[styles.itemLabel, active && styles.itemLabelActive]}>{item.label}</Text>
+                    {item.key === 'notifications' && unreadNotifications > 0 && (
+                      <View style={styles.notificationBadge}>
+                        <Text style={styles.notificationBadgeText}>{unreadNotifications > 9 ? '9+' : unreadNotifications}</Text>
+                      </View>
+                    )}
+                  </View>
                 )}
                 {level === 2 && active && <View style={styles.activeDot} />}
               </Pressable>
@@ -380,6 +392,9 @@ const styles = StyleSheet.create({
     color: FioColors.textMuted,
   },
   itemLabelActive: { fontWeight: '900', color: FioColors.ink },
+  itemLabelRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  notificationBadge: { minWidth: 19, height: 19, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, borderRadius: 999, backgroundColor: FioColors.orange },
+  notificationBadgeText: { fontSize: 9, fontWeight: '900', color: FioColors.textOnAccent },
   activeDot: {
     width: 6,
     height: 6,

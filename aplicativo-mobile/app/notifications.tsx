@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FioPageHeader } from '@/components/fio-shell/FioPageHeader';
@@ -13,6 +13,7 @@ export default function NotificationsScreen() {
   const [items, setItems] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const router = useRouter();
   const load = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true); else setLoading(true);
     const result = await supabase.rpc('get_my_notifications');
@@ -25,11 +26,18 @@ export default function NotificationsScreen() {
     setItems((current) => current.map((value) => value.id === item.id ? { ...value, read_at: new Date().toISOString() } : value));
     await supabase.rpc('mark_fio_notification_read', { p_notification_id: item.id });
   }
+  async function openNotification(item: Notification) {
+    await markRead(item);
+    if (!item.work_id) return;
+    router.push(item.title.toLowerCase().includes('visita')
+      ? { pathname: '/agenda', params: { workId: item.work_id } }
+      : { pathname: '/works/[id]', params: { id: item.work_id } });
+  }
   const unread = items.filter((item) => !item.read_at).length;
   return <View style={styles.page}>
     <FioPageHeader eyebrow="FIOS" title="Notificações" subtitle={unread ? `${unread} não lida${unread === 1 ? '' : 's'}` : 'Tudo em dia'} />
     {loading ? <ActivityIndicator style={styles.loading} color={FioColors.gold} /> : <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={FioColors.gold} />}>
-      {items.length === 0 ? <View style={styles.empty}><Ionicons name="notifications-outline" size={30} color={FioColors.green} /><Text style={styles.emptyTitle}>Nenhuma notificação</Text><Text style={styles.emptyText}>Novas movimentações das suas obras aparecerão aqui.</Text></View> : items.map((item) => <Pressable key={item.id} style={[styles.card, !item.read_at && styles.unread]} onPress={() => markRead(item)}><View style={styles.icon}><Ionicons name={item.read_at ? 'notifications-outline' : 'notifications'} size={19} color={FioColors.green} /></View><View style={styles.body}><Text style={styles.title}>{item.title}</Text>{!!item.description && <Text style={styles.description}>{item.description}</Text>}<Text style={styles.date}>{formatDate(item.created_at)}</Text></View></Pressable>)}
+      {items.length === 0 ? <View style={styles.empty}><Ionicons name="notifications-outline" size={30} color={FioColors.green} /><Text style={styles.emptyTitle}>Nenhuma notificação</Text><Text style={styles.emptyText}>Novas movimentações das suas obras aparecerão aqui.</Text></View> : items.map((item) => <Pressable key={item.id} style={[styles.card, !item.read_at && styles.unread]} onPress={() => openNotification(item)}><View style={styles.icon}><Ionicons name={item.read_at ? 'notifications-outline' : 'notifications'} size={19} color={FioColors.green} /></View><View style={styles.body}><Text style={styles.title}>{item.title}</Text>{!!item.description && <Text style={styles.description}>{item.description}</Text>}<Text style={styles.date}>{formatDate(item.created_at)}</Text></View></Pressable>)}
     </ScrollView>}
   </View>;
 }
