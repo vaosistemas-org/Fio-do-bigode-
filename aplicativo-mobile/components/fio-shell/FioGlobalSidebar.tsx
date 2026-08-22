@@ -128,11 +128,21 @@ export function FioGlobalSidebar() {
           const horizontalMovement =
             Math.abs(gesture.dx) > 10 &&
             Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.35;
+          const verticalMovement =
+            Math.abs(gesture.dy) > 10 &&
+            Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.35;
 
+          if (verticalMovement) return true;
           if (!horizontalMovement) return false;
           return level === 0 ? gesture.dx > 0 : gesture.dx < 0;
         },
         onPanResponderRelease: (_event, gesture) => {
+          const shouldGoNext =
+            gesture.dy <= -SIDEBAR_SWIPE_DISTANCE ||
+            gesture.vy <= -SIDEBAR_SWIPE_VELOCITY;
+          const shouldGoPrevious =
+            gesture.dy >= SIDEBAR_SWIPE_DISTANCE ||
+            gesture.vy >= SIDEBAR_SWIPE_VELOCITY;
           const shouldOpen =
             level === 0 &&
             (gesture.dx >= SIDEBAR_SWIPE_DISTANCE ||
@@ -142,14 +152,25 @@ export function FioGlobalSidebar() {
             (gesture.dx <= -SIDEBAR_SWIPE_DISTANCE ||
               gesture.vx <= -SIDEBAR_SWIPE_VELOCITY);
 
-          if (shouldOpen) expandMenu();
-          if (shouldClose) collapseMenu();
+          if (shouldGoNext) navigateVertical(1);
+          else if (shouldGoPrevious) navigateVertical(-1);
+          else if (shouldOpen) expandMenu();
+          else if (shouldClose) collapseMenu();
         },
         onPanResponderTerminationRequest: () => true,
         onShouldBlockNativeResponder: () => false,
       }),
-    [level]
+    // The responder intentionally reads the current route and menu level.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeItem.key, level]
   );
+
+  function navigateVertical(direction: 1 | -1) {
+    const activeIndex = NAVIGATION.findIndex((item) => item.key === activeItem.key);
+    const nextIndex = (activeIndex + direction + NAVIGATION.length) % NAVIGATION.length;
+    router.push(NAVIGATION[nextIndex].href as never);
+    setLevel(0);
+  }
 
   function expandMenu() {
     setLevel(2);
