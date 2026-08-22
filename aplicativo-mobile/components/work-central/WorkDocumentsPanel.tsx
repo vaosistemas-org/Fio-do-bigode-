@@ -1248,7 +1248,7 @@ export function WorkDocumentsPanel({
                     contentContainerStyle={styles.choiceRow}
                   >
                     {CATEGORY_OPTIONS.filter(
-                      (option) => option.value !== 'project'
+                      (option) => option.value !== 'project' && option.value !== 'report'
                     ).map((option) => (
                       <Pressable
                         key={option.value}

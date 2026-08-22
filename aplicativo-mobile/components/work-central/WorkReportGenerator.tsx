@@ -350,11 +350,12 @@ export function WorkReportGenerator({
     } else if (normalizedTitle.includes('completo')) {
       nextType = 'complete';
     }
+    if (nextType === 'complete' && !canManage) nextType = 'daily';
     setReportType(nextType);
     if (baseVisibility) setVisibility(baseVisibility);
     setClientName(work.client_name);
     setMessage('');
-  }, [baseDocumentTitle, baseVisibility, initialType, visible, work.client_name]);
+  }, [baseDocumentTitle, baseVisibility, canManage, initialType, visible, work.client_name]);
 
   function setOption(option: keyof ReportOptions, value: boolean) {
     setOptions((current) => ({ ...current, [option]: value }));
@@ -516,13 +517,11 @@ export function WorkReportGenerator({
       const documentVisibility = visibility === 'shared' ? 'fio_general' : 'professionals';
       let targetDocumentId = baseDocumentId ?? null;
       if (!targetDocumentId) {
-        const { data: createdId, error: documentError } = await supabase.rpc('create_work_document', {
+        const { data: createdId, error: documentError } = await supabase.rpc('create_work_report_document', {
           p_work_id: work.id,
-          p_environment_id: null,
-          p_owner_company_id: null,
           p_title: title,
           p_description: `${reportTypeLabel(reportType)} gerado em ${generatedAt}. Assinaturas preparadas.`,
-          p_category: 'report',
+          p_report_type: reportType,
           p_visibility: documentVisibility,
           p_allow_download: true,
         });
@@ -577,11 +576,10 @@ export function WorkReportGenerator({
           </View>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <Text style={styles.label}>TIPO DE RELATÓRIO</Text>
-            {REPORT_TYPES.map((item) => {
-              const disabled = item.value === 'complete' && !canManage;
-              return <Pressable key={item.value} disabled={disabled || saving || Boolean(baseDocumentId)} style={[styles.typeOption, reportType === item.value && styles.typeOptionActive, (disabled || Boolean(baseDocumentId)) && styles.typeOptionDisabled]} onPress={() => setReportType(item.value)}>
+            {REPORT_TYPES.filter((item) => canManage || item.value !== 'complete').map((item) => {
+              return <Pressable key={item.value} disabled={saving || Boolean(baseDocumentId)} style={[styles.typeOption, reportType === item.value && styles.typeOptionActive, Boolean(baseDocumentId) && styles.typeOptionDisabled]} onPress={() => setReportType(item.value)}>
                 <Ionicons name={reportType === item.value ? 'radio-button-on' : 'radio-button-off'} size={20} color={reportType === item.value ? FioColors.green : FioColors.textSoft} />
-                <View style={styles.typeText}><Text style={styles.typeTitle}>{item.label}</Text><Text style={styles.typeDetail}>{disabled ? 'Disponível para proprietário ou gestor.' : item.detail}</Text></View>
+                <View style={styles.typeText}><Text style={styles.typeTitle}>{item.label}</Text><Text style={styles.typeDetail}>{item.detail}</Text></View>
               </Pressable>;
             })}
 
