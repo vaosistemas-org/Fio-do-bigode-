@@ -53,6 +53,7 @@ type FeedEvent = {
   description: string | null;
   actor_user_id: string | null;
   actor_full_name: string | null;
+  actor_avatar_url: string | null;
   visibility: string | null;
   priority: FeedPriority;
   target_section: WorkSection;
@@ -126,6 +127,11 @@ function eventTypeLabel(value: string | null) {
   if (value?.includes('PARTICIPANTE') || value?.includes('EQUIPE')) return 'Equipe';
   if (value === 'DIARIO_REGISTRO_MANUAL') return 'Diário';
   return 'Atualização';
+}
+
+function firstName(value: string | null) {
+  const name = value?.trim();
+  return name ? name.split(/\s+/)[0] : 'Usuário';
 }
 
 function eventIcon(value: string | null): keyof typeof Ionicons.glyphMap {
@@ -309,6 +315,18 @@ export default function FioFeedScreen() {
     }));
   }
 
+  function collapseAll() {
+    setExpanded({});
+  }
+
+  function openAuthor(event: FeedEvent) {
+    if (!event.actor_user_id) return;
+    router.push({
+      pathname: '/public-profile',
+      params: { userId: event.actor_user_id },
+    });
+  }
+
   function openInWork(event: FeedEvent) {
     router.push({
       pathname: '/works/[id]',
@@ -361,6 +379,15 @@ export default function FioFeedScreen() {
             onPress={() => selectView('all')}
           />
           <Text style={styles.counter}>{filteredEvents.length}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Recolher atualizações"
+            style={styles.collapseButton}
+            onPress={collapseAll}
+          >
+            <Ionicons name="chevron-up-outline" size={15} color={FioColors.green} />
+            <Text style={styles.collapseButtonText}>Recolher</Text>
+          </Pressable>
           <Pressable
             accessibilityLabel="Filtrar atualizações"
             style={[
@@ -587,16 +614,27 @@ export default function FioFeedScreen() {
                       )}
 
                     <View style={styles.footerRow}>
-                      <View style={styles.authorRow}>
-                        <Ionicons
-                          name="person-circle-outline"
-                          size={16}
-                          color={FioColors.textMuted}
-                        />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Abrir perfil de ${firstName(event.actor_full_name)}`}
+                        style={styles.authorRow}
+                        onPress={() => openAuthor(event)}
+                      >
+                        {event.actor_avatar_url ? (
+                          <Image
+                            source={event.actor_avatar_url}
+                            style={styles.authorAvatar}
+                            contentFit="cover"
+                          />
+                        ) : (
+                          <View style={styles.authorAvatarFallback}>
+                            <Ionicons name="person-outline" size={12} color={FioColors.green} />
+                          </View>
+                        )}
                         <Text style={styles.authorText} numberOfLines={1}>
-                          {event.actor_full_name || 'Usuário do FIO'}
+                          {firstName(event.actor_full_name)}
                         </Text>
-                      </View>
+                      </Pressable>
                       <Pressable
                         style={styles.workButton}
                         onPress={() => openInWork(event)}
@@ -722,6 +760,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: FioColors.textSoft,
   },
+  collapseButton: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: FioColors.line,
+    borderRadius: FioRadius.pill,
+    backgroundColor: FioColors.surface,
+  },
+  collapseButtonText: { fontSize: 8, fontWeight: '900', color: FioColors.green },
   filterButton: {
     minHeight: 36,
     marginLeft: 'auto',
@@ -900,6 +950,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  authorAvatar: { width: 22, height: 22, borderRadius: 999 },
+  authorAvatarFallback: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    backgroundColor: FioColors.greenSoft,
   },
   authorText: { flex: 1, fontSize: 8, color: FioColors.textMuted },
   workButton: {
