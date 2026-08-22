@@ -10,7 +10,7 @@ import {
   openBrowserAsync,
   WebBrowserPresentationStyle,
 } from 'expo-web-browser';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -244,6 +244,7 @@ export function WorkDocumentsPanel({
   categoryFilter,
   excludeCategory,
   excludeCategories,
+  focusDocumentId,
   onCreateReportVersion,
   onCountChange,
   onChanged,
@@ -259,6 +260,7 @@ export function WorkDocumentsPanel({
   categoryFilter?: DocumentCategory;
   excludeCategory?: DocumentCategory;
   excludeCategories?: DocumentCategory[];
+  focusDocumentId?: string;
   onCreateReportVersion?: (
     documentId: string,
     title: string,
@@ -304,6 +306,7 @@ export function WorkDocumentsPanel({
     useState<WorkDocument | null>(null);
   const [approvingVersion, setApprovingVersion] =
     useState<number | null>(null);
+  const openedFocusDocumentRef = useRef<string | null>(null);
 
   const participantNames = useMemo(
     () =>
@@ -413,6 +416,17 @@ export function WorkDocumentsPanel({
 
       setDocuments(hydratedDocuments);
 
+      const focusedDocument = focusDocumentId
+        ? hydratedDocuments.find((document) => document.id === focusDocumentId)
+        : null;
+      if (
+        focusedDocument &&
+        openedFocusDocumentRef.current !== focusedDocument.id
+      ) {
+        openedFocusDocumentRef.current = focusedDocument.id;
+        setTimeout(() => openDocument(focusedDocument), 120);
+      }
+
       onCountChange?.(
         hydratedDocuments.filter(
           (document) =>
@@ -432,7 +446,7 @@ export function WorkDocumentsPanel({
 
   useEffect(() => {
     loadDocuments();
-  }, [workId, userId, projectMode]);
+  }, [workId, userId, projectMode, focusDocumentId]);
 
   useEffect(() => {
     if (newRequest > 0 && canWrite) openCreate();

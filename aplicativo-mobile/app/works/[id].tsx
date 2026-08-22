@@ -161,10 +161,12 @@ export default function WorkDetailsScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const sectionsOffset = useRef(0);
   const sectionOffsets = useRef<Partial<Record<WorkSectionKey, number>>>({});
-  const { id, section, environmentId, newWork } = useLocalSearchParams<{
+  const { id, section, environmentId, documentId, pendingId, newWork } = useLocalSearchParams<{
     id: string;
     section?: string;
     environmentId?: string;
+    documentId?: string;
+    pendingId?: string;
     newWork?: string;
   }>();
   const [work, setWork] = useState<Work | null>(null);
@@ -514,6 +516,10 @@ export default function WorkDetailsScreen() {
       setEnvironmentFilterId(environmentId ?? null);
     }
   }, [environmentId, section]);
+
+  useEffect(() => {
+    if (!loading && section) scrollToSection(section as WorkSectionKey);
+  }, [loading, section]);
 
   const names = useMemo(
     () =>
@@ -1061,6 +1067,7 @@ export default function WorkDetailsScreen() {
                     userId={userId}
                     newRequest={pendingCreateRequest}
                     environmentFilterId={environmentFilterId ?? undefined}
+                    focusPendingItemId={pendingId}
                     onOpenCountChange={setPendingCount}
                     onChanged={() => loadCentral(true)}
                   />
@@ -1170,6 +1177,7 @@ export default function WorkDetailsScreen() {
                     newRequest={measurementCreateRequest}
                     environmentFilterId={environmentFilterId ?? undefined}
                     categoryFilter="measurement"
+                    focusDocumentId={documentId}
                     onCountChange={setMeasurementCount}
                     onChanged={() => loadCentral(true)}
                   />
@@ -1196,6 +1204,7 @@ export default function WorkDetailsScreen() {
                     canManageWork={canManage}
                     newRequest={projectCreateRequest}
                     categoryFilter="project"
+                    focusDocumentId={documentId}
                     onCountChange={setProjectCount}
                     onChanged={() => loadCentral(true)}
                   />
@@ -1228,6 +1237,7 @@ export default function WorkDetailsScreen() {
                     canManageWork={canManage}
                     newRequest={documentCreateRequest}
                     environmentFilterId={environmentFilterId ?? undefined}
+                    focusDocumentId={documentId}
                     excludeCategories={['measurement', 'project']}
                     onCreateReportVersion={(documentId, title, visibility) =>
                       openReport('daily', {

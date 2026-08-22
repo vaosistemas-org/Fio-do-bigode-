@@ -105,6 +105,7 @@ export function WorkPendingPanel({
   userId,
   newRequest = 0,
   environmentFilterId,
+  focusPendingItemId,
   onOpenCountChange,
   onChanged,
 }: {
@@ -116,6 +117,7 @@ export function WorkPendingPanel({
   userId: string | null;
   newRequest?: number;
   environmentFilterId?: string;
+  focusPendingItemId?: string;
   onOpenCountChange?: (count: number) => void;
   onChanged?: () => void;
 }) {
@@ -186,6 +188,13 @@ export function WorkPendingPanel({
     } else {
       const loaded = (data ?? []) as PendingItem[];
       setItems(loaded);
+      const focusedItem = focusPendingItemId
+        ? loaded.find((item) => item.id === focusPendingItemId)
+        : null;
+      if (focusedItem) {
+        setTab(focusedItem.status === 'completed' ? 'completed' : 'open');
+        setExpandedId(focusedItem.id);
+      }
       onOpenCountChange?.(
         loaded.filter((item) => item.status === 'open').length
       );
@@ -237,7 +246,7 @@ export function WorkPendingPanel({
 
   useEffect(() => {
     loadItems();
-  }, [workId]);
+  }, [workId, focusPendingItemId]);
 
   useEffect(() => {
     loadPhotos();

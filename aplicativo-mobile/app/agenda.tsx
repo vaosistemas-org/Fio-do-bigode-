@@ -3,7 +3,7 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -258,9 +258,16 @@ function VisitCard({
 }
 
 export default function AgendaScreen() {
-  const params = useLocalSearchParams<{ workId?: string | string[]; quick?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    workId?: string | string[];
+    quick?: string | string[];
+    visitId?: string | string[];
+    action?: string | string[];
+  }>();
   const requestedWorkId = firstParam(params.workId);
   const requestedQuick = firstParam(params.quick) === '1';
+  const requestedVisitId = firstParam(params.visitId);
+  const requestedVisitAction = firstParam(params.action);
   const [scope, setScope] = useState<AgendaScope>(requestedWorkId ? 'work' : 'mine');
   const [works, setWorks] = useState<AgendaWork[]>([]);
   const [visits, setVisits] = useState<WorkVisit[]>([]);
@@ -296,6 +303,7 @@ export default function AgendaScreen() {
   const scopeRef = useRef<AgendaScope>(requestedWorkId ? 'work' : 'mine');
   const selectedWorkIdRef = useRef(requestedWorkId ?? '');
   const quickOpenedRef = useRef(false);
+  const visitActionHandledRef = useRef('');
 
   const creatableWorks = useMemo(
     () => works.filter((work) => work.can_create),
@@ -303,18 +311,27 @@ export default function AgendaScreen() {
   );
   const selectedCreateWork = works.find((work) => work.work_id === createWorkId);
   const collaboratorCreating = selectedCreateWork?.access_level === 'collaborator';
+  const focusedVisit = useMemo(
+    () => visits.find((visit) => visit.visit_id === requestedVisitId) ?? null,
+    [requestedVisitId, visits]
+  );
 
   const upcomingVisits = useMemo(
     () => visits.filter(
       (visit) =>
+        visit.visit_id !== requestedVisitId &&
         !['completed', 'cancelled'].includes(visit.status) &&
         new Date(visit.starts_at).getTime() >= Date.now() - 60 * 60 * 1000
     ),
-    [visits]
+    [requestedVisitId, visits]
   );
   const historyVisits = useMemo(
-    () => visits.filter((visit) => !upcomingVisits.includes(visit)),
-    [upcomingVisits, visits]
+    () => visits.filter(
+      (visit) =>
+        visit.visit_id !== requestedVisitId &&
+        !upcomingVisits.includes(visit)
+    ),
+    [requestedVisitId, upcomingVisits, visits]
   );
 
   const manageActions = useMemo<VisitAction[]>(() => {
@@ -397,6 +414,23 @@ export default function AgendaScreen() {
       loadAgenda();
     }, [loadAgenda])
   );
+
+  useEffect(() => {
+    if (!requestedVisitId || loading) return;
+    const visit = visits.find((item) => item.visit_id === requestedVisitId);
+    if (!visit) return;
+    const actionKey = `${requestedVisitId}:${requestedVisitAction ?? 'open'}`;
+    if (visitActionHandledRef.current === actionKey) return;
+    visitActionHandledRef.current = actionKey;
+
+    if (requestedVisitAction === 'edit' && visit.can_manage) {
+      void openEdit(visit);
+    } else if (requestedVisitAction === 'manage' && visit.can_manage) {
+      openManagement(visit);
+    }
+  // The route action must run once after the requested visit is loaded.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, requestedVisitAction, requestedVisitId, visits]);
 
   async function changeScope(nextScope: AgendaScope) {
     setScope(nextScope);
@@ -759,6 +793,17 @@ export default function AgendaScreen() {
 
         {loading && works.length > 0 && (
           <ActivityIndicator style={styles.inlineLoading} color={FioColors.gold} />
+        )}
+
+        {!loading && focusedVisit && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Visita selecionada</Text>
+            <VisitCard
+              visit={focusedVisit}
+              onManage={openManagement}
+              onEdit={openEdit}
+            />
+          </View>
         )}
 
         {!loading && !message && visits.length === 0 && (
