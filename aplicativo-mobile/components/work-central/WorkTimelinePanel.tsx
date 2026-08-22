@@ -164,6 +164,7 @@ export function WorkTimelinePanel({
   workStatus,
   newEntryRequest = 0,
   environmentFilterId,
+  onGenerateReport,
   onChanged,
 }: {
   workId: string;
@@ -173,6 +174,7 @@ export function WorkTimelinePanel({
   workStatus: string;
   newEntryRequest?: number;
   environmentFilterId?: string;
+  onGenerateReport?: () => void;
   onChanged?: () => void;
 }) {
   const [events, setEvents] = useState<WorkEvent[]>([]);
@@ -558,6 +560,19 @@ export function WorkTimelinePanel({
         workId={workId}
         canManage={canManage}
       />
+
+      {canWrite && (
+        <Pressable style={styles.reportAction} onPress={onGenerateReport}>
+          <View style={styles.reportActionIcon}>
+            <Ionicons name="document-text-outline" size={18} color={FioColors.green} />
+          </View>
+          <View style={styles.reportActionIdentity}>
+            <Text style={styles.reportActionTitle}>Gerar relatório pelo FIO</Text>
+            <Text style={styles.reportActionText}>Escolha o conteúdo e salve o PDF na obra.</Text>
+          </View>
+          <Ionicons name="chevron-forward-outline" size={18} color={FioColors.green} />
+        </Pressable>
+      )}
 
       <Text style={styles.filterLabel}>FILTRAR POR LOCAL</Text>
       <ScrollView
@@ -1168,6 +1183,11 @@ const styles = StyleSheet.create({
   summaryDivider: { width: 1, height: 24, backgroundColor: FioColors.lineStrong },
   summaryNumber: { fontSize: 17, fontWeight: '900', color: FioColors.green },
   summaryLabel: { fontSize: 10, color: FioColors.textMuted },
+  reportAction: { minHeight: 58, marginTop: 10, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: FioColors.green, borderRadius: 13, backgroundColor: FioColors.greenSoft },
+  reportActionIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: FioColors.surface },
+  reportActionIdentity: { flex: 1, minWidth: 0 },
+  reportActionTitle: { fontSize: 11, fontWeight: '900', color: FioColors.green },
+  reportActionText: { marginTop: 2, fontSize: 9, color: FioColors.textMuted },
   filterLabel: { marginTop: 12, fontSize: 9, fontWeight: '900', letterSpacing: 1, color: FioColors.textMuted },
   filters: { paddingTop: 7, paddingBottom: 2, gap: 7 },
   filterChip: { minHeight: 38, paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.line, borderRadius: 999 },

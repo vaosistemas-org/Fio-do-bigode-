@@ -33,6 +33,7 @@ import { WorkDocumentsPanel } from '@/components/work-central/WorkDocumentsPanel
 import { WorkDeliveryPanel } from '@/components/work-central/WorkDeliveryPanel';
 import { WorkPendingPanel } from '@/components/work-central/WorkPendingPanel';
 import { WorkPhotosPanel } from '@/components/work-central/WorkPhotosPanel';
+import { WorkReportGenerator } from '@/components/work-central/WorkReportGenerator';
 import { WorkTimelinePanel } from '@/components/work-central/WorkTimelinePanel';
 import {
   Work,
@@ -209,6 +210,7 @@ export default function WorkDetailsScreen() {
   const [deliveryBlockerCount, setDeliveryBlockerCount] = useState(0);
   const [deliveryReady, setDeliveryReady] = useState(false);
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
   const [coverPromptVisible, setCoverPromptVisible] = useState(newWork === '1');
   const [actionEnvironmentId, setActionEnvironmentId] =
     useState<string | null>(null);
@@ -745,24 +747,39 @@ export default function WorkDetailsScreen() {
                 </View>
 
                 {canWrite && (
-                  <Pressable
-                    style={styles.dailyUpdateButton}
-                    onPress={() => {
-                      setEnvironmentFilterId(null);
-                      setOpenSection('fio');
-                      setTimelineCreateRequest((current) => current + 1);
-                      scrollToSection('fio');
-                    }}
-                  >
-                    <Ionicons name="create-outline" size={18} color={FioColors.textOnAccent} />
-                    <View style={styles.dailyUpdateIdentity}>
-                      <Text style={styles.dailyUpdateTitle}>Atualizar a obra</Text>
-                      <Text style={styles.dailyUpdateSubtitle}>
-                        Feito hoje, próximos passos, bloqueios e fotos
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward-outline" size={18} color={FioColors.textOnAccent} />
-                  </Pressable>
+                  <View style={styles.workPrimaryActions}>
+                    <Pressable
+                      style={styles.dailyUpdateButton}
+                      onPress={() => {
+                        setEnvironmentFilterId(null);
+                        setOpenSection('fio');
+                        setTimelineCreateRequest((current) => current + 1);
+                        scrollToSection('fio');
+                      }}
+                    >
+                      <Ionicons name="create-outline" size={18} color={FioColors.textOnAccent} />
+                      <View style={styles.dailyUpdateIdentity}>
+                        <Text style={styles.dailyUpdateTitle}>Atualizar a obra</Text>
+                        <Text style={styles.dailyUpdateSubtitle}>
+                          Feito hoje, próximos passos, bloqueios e fotos
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward-outline" size={18} color={FioColors.textOnAccent} />
+                    </Pressable>
+                    <Pressable
+                      style={styles.reportButton}
+                      onPress={() => setReportVisible(true)}
+                    >
+                      <Ionicons name="document-text-outline" size={18} color={FioColors.green} />
+                      <View style={styles.dailyUpdateIdentity}>
+                        <Text style={styles.reportButtonTitle}>Gerar relatório</Text>
+                        <Text style={styles.reportButtonSubtitle}>
+                          PDF salvo em Documentos e no FIO.
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward-outline" size={18} color={FioColors.green} />
+                    </Pressable>
+                  </View>
                 )}
 
                 <View style={styles.teamRow}>
@@ -1049,6 +1066,7 @@ export default function WorkDetailsScreen() {
                     workStatus={work.status}
                     newEntryRequest={timelineCreateRequest}
                     environmentFilterId={environmentFilterId ?? undefined}
+                    onGenerateReport={() => setReportVisible(true)}
                     onChanged={() => loadCentral(true)}
                   />
                 </ExpandableWorkSection>
@@ -1470,6 +1488,18 @@ export default function WorkDetailsScreen() {
                     <Text style={styles.actionText}>Documentos</Text>
                   </Pressable>
 
+                  {!actionEnvironment && (
+                    <Pressable
+                      style={styles.actionItem}
+                      onPress={() => runAction(() => setReportVisible(true))}
+                    >
+                      <View style={styles.actionIcon}>
+                        <Ionicons name="document-text-outline" size={21} color={FioColors.green} />
+                      </View>
+                      <Text style={styles.actionText}>Gerar relatório</Text>
+                    </Pressable>
+                  )}
+
                   <Pressable
                     style={styles.actionItem}
                     onPress={() =>
@@ -1512,6 +1542,19 @@ export default function WorkDetailsScreen() {
               </Pressable>
             </Pressable>
           </Modal>
+        )}
+
+        {work && (
+          <WorkReportGenerator
+            visible={reportVisible}
+            onClose={() => setReportVisible(false)}
+            work={work}
+            environments={environments}
+            participants={participants}
+            canWrite={canWrite}
+            canManage={canManage}
+            onGenerated={() => loadCentral(true)}
+          />
         )}
       </View>
     </SafeAreaView>
@@ -1631,6 +1674,20 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: FioColors.green,
   },
+  workPrimaryActions: { marginTop: 13, gap: 8 },
+  reportButton: {
+    minHeight: 54,
+    paddingHorizontal: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: FioColors.green,
+    borderRadius: 14,
+    backgroundColor: FioColors.greenSoft,
+  },
+  reportButtonTitle: { fontSize: 12, fontWeight: '900', color: FioColors.green },
+  reportButtonSubtitle: { marginTop: 2, fontSize: 9, color: FioColors.textMuted },
   dailyUpdateIdentity: { flex: 1, minWidth: 0 },
   dailyUpdateTitle: { fontSize: 12, fontWeight: '900', color: FioColors.textOnAccent },
   dailyUpdateSubtitle: { marginTop: 2, fontSize: 9, color: FioColors.textOnAccent },
