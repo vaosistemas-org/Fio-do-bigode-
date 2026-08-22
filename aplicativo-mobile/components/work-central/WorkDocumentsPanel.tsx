@@ -244,6 +244,7 @@ export function WorkDocumentsPanel({
   categoryFilter,
   excludeCategory,
   excludeCategories,
+  onCreateReportVersion,
   onCountChange,
   onChanged,
 }: {
@@ -258,6 +259,11 @@ export function WorkDocumentsPanel({
   categoryFilter?: DocumentCategory;
   excludeCategory?: DocumentCategory;
   excludeCategories?: DocumentCategory[];
+  onCreateReportVersion?: (
+    documentId: string,
+    title: string,
+    visibility: DocumentVisibility
+  ) => void;
   onCountChange?: (count: number) => void;
   onChanged?: () => void;
 }) {
@@ -1056,6 +1062,12 @@ export function WorkDocumentsPanel({
                     {visibilityLabel(document.visibility)}
                   </Text>
                 </View>
+                {document.category === 'report' && (
+                  <View style={styles.lockedReportTag}>
+                    <Ionicons name="lock-closed-outline" size={11} color={FioColors.green} />
+                    <Text style={styles.lockedReportText}>EMITIDO</Text>
+                  </View>
+                )}
                 {document.current_version > 0 && (
                   <Text style={styles.versionText}>v{document.current_version}</Text>
                 )}
@@ -1084,7 +1096,7 @@ export function WorkDocumentsPanel({
                     {projectMode ? 'Ver mais recente' : 'Visualizar'}
                   </Text>
                 </Pressable>
-                {projectMode && (
+                {(projectMode || document.category === 'report') && (
                   <Pressable
                     style={styles.smallAction}
                     onPress={() => setVersionHistoryDocument(document)}
@@ -1105,7 +1117,23 @@ export function WorkDocumentsPanel({
                     </Text>
                   </Pressable>
                 )}
-                {document.can_manage && (
+                {document.category === 'report' && canManageWork && onCreateReportVersion && (
+                  <Pressable
+                    accessibilityLabel="Gerar nova versão do relatório"
+                    style={styles.smallAction}
+                    onPress={() =>
+                      onCreateReportVersion(
+                        document.id,
+                        document.title,
+                        document.visibility
+                      )
+                    }
+                  >
+                    <Ionicons name="refresh-outline" size={16} color={FioColors.green} />
+                    <Text style={styles.smallActionText}>Nova versão</Text>
+                  </Pressable>
+                )}
+                {document.can_manage && document.category !== 'report' && (
                   <Pressable
                     accessibilityLabel="Editar dados ou enviar nova versão"
                     style={styles.smallAction}
@@ -1115,7 +1143,7 @@ export function WorkDocumentsPanel({
                     <Text style={styles.smallActionText}>Editar / versão</Text>
                   </Pressable>
                 )}
-                {document.can_manage && (
+                {document.can_manage && document.category !== 'report' && (
                   <Pressable style={styles.iconAction} onPress={() => confirmArchive(document)}>
                     <Ionicons name="archive-outline" size={18} color={FioColors.danger} />
                   </Pressable>
@@ -1637,6 +1665,8 @@ const styles = StyleSheet.create({
   projectStatusText: { fontSize: 7, fontWeight: '900', color: FioColors.textMuted },
   visibilityTag: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, backgroundColor: FioColors.greenSoft },
   visibilityTagText: { fontSize: 8, fontWeight: '800', color: FioColors.green },
+  lockedReportTag: { paddingHorizontal: 7, paddingVertical: 3, flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, backgroundColor: FioColors.greenSoft },
+  lockedReportText: { fontSize: 8, fontWeight: '900', color: FioColors.green },
   versionText: { fontSize: 8, fontWeight: '700', color: FioColors.textSoft },
   documentDescription: { marginTop: 6, fontSize: 9, lineHeight: 13, color: FioColors.textMuted },
   referenceNote: { marginTop: 6, padding: 7, flexDirection: 'row', alignItems: 'flex-start', gap: 5, borderRadius: 8, backgroundColor: FioColors.greenSoft },

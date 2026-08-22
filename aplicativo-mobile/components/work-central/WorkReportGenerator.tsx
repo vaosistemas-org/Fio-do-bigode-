@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +17,7 @@ import { Work, WorkEnvironment, WorkParticipant } from '@/components/work-centra
 import { FioColors, FioRadius } from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
-type ReportType = 'daily' | 'delivery' | 'complete';
+export type ReportType = 'daily' | 'delivery' | 'complete';
 type ReportVisibility = 'internal' | 'shared';
 
 type ReportOptions = {
@@ -55,6 +55,22 @@ type TimelineItem = {
   actor_full_name: string | null;
   visibility: string | null;
   created_at: string;
+};
+
+type ReportPhoto = {
+  environment_id: string | null;
+  storage_path: string;
+  caption: string | null;
+  photo_type: string;
+  visibility: string;
+  created_at: string;
+};
+
+type PdfPhoto = {
+  bytes: Uint8Array;
+  width: number;
+  height: number;
+  caption: string;
 };
 
 const REPORT_TYPES: { value: ReportType; label: string; detail: string }[] = [
@@ -110,19 +126,68 @@ function wrapText(value: string, max = 86) {
   return lines.length ? lines : ['-'];
 }
 
-function makePdf(lines: { text: string; bold?: boolean; gap?: boolean }[]) {
-  const pages: string[][] = [[]];
+function latinBytes(value: string) {
+  return Uint8Array.from(Array.from(value, (char) => char.charCodeAt(0) & 0xff));
+}
+
+function joinBytes(parts: Uint8Array[]) {
+  const size = parts.reduce((total, part) => total + part.byteLength, 0);
+  const joined = new Uint8Array(size);
+  let offset = 0;
+  for (const part of parts) {
+    joined.set(part, offset);
+    offset += part.byteLength;
+  }
+  return joined;
+}
+
+function jpegSize(bytes: Uint8Array) {
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  let offset = 2;
+  while (offset + 8 < bytes.length) {
+    if (bytes[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+    const marker = bytes[offset + 1];
+    if (marker === 0xd8 || marker === 0xd9) {
+      offset += 2;
+      continue;
+    }
+    const length = (bytes[offset + 2] << 8) + bytes[offset + 3];
+    if (length < 2 || offset + length + 2 > bytes.length) return null;
+    if (
+      marker === 0xc0 || marker === 0xc1 || marker === 0xc2 ||
+      marker === 0xc3 || marker === 0xc5 || marker === 0xc6 ||
+      marker === 0xc7 || marker === 0xc9 || marker === 0xca ||
+      marker === 0xcb || marker === 0xcd || marker === 0xce || marker === 0xcf
+    ) {
+      return {
+        height: (bytes[offset + 5] << 8) + bytes[offset + 6],
+        width: (bytes[offset + 7] << 8) + bytes[offset + 8],
+      };
+    }
+    offset += length + 2;
+  }
+  return null;
+}
+
+function makePdf(
+  lines: { text: string; bold?: boolean; gap?: boolean }[],
+  photos: PdfPhoto[]
+) {
+  const textPages: string[][] = [[]];
   let y = 792;
   const add = (text: string, bold = false, gap = false) => {
     const fontSize = bold ? 11 : 9;
     const required = (gap ? 8 : 0) + fontSize + 5;
     if (y - required < 48) {
-      pages.push([]);
+      textPages.push([]);
       y = 792;
     }
     if (gap) y -= 8;
     y -= fontSize + 5;
-    pages[pages.length - 1].push(
+    textPages[textPages.length - 1].push(
       `BT /F${bold ? 2 : 1} ${fontSize} Tf 44 ${y} Td (${safePdfText(text)}) Tj ET`
     );
   };
@@ -133,35 +198,84 @@ function makePdf(lines: { text: string; bold?: boolean; gap?: boolean }[]) {
     );
   });
 
-  const objects: string[] = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    `<< /Type /Pages /Kids [${pages.map((_, index) => `${5 + index * 2} 0 R`).join(' ')}] /Count ${pages.length} >>`,
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
-  ];
-  pages.forEach((page, index) => {
-    const pageObject = 5 + index * 2;
-    const contentObject = pageObject + 1;
-    const content = page.join('\n');
-    objects.push(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObject} 0 R >>`,
-      `<< /Length ${content.length} >>\nstream\n${content}\nendstream`
-    );
-  });
+  type PdfPage = {
+    pageId: number;
+    contentId: number;
+    imageId?: number;
+    text?: string;
+    photo?: PdfPhoto;
+  };
+  const pages: PdfPage[] = [];
+  let nextId = 5;
+  for (const page of textPages) {
+    pages.push({ pageId: nextId, contentId: nextId + 1, text: page.join('\n') });
+    nextId += 2;
+  }
+  for (const photo of photos) {
+    pages.push({ pageId: nextId, contentId: nextId + 1, imageId: nextId + 2, photo });
+    nextId += 3;
+  }
 
-  let pdf = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
+  const objects = new Map<number, Uint8Array>();
+  objects.set(1, latinBytes('<< /Type /Catalog /Pages 2 0 R >>'));
+  objects.set(2, latinBytes(`<< /Type /Pages /Kids [${pages.map((page) => `${page.pageId} 0 R`).join(' ')}] /Count ${pages.length} >>`));
+  objects.set(3, latinBytes('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'));
+  objects.set(4, latinBytes('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'));
+
+  for (const page of pages) {
+    if (page.photo && page.imageId) {
+      const maxWidth = 524;
+      const maxHeight = 650;
+      const scale = Math.min(maxWidth / page.photo.width, maxHeight / page.photo.height);
+      const width = Math.round(page.photo.width * scale);
+      const height = Math.round(page.photo.height * scale);
+      const x = Math.round((612 - width) / 2);
+      const imageY = Math.round(90 + (maxHeight - height) / 2);
+      const caption = safePdfText(page.photo.caption).slice(0, 88);
+      const content = `BT /F2 11 Tf 44 800 Td (${caption}) Tj ET\nq ${width} 0 0 ${height} ${x} ${imageY} cm /Im1 Do Q`;
+      objects.set(
+        page.pageId,
+        latinBytes(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << /Im1 ${page.imageId} 0 R >> >> /Contents ${page.contentId} 0 R >>`)
+      );
+      objects.set(page.contentId, latinBytes(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`));
+      objects.set(
+        page.imageId,
+        joinBytes([
+          latinBytes(`<< /Type /XObject /Subtype /Image /Width ${page.photo.width} /Height ${page.photo.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${page.photo.bytes.byteLength} >>\nstream\n`),
+          page.photo.bytes,
+          latinBytes('\nendstream'),
+        ])
+      );
+    } else {
+      const content = page.text ?? '';
+      objects.set(
+        page.pageId,
+        latinBytes(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${page.contentId} 0 R >>`)
+      );
+      objects.set(page.contentId, latinBytes(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`));
+    }
+  }
+
+  const header = latinBytes('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  const output: Uint8Array[] = [header];
   const offsets = [0];
-  objects.forEach((object, index) => {
-    offsets.push(pdf.length);
-    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  });
-  const xrefOffset = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  offsets.slice(1).forEach((offset) => {
-    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
-  });
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-  return Uint8Array.from(Array.from(pdf, (char) => char.charCodeAt(0) & 0xff));
+  let byteOffset = header.byteLength;
+  for (let id = 1; id < nextId; id += 1) {
+    const body = objects.get(id);
+    if (!body) throw new Error('Falha ao montar o arquivo PDF.');
+    const object = joinBytes([latinBytes(`${id} 0 obj\n`), body, latinBytes('\nendobj\n')]);
+    offsets[id] = byteOffset;
+    output.push(object);
+    byteOffset += object.byteLength;
+  }
+  const xrefOffset = byteOffset;
+  let xref = `xref\n0 ${nextId}\n0000000000 65535 f \n`;
+  for (let id = 1; id < nextId; id += 1) {
+    xref += `${String(offsets[id]).padStart(10, '0')} 00000 n \n`;
+  }
+  xref += `trailer\n<< /Size ${nextId} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  output.push(latinBytes(xref));
+  return joinBytes(output);
 }
 
 function fileNamePart(value: string) {
@@ -173,6 +287,23 @@ function fileNamePart(value: string) {
     .toLowerCase();
 }
 
+async function loadPdfPhoto(photo: ReportPhoto, caption: string) {
+  try {
+    const { data, error } = await supabase.storage
+      .from('work-photos')
+      .createSignedUrl(photo.storage_path, 60 * 10);
+    if (error || !data?.signedUrl) return null;
+    const response = await fetch(data.signedUrl);
+    if (!response.ok) return null;
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const size = jpegSize(bytes);
+    if (!size) return null;
+    return { bytes, ...size, caption } as PdfPhoto;
+  } catch {
+    return null;
+  }
+}
+
 export function WorkReportGenerator({
   visible,
   onClose,
@@ -181,6 +312,10 @@ export function WorkReportGenerator({
   participants,
   canWrite,
   canManage,
+  initialType,
+  baseDocumentId,
+  baseDocumentTitle,
+  baseVisibility,
   onGenerated,
 }: {
   visible: boolean;
@@ -190,6 +325,10 @@ export function WorkReportGenerator({
   participants: WorkParticipant[];
   canWrite: boolean;
   canManage: boolean;
+  initialType?: ReportType;
+  baseDocumentId?: string | null;
+  baseDocumentTitle?: string | null;
+  baseVisibility?: ReportVisibility | null;
   onGenerated?: () => void;
 }) {
   const [reportType, setReportType] = useState<ReportType>('daily');
@@ -202,12 +341,31 @@ export function WorkReportGenerator({
 
   const reporter = participants.find((person) => person.is_current_user)?.full_name;
 
+  useEffect(() => {
+    if (!visible) return;
+    let nextType = initialType ?? 'daily';
+    const normalizedTitle = baseDocumentTitle?.toLowerCase() ?? '';
+    if (normalizedTitle.includes('vistoria') || normalizedTitle.includes('entrega')) {
+      nextType = 'delivery';
+    } else if (normalizedTitle.includes('completo')) {
+      nextType = 'complete';
+    }
+    setReportType(nextType);
+    if (baseVisibility) setVisibility(baseVisibility);
+    setClientName(work.client_name);
+    setMessage('');
+  }, [baseDocumentTitle, baseVisibility, initialType, visible, work.client_name]);
+
   function setOption(option: keyof ReportOptions, value: boolean) {
     setOptions((current) => ({ ...current, [option]: value }));
   }
 
   async function generate() {
     if (!canWrite || saving) return;
+    if (baseDocumentId && !canManage) {
+      setMessage('Somente proprietário ou gestor pode gerar uma nova versão.');
+      return;
+    }
     if (reportType === 'complete' && !canManage) {
       setMessage('O relatório completo pode ser gerado apenas por proprietário ou gestor.');
       return;
@@ -241,9 +399,10 @@ export function WorkReportGenerator({
         options.photos
           ? supabase
               .from('work_photos')
-              .select('environment_id, photo_type, visibility')
+              .select('environment_id, storage_path, caption, photo_type, visibility, created_at')
               .eq('work_id', work.id)
               .eq('collection', 'work')
+              .order('created_at', { ascending: false })
           : Promise.resolve({ data: [], error: null }),
         options.diary
           ? supabase.rpc('get_work_timeline', { p_work_id: work.id })
@@ -258,12 +417,29 @@ export function WorkReportGenerator({
       const environmentNames = Object.fromEntries(environments.map((item) => [item.id, item.name]));
       const delivery = (deliveryResult.data ?? []) as DeliveryItem[];
       const pending = (pendingResult.data ?? []) as PendingItem[];
-      const photos = (photoResult.data ?? []) as {
-        environment_id: string | null;
-        photo_type: string;
-        visibility: string;
-      }[];
+      const photos = (photoResult.data ?? []) as ReportPhoto[];
       const diary = (timelineResult.data ?? []) as TimelineItem[];
+      const visiblePhotos = photos.filter(
+        (photo) => visibility === 'internal' || photo.visibility === 'shared'
+      );
+      const visibleDiary = diary.filter(
+        (item) => visibility === 'internal' || item.visibility === 'shared'
+      );
+      const eligiblePhotoRows = visiblePhotos.filter(
+        (photo) => reportType !== 'delivery' || photo.photo_type === 'delivery_final'
+      );
+      const reportPhotoRows = eligiblePhotoRows.slice(0, 30);
+      const loadedPhotos = await Promise.all(
+        reportPhotoRows.map((photo, index) => {
+          const local = photo.environment_id
+            ? environmentNames[photo.environment_id] ?? 'Ambiente'
+            : 'Geral da obra';
+          const caption = `${index + 1}. ${local} · ${photo.caption ?? (photo.photo_type === 'delivery_final' ? 'Foto final' : 'Foto da obra')}`;
+          return loadPdfPhoto(photo, caption);
+        })
+      );
+      const pdfPhotos = loadedPhotos.filter((photo): photo is PdfPhoto => Boolean(photo));
+      const skippedPhotos = reportPhotoRows.length - pdfPhotos.length;
       const generatedAt = new Date().toLocaleString('pt-BR', {
         dateStyle: 'long',
         timeStyle: 'short',
@@ -299,11 +475,12 @@ export function WorkReportGenerator({
       }
       if (options.photos) {
         lines.push({ text: 'FOTOS REGISTRADAS', bold: true, gap: true });
-        const sharedPhotos = photos.filter((photo) => photo.visibility === 'shared');
-        const finalPhotos = photos.filter((photo) => photo.photo_type === 'delivery_final');
-        lines.push({ text: `${photos.length} fotos no total · ${finalPhotos.length} fotos finais · ${sharedPhotos.length} fotos compartilhadas.` });
+        const sharedPhotos = visiblePhotos.filter((photo) => photo.visibility === 'shared');
+        const finalPhotos = visiblePhotos.filter((photo) => photo.photo_type === 'delivery_final');
+        lines.push({ text: `${visiblePhotos.length} fotos disponíveis neste nível · ${finalPhotos.length} fotos finais · ${sharedPhotos.length} fotos compartilhadas.` });
+        lines.push({ text: `${pdfPhotos.length} imagem(ns) inserida(s) nas páginas seguintes${eligiblePhotoRows.length > reportPhotoRows.length ? ` · limite de 30 por relatório, demais disponíveis na galeria` : ''}${skippedPhotos ? ` · ${skippedPhotos} não puderam ser carregadas` : ''}.` });
         environments.forEach((item) => {
-          const count = photos.filter((photo) => photo.environment_id === item.id).length;
+          const count = visiblePhotos.filter((photo) => photo.environment_id === item.id).length;
           if (count) lines.push({ text: `${item.name}: ${count} foto(s).` });
         });
       }
@@ -319,11 +496,11 @@ export function WorkReportGenerator({
       }
       if (options.diary) {
         lines.push({ text: 'FIO / DIÁRIO', bold: true, gap: true });
-        if (!diary.length) lines.push({ text: 'Nenhum registro no FIO.' });
-        diary.slice(0, 80).forEach((item) => {
+        if (!visibleDiary.length) lines.push({ text: 'Nenhum registro no FIO.' });
+        visibleDiary.slice(0, 80).forEach((item) => {
           lines.push({ text: `${dateLabel(item.created_at)} · ${item.environment_name ?? 'Geral'} · ${item.title ?? item.event_type ?? 'Registro'}${item.description ? ` — ${item.description}` : ''}` });
         });
-        if (diary.length > 80) lines.push({ text: `Histórico resumido: ${diary.length - 80} registros adicionais disponíveis no FIO.` });
+        if (visibleDiary.length > 80) lines.push({ text: `Histórico resumido: ${visibleDiary.length - 80} registros adicionais disponíveis no FIO.` });
       }
       lines.push(
         { text: 'ASSINATURAS', bold: true, gap: true },
@@ -333,23 +510,27 @@ export function WorkReportGenerator({
         { text: 'Documento gerado pelo FIO. Versões já emitidas não são alteradas.' }
       );
 
-      const title = `${reportTypeLabel(reportType)} · ${work.code}`;
+      const title = baseDocumentTitle || `${reportTypeLabel(reportType)} · ${work.code}`;
       const fileName = `${fileNamePart(reportTypeLabel(reportType))}-${fileNamePart(work.code)}-${Date.now()}.pdf`;
-      const pdf = makePdf(lines);
+      const pdf = makePdf(lines, options.photos ? pdfPhotos : []);
       const documentVisibility = visibility === 'shared' ? 'fio_general' : 'professionals';
-      const { data: createdId, error: documentError } = await supabase.rpc('create_work_document', {
-        p_work_id: work.id,
-        p_environment_id: null,
-        p_owner_company_id: null,
-        p_title: title,
-        p_description: `${reportTypeLabel(reportType)} gerado em ${generatedAt}. Assinaturas preparadas.`,
-        p_category: 'report',
-        p_visibility: documentVisibility,
-        p_allow_download: true,
-      });
-      if (documentError) throw documentError;
-      documentId = createdId as string;
-      storagePath = `${work.id}/${documentId}/${fileName}`;
+      let targetDocumentId = baseDocumentId ?? null;
+      if (!targetDocumentId) {
+        const { data: createdId, error: documentError } = await supabase.rpc('create_work_document', {
+          p_work_id: work.id,
+          p_environment_id: null,
+          p_owner_company_id: null,
+          p_title: title,
+          p_description: `${reportTypeLabel(reportType)} gerado em ${generatedAt}. Assinaturas preparadas.`,
+          p_category: 'report',
+          p_visibility: documentVisibility,
+          p_allow_download: true,
+        });
+        if (documentError) throw documentError;
+        documentId = createdId as string;
+        targetDocumentId = documentId;
+      }
+      storagePath = `${work.id}/${targetDocumentId}/${Date.now()}-${fileName}`;
       const { error: uploadError } = await supabase.storage
         .from('work-documents')
         .upload(storagePath, pdf.buffer, {
@@ -359,7 +540,7 @@ export function WorkReportGenerator({
         });
       if (uploadError) throw uploadError;
       const { error: versionError } = await supabase.rpc('add_work_document_version', {
-        p_document_id: documentId,
+        p_document_id: targetDocumentId,
         p_storage_path: storagePath,
         p_file_name: fileName,
         p_mime_type: 'application/pdf',
@@ -367,7 +548,10 @@ export function WorkReportGenerator({
       });
       if (versionError) throw versionError;
 
-      Alert.alert('Relatório salvo', 'O PDF foi salvo em Documentos e registrado no FIO/Diário.');
+      Alert.alert(
+        baseDocumentId ? 'Nova versão salva' : 'Relatório salvo',
+        'O PDF foi salvo em Documentos e registrado no FIO/Diário.'
+      );
       onGenerated?.();
       onClose();
     } catch (error) {
@@ -395,7 +579,7 @@ export function WorkReportGenerator({
             <Text style={styles.label}>TIPO DE RELATÓRIO</Text>
             {REPORT_TYPES.map((item) => {
               const disabled = item.value === 'complete' && !canManage;
-              return <Pressable key={item.value} disabled={disabled || saving} style={[styles.typeOption, reportType === item.value && styles.typeOptionActive, disabled && styles.typeOptionDisabled]} onPress={() => setReportType(item.value)}>
+              return <Pressable key={item.value} disabled={disabled || saving || Boolean(baseDocumentId)} style={[styles.typeOption, reportType === item.value && styles.typeOptionActive, (disabled || Boolean(baseDocumentId)) && styles.typeOptionDisabled]} onPress={() => setReportType(item.value)}>
                 <Ionicons name={reportType === item.value ? 'radio-button-on' : 'radio-button-off'} size={20} color={reportType === item.value ? FioColors.green : FioColors.textSoft} />
                 <View style={styles.typeText}><Text style={styles.typeTitle}>{item.label}</Text><Text style={styles.typeDetail}>{disabled ? 'Disponível para proprietário ou gestor.' : item.detail}</Text></View>
               </Pressable>;
@@ -413,8 +597,11 @@ export function WorkReportGenerator({
 
             <Text style={styles.label}>VISIBILIDADE</Text>
             <View style={styles.visibilityRow}>
-              {(['internal', 'shared'] as ReportVisibility[]).map((item) => <Pressable key={item} disabled={saving} style={[styles.visibilityOption, visibility === item && styles.visibilityOptionActive]} onPress={() => setVisibility(item)}><Ionicons name={visibility === item ? 'radio-button-on' : 'radio-button-off'} size={18} color={visibility === item ? FioColors.green : FioColors.textSoft} /><Text style={styles.visibilityText}>{item === 'internal' ? 'Interno' : 'Compartilhado'}</Text></Pressable>)}
+              {(['internal', 'shared'] as ReportVisibility[]).map((item) => <Pressable key={item} disabled={saving || Boolean(baseDocumentId)} style={[styles.visibilityOption, visibility === item && styles.visibilityOptionActive, Boolean(baseDocumentId) && styles.typeOptionDisabled]} onPress={() => setVisibility(item)}><Ionicons name={visibility === item ? 'radio-button-on' : 'radio-button-off'} size={18} color={visibility === item ? FioColors.green : FioColors.textSoft} /><Text style={styles.visibilityText}>{item === 'internal' ? 'Interno' : 'Compartilhado'}</Text></Pressable>)}
             </View>
+            {baseDocumentId && (
+              <Text style={styles.signatureNote}>A nova versão mantém o tipo e a visibilidade do relatório emitido.</Text>
+            )}
 
             <Text style={styles.label}>ASSINATURAS</Text>
             <TextInput style={styles.input} placeholder="Responsável pela obra" placeholderTextColor={FioColors.textSoft} value={responsibleName} onChangeText={setResponsibleName} editable={!saving} />
@@ -423,7 +610,7 @@ export function WorkReportGenerator({
             {!!message && <View style={styles.message}><Text style={styles.messageText}>{message}</Text></View>}
             <Pressable style={[styles.generate, saving && styles.generateDisabled]} onPress={generate} disabled={saving || !canWrite}>
               {saving ? <ActivityIndicator color={FioColors.textOnAccent} /> : <Ionicons name="document-text-outline" size={20} color={FioColors.textOnAccent} />}
-              <Text style={styles.generateText}>{saving ? 'Gerando PDF...' : 'Gerar e salvar PDF'}</Text>
+              <Text style={styles.generateText}>{saving ? 'Gerando PDF...' : baseDocumentId ? 'Gerar nova versão' : 'Gerar e salvar PDF'}</Text>
             </Pressable>
           </ScrollView>
         </View>

@@ -109,6 +109,7 @@ export function WorkDeliveryPanel({
   environmentFilterId,
   onSummaryChange,
   onOpenPending,
+  onReadyForReport,
   onChanged,
 }: {
   workId: string;
@@ -120,6 +121,7 @@ export function WorkDeliveryPanel({
   environmentFilterId?: string;
   onSummaryChange?: (blockers: number, ready: boolean) => void;
   onOpenPending?: (environmentId: string | null) => void;
+  onReadyForReport?: () => void;
   onChanged?: () => void;
 }) {
   const [deliveryState, setDeliveryState] =
@@ -740,6 +742,7 @@ export function WorkDeliveryPanel({
         ready_at: new Date().toISOString(),
       }));
       setSuccessMessage('Obra marcada como pronta para entrega.');
+      onReadyForReport?.();
     }
     setSaving(false);
   }

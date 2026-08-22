@@ -33,7 +33,10 @@ import { WorkDocumentsPanel } from '@/components/work-central/WorkDocumentsPanel
 import { WorkDeliveryPanel } from '@/components/work-central/WorkDeliveryPanel';
 import { WorkPendingPanel } from '@/components/work-central/WorkPendingPanel';
 import { WorkPhotosPanel } from '@/components/work-central/WorkPhotosPanel';
-import { WorkReportGenerator } from '@/components/work-central/WorkReportGenerator';
+import {
+  WorkReportGenerator,
+  type ReportType,
+} from '@/components/work-central/WorkReportGenerator';
 import { WorkTimelinePanel } from '@/components/work-central/WorkTimelinePanel';
 import {
   Work,
@@ -211,6 +214,12 @@ export default function WorkDetailsScreen() {
   const [deliveryReady, setDeliveryReady] = useState(false);
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
+  const [reportInitialType, setReportInitialType] = useState<ReportType>('daily');
+  const [reportBase, setReportBase] = useState<{
+    id: string;
+    title: string;
+    visibility: 'internal' | 'shared';
+  } | null>(null);
   const [coverPromptVisible, setCoverPromptVisible] = useState(newWork === '1');
   const [actionEnvironmentId, setActionEnvironmentId] =
     useState<string | null>(null);
@@ -611,6 +620,21 @@ export default function WorkDetailsScreen() {
     action();
   }
 
+  function openReport(
+    type: ReportType = 'daily',
+    base: typeof reportBase = null
+  ) {
+    setReportInitialType(type);
+    setReportBase(base);
+    setReportVisible(true);
+  }
+
+  function closeReport() {
+    setReportVisible(false);
+    setReportBase(null);
+    setReportInitialType('daily');
+  }
+
   if (loading || loadingAccess) {
     return (
       <View style={styles.loading}>
@@ -768,7 +792,7 @@ export default function WorkDetailsScreen() {
                     </Pressable>
                     <Pressable
                       style={styles.reportButton}
-                      onPress={() => setReportVisible(true)}
+                      onPress={() => openReport()}
                     >
                       <Ionicons name="document-text-outline" size={18} color={FioColors.green} />
                       <View style={styles.dailyUpdateIdentity}>
@@ -1066,7 +1090,7 @@ export default function WorkDetailsScreen() {
                     workStatus={work.status}
                     newEntryRequest={timelineCreateRequest}
                     environmentFilterId={environmentFilterId ?? undefined}
-                    onGenerateReport={() => setReportVisible(true)}
+                    onGenerateReport={() => openReport()}
                     onChanged={() => loadCentral(true)}
                   />
                 </ExpandableWorkSection>
@@ -1205,6 +1229,14 @@ export default function WorkDetailsScreen() {
                     newRequest={documentCreateRequest}
                     environmentFilterId={environmentFilterId ?? undefined}
                     excludeCategories={['measurement', 'project']}
+                    onCreateReportVersion={(documentId, title, visibility) =>
+                      openReport('daily', {
+                        id: documentId,
+                        title,
+                        visibility:
+                          visibility === 'fio_general' ? 'shared' : 'internal',
+                      })
+                    }
                     onCountChange={setDocumentCount}
                     onChanged={() => loadCentral(true)}
                   />
@@ -1247,6 +1279,7 @@ export default function WorkDetailsScreen() {
                       setDeliveryReady(ready);
                     }}
                     onOpenPending={openBlockingPending}
+                    onReadyForReport={() => openReport('delivery')}
                     onChanged={() => loadCentral(true)}
                   />
                 </ExpandableWorkSection>
@@ -1491,7 +1524,7 @@ export default function WorkDetailsScreen() {
                   {!actionEnvironment && (
                     <Pressable
                       style={styles.actionItem}
-                      onPress={() => runAction(() => setReportVisible(true))}
+                      onPress={() => runAction(() => openReport())}
                     >
                       <View style={styles.actionIcon}>
                         <Ionicons name="document-text-outline" size={21} color={FioColors.green} />
@@ -1547,12 +1580,16 @@ export default function WorkDetailsScreen() {
         {work && (
           <WorkReportGenerator
             visible={reportVisible}
-            onClose={() => setReportVisible(false)}
+            onClose={closeReport}
             work={work}
             environments={environments}
             participants={participants}
             canWrite={canWrite}
             canManage={canManage}
+            initialType={reportInitialType}
+            baseDocumentId={reportBase?.id}
+            baseDocumentTitle={reportBase?.title}
+            baseVisibility={reportBase?.visibility}
             onGenerated={() => loadCentral(true)}
           />
         )}
