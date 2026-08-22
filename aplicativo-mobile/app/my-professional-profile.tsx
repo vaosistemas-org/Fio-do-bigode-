@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FioPageHeader } from '@/components/fio-shell/FioPageHeader';
@@ -19,6 +19,18 @@ export default function MyProfessionalProfileScreen() {
   const [data, setData] = useState<ProfessionalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (!active || !data.user) return;
+      router.replace({
+        pathname: '/public-profile',
+        params: { userId: data.user.id, preview: '1' },
+      });
+    });
+    return () => { active = false; };
+  }, [router]);
 
   const load = useCallback(async () => {
     setLoading(true);

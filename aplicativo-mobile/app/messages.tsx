@@ -395,8 +395,24 @@ export default function MessagesScreen() {
                 const mine = message.sender_id === currentUserId;
                 return (
                   <View key={message.message_id} style={[styles.messageRow, mine && styles.messageRowMine]}>
+                    {!mine && (
+                      <Pressable
+                        style={styles.messageAvatar}
+                        onPress={() => router.push({ pathname: '/public-profile', params: { userId: message.sender_id } })}
+                      >
+                        {message.sender_avatar_url ? (
+                          <Image source={{ uri: message.sender_avatar_url }} style={styles.messageAvatarImage} contentFit="cover" />
+                        ) : (
+                          <Text style={styles.messageAvatarText}>{initials(message.sender_name)}</Text>
+                        )}
+                      </Pressable>
+                    )}
                     <View style={[styles.bubble, mine && styles.bubbleMine]}>
-                      {!mine && <Text style={styles.senderName}>{message.sender_name}</Text>}
+                      {!mine && (
+                        <Pressable onPress={() => router.push({ pathname: '/public-profile', params: { userId: message.sender_id } })}>
+                          <Text style={styles.senderName}>{message.sender_name}</Text>
+                        </Pressable>
+                      )}
                       {message.message_type === 'image' && message.signed_url && (
                         <Pressable onPress={() => openAttachment(message)}><Image source={{ uri: message.signed_url }} style={styles.messageImage} contentFit="cover" /></Pressable>
                       )}
@@ -512,6 +528,9 @@ const styles = StyleSheet.create({
   chatEmpty: { marginTop: 30, alignItems: 'center' },
   messageRow: { marginBottom: 7, flexDirection: 'row', justifyContent: 'flex-start' },
   messageRowMine: { justifyContent: 'flex-end' },
+  messageAvatar: { width: 32, height: 32, marginTop: 4, marginRight: 7, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 999, backgroundColor: FioColors.greenSoft },
+  messageAvatarImage: { width: '100%', height: '100%' },
+  messageAvatarText: { fontSize: 9, fontWeight: '900', color: FioColors.green },
   bubble: { maxWidth: '84%', padding: 9, borderWidth: 1, borderColor: FioColors.line, borderRadius: 14, borderBottomLeftRadius: 4, backgroundColor: FioColors.surface },
   bubbleMine: { borderColor: FioColors.green, borderBottomLeftRadius: 14, borderBottomRightRadius: 4, backgroundColor: FioColors.greenSoft },
   senderName: { marginBottom: 4, fontSize: 9, fontWeight: '900', color: FioColors.gold },

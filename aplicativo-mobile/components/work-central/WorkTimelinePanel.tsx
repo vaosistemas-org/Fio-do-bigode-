@@ -1,6 +1,7 @@
 import { decode } from 'base64-arraybuffer';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -62,6 +63,7 @@ type WorkEvent = {
   description: string | null;
   actor_user_id: string | null;
   actor_full_name: string | null;
+  actor_avatar_url: string | null;
   visibility: DiaryVisibility | null;
   priority: FioPriority;
   created_at: string;
@@ -177,6 +179,7 @@ export function WorkTimelinePanel({
   onGenerateReport?: () => void;
   onChanged?: () => void;
 }) {
+  const router = useRouter();
   const [events, setEvents] = useState<WorkEvent[]>([]);
   const [filter, setFilter] = useState<TimelineFilter>('all');
   const [dayOpen, setDayOpen] = useState<Record<string, boolean>>({});
@@ -867,14 +870,28 @@ export function WorkTimelinePanel({
                             )}
                           </View>
                           <View style={styles.actorRow}>
-                            <Ionicons
-                              name="person-outline"
-                              size={12}
-                              color="#8A92A1"
-                            />
-                            <Text numberOfLines={1} style={styles.eventActor}>
-                              {event.actor_full_name || 'Usuário do FIO'}
-                            </Text>
+                            {event.actor_user_id ? (
+                              <Pressable
+                                style={styles.actorAvatar}
+                                onPress={() => router.push({ pathname: '/public-profile', params: { userId: event.actor_user_id! } })}
+                              >
+                                {event.actor_avatar_url ? (
+                                  <Image source={{ uri: event.actor_avatar_url }} style={styles.actorAvatarImage} />
+                                ) : (
+                                  <Text style={styles.actorAvatarText}>{(event.actor_full_name || 'F').slice(0, 2).toUpperCase()}</Text>
+                                )}
+                              </Pressable>
+                            ) : (
+                              <Ionicons name="person-outline" size={12} color="#8A92A1" />
+                            )}
+                            <Pressable
+                              disabled={!event.actor_user_id}
+                              onPress={() => event.actor_user_id && router.push({ pathname: '/public-profile', params: { userId: event.actor_user_id } })}
+                            >
+                              <Text numberOfLines={1} style={styles.eventActor}>
+                                {event.actor_full_name || 'Usuário do FIO'}
+                              </Text>
+                            </Pressable>
                           </View>
                         </View>
                       </View>
@@ -1238,6 +1255,9 @@ const styles = StyleSheet.create({
   visibilityTextShared: { color: FioColors.green },
   visibilityTextCompany: { color: FioColors.green },
   actorRow: { marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  actorAvatar: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 999, backgroundColor: FioColors.greenSoft },
+  actorAvatarImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  actorAvatarText: { fontSize: 7, fontWeight: '900', color: FioColors.green },
   eventActor: { flex: 1, fontSize: 8, color: FioColors.textSoft },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12, 15, 12, 0.68)' },
   modalCard: { maxHeight: '92%', padding: 18, paddingBottom: 10, borderTopWidth: 2, borderColor: FioColors.lineStrong, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: FioColors.surface },

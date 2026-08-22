@@ -61,7 +61,8 @@ function Counter({ icon, value, label }: { icon: keyof typeof Ionicons.glyphMap;
 
 export default function PublicProfileScreen() {
   const router = useRouter();
-  const { userId } = useLocalSearchParams<{ userId?: string }>();
+  const { userId, preview } = useLocalSearchParams<{ userId?: string; preview?: string }>();
+  const isOwnPreview = preview === '1';
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [companies, setCompanies] = useState<PublicCompany[]>([]);
   const [summary, setSummary] = useState<Summary>({ active_works: 0, companies: 0 });
@@ -76,8 +77,16 @@ export default function PublicProfileScreen() {
     }
     setLoading(true);
     setMessage('');
+    const { data: authData } = await supabase.auth.getUser();
+    const canPreviewOwnProfile = isOwnPreview && authData.user?.id === userId;
     const [profileResult, companiesResult, summaryResult] = await Promise.all([
-      supabase.rpc('get_public_professional_profile', { p_user_id: userId }),
+      canPreviewOwnProfile
+        ? supabase
+            .from('profiles')
+            .select('id, full_name, phone, job_title, coverage_area, avatar_url, professional_profile_enabled')
+            .eq('id', userId)
+            .maybeSingle()
+        : supabase.rpc('get_public_professional_profile', { p_user_id: userId }),
       supabase.rpc('get_public_professional_companies', { p_user_id: userId }),
       supabase.rpc('get_public_professional_summary', { p_user_id: userId }),
     ]);
@@ -85,13 +94,26 @@ export default function PublicProfileScreen() {
       setMessage(profileResult.error.message);
       setProfile(null);
     } else {
-      setProfile((profileResult.data?.[0] ?? null) as PublicProfile | null);
-      if (!profileResult.data?.[0]) setMessage('Este perfil público está desativado.');
+      const row = canPreviewOwnProfile
+        ? profileResult.data
+        : Array.isArray(profileResult.data)
+        ? profileResult.data[0]
+        : null;
+      setProfile(row ? {
+        user_id: canPreviewOwnProfile ? row.id : row.user_id,
+        full_name: row.full_name ?? 'Profissional do FIO',
+        phone: row.phone ?? null,
+        job_title: row.job_title ?? null,
+        coverage_area: row.coverage_area ?? null,
+        avatar_url: row.avatar_url ?? null,
+        professional_profile_enabled: Boolean(row.professional_profile_enabled),
+      } : null);
+      if (!row) setMessage('Este perfil público está desativado.');
     }
     if (!companiesResult.error) setCompanies((companiesResult.data ?? []) as PublicCompany[]);
     if (!summaryResult.error && summaryResult.data?.[0]) setSummary(summaryResult.data[0] as Summary);
     setLoading(false);
-  }, [userId]);
+  }, [isOwnPreview, userId]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
@@ -106,12 +128,13 @@ export default function PublicProfileScreen() {
 
   return (
     <View style={styles.page}>
-      <FioPageHeader eyebrow="PERFIL PÚBLICO" title="Meu perfil" subtitle="Informações profissionais compartilhadas no FIO" />
+      <FioPageHeader eyebrow={isOwnPreview ? 'PRÉVIA DO PERFIL PÚBLICO' : 'PERFIL PÚBLICO'} title="Meu perfil" subtitle="Informações profissionais compartilhadas no FIO" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {!!message && !profile && <View style={styles.errorCard}><Ionicons name="information-circle-outline" size={19} color={FioColors.orange} /><Text style={styles.errorText}>{message}</Text></View>}
         {profile && (
           <>
             <View style={styles.heroCard}>
+              {isOwnPreview && !profile.professional_profile_enabled && <View style={styles.previewBadge}><Ionicons name="eye-off-outline" size={13} color={FioColors.orange} /><Text style={styles.previewBadgeText}>Desativado · somente você vê esta prévia</Text></View>}
               <View style={styles.heroTop}>
                 <View style={styles.avatarFrame}>
                   {profile.avatar_url ? <Image source={{ uri: profile.avatar_url }} style={styles.avatar} /> : <Text style={styles.avatarInitials}>{initials(profile.full_name)}</Text>}
@@ -126,7 +149,7 @@ export default function PublicProfileScreen() {
               <View style={styles.heroLine} />
               <View style={styles.heroActions}>
                 <Pressable style={styles.heroAction} onPress={() => void shareProfile()}><Ionicons name="share-outline" size={18} color={FioColors.green} /><Text style={styles.heroActionText}>Compartilhar</Text></Pressable>
-                <Pressable style={styles.heroAction} onPress={() => router.push({ pathname: '/messages', params: { userId: profile.user_id } })}><Ionicons name="chatbubble-ellipses-outline" size={18} color={FioColors.orange} /><Text style={[styles.heroActionText, styles.orangeText]}>Enviar mensagem</Text></Pressable>
+                <Pressable style={styles.heroAction} onPress={() => isOwnPreview ? router.push('/edit-profile') : router.push({ pathname: '/messages', params: { userId: profile.user_id } })}><Ionicons name={isOwnPreview ? 'create-outline' : 'chatbubble-ellipses-outline'} size={18} color={FioColors.orange} /><Text style={[styles.heroActionText, styles.orangeText]}>{isOwnPreview ? 'Editar perfil' : 'Enviar mensagem'}</Text></Pressable>
               </View>
             </View>
 
@@ -167,6 +190,8 @@ const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: FioColors.canvas },
   loadingText: { marginTop: 10, fontSize: 12, color: FioColors.textMuted },
   heroCard: { padding: 16, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.large, backgroundColor: FioColors.surface, ...FioShadow },
+  previewBadge: { alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999, backgroundColor: FioColors.orangeSoft },
+  previewBadgeText: { fontSize: 8, fontWeight: '900', color: FioColors.orange },
   heroTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatarFrame: { width: 88, height: 88, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 4, borderColor: FioColors.greenSoft, borderRadius: 999, backgroundColor: FioColors.gold },
   avatar: { width: '100%', height: '100%' },
