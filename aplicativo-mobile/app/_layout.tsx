@@ -253,6 +253,14 @@ export default function RootLayout() {
           />
 
           <Stack.Screen
+           name="environment-measurements"
+          />
+
+          <Stack.Screen
+           name="measurement-editor"
+          />
+
+          <Stack.Screen
             name="edit-profile"
           />
 

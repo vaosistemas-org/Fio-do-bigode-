@@ -141,7 +141,14 @@ export default function EnvironmentScreen() {
         const loadedEnvironment = environmentResult.data as Environment;
         setEnvironment(loadedEnvironment);
 
-        const [workResult, eventsResult, photosResult, pendingResult, documentsResult] =
+        const [
+          workResult,
+          eventsResult,
+          photosResult,
+          pendingResult,
+          measurementResult,
+          documentsResult,
+        ] =
           await Promise.all([
             supabase
               .from('works')
@@ -159,6 +166,10 @@ export default function EnvironmentScreen() {
               .select('id', { count: 'exact', head: true })
               .eq('environment_id', id)
               .eq('status', 'open'),
+            supabase
+              .from('work_measurement_photos')
+              .select('id', { count: 'exact', head: true })
+              .eq('environment_id', id),
             supabase.rpc('get_work_documents', { p_work_id: loadedEnvironment.work_id }),
           ]);
 
@@ -176,7 +187,7 @@ export default function EnvironmentScreen() {
         setCounts({
           photos: photosResult.count ?? 0,
           pending: pendingResult.count ?? 0,
-          measurements: documents.filter((item) => item.category === 'measurement').length,
+          measurements: measurementResult.count ?? 0,
           documents: documents.filter(
             (item) => item.category !== 'measurement' && item.category !== 'project'
           ).length,
@@ -229,6 +240,13 @@ export default function EnvironmentScreen() {
 
   function openSection(section: (typeof SHORTCUTS)[number]['section']) {
     if (!environment) return;
+    if (section === 'measurements') {
+      router.push({
+        pathname: '/environment-measurements',
+        params: { id: environment.id },
+      });
+      return;
+    }
     router.push({
       pathname: '/works/[id]',
       params: {
