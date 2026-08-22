@@ -115,11 +115,17 @@ export function FioGlobalSidebar() {
   const insets = useSafeAreaInsets();
   const [level, setLevel] = useState<SidebarLevel>(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
     let active = true;
-    supabase.rpc('get_my_notification_unread_count').then(({ data }) => {
-      if (active) setUnreadNotifications(Number(data ?? 0));
+    Promise.all([
+      supabase.rpc('get_my_notification_unread_count'),
+      supabase.rpc('get_my_message_unread_count'),
+    ]).then(([notificationResult, messageResult]) => {
+      if (!active) return;
+      setUnreadNotifications(Number(notificationResult.data ?? 0));
+      setUnreadMessages(Number(messageResult.data ?? 0));
     });
     return () => { active = false; };
   }, [pathname]);
@@ -256,6 +262,11 @@ export function FioGlobalSidebar() {
         >
           {NAVIGATION.map((item) => {
             const active = item.key === activeItem.key;
+            const unreadCount = item.key === 'notifications'
+              ? unreadNotifications
+              : item.key === 'messages'
+              ? unreadMessages
+              : 0;
             return (
               <Pressable
                 key={item.key}
@@ -287,9 +298,9 @@ export function FioGlobalSidebar() {
                 {level === 2 && (
                   <View style={styles.itemLabelRow}>
                     <Text numberOfLines={1} style={[styles.itemLabel, active && styles.itemLabelActive]}>{item.label}</Text>
-                    {item.key === 'notifications' && unreadNotifications > 0 && (
+                    {unreadCount > 0 && (
                       <View style={styles.notificationBadge}>
-                        <Text style={styles.notificationBadgeText}>{unreadNotifications > 9 ? '9+' : unreadNotifications}</Text>
+                        <Text style={styles.notificationBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
                       </View>
                     )}
                   </View>

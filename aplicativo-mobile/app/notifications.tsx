@@ -16,12 +16,12 @@ import { FioPageHeader } from '@/components/fio-shell/FioPageHeader';
 import { FioColors } from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
-type NotificationEntity = 'document' | 'visit' | 'pending' | 'work';
+type NotificationEntity = 'document' | 'visit' | 'pending' | 'message' | 'work';
 
 type Notification = {
   id: string;
   work_id: string | null;
-  event_id: string;
+  event_id: string | null;
   event_type: string;
   entity_type: NotificationEntity;
   entity_id: string | null;
@@ -43,6 +43,7 @@ const formatDate = (value: string) =>
   });
 
 function primaryLabel(item: Notification) {
+  if (item.entity_type === 'message') return 'Abrir conversa';
   if (item.entity_type === 'document') return 'Abrir documento';
   if (item.entity_type === 'visit') return 'Abrir visita';
   if (item.entity_type === 'pending') return 'Abrir pendência';
@@ -50,6 +51,7 @@ function primaryLabel(item: Notification) {
 }
 
 function primaryIcon(item: Notification): keyof typeof Ionicons.glyphMap {
+  if (item.entity_type === 'message') return 'chatbubble-outline';
   if (item.entity_type === 'document') return 'document-text-outline';
   if (item.entity_type === 'visit') return 'calendar-outline';
   if (item.entity_type === 'pending') return 'alert-circle-outline';
@@ -94,6 +96,13 @@ export default function NotificationsScreen() {
 
   async function openPrimary(item: Notification) {
     await markRead(item);
+    if (item.entity_type === 'message' && item.entity_id) {
+      router.push({
+        pathname: '/messages',
+        params: { conversationId: item.entity_id },
+      });
+      return;
+    }
     if (!item.work_id) return;
 
     if (item.entity_type === 'visit' && item.entity_id) {

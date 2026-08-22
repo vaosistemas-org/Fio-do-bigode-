@@ -822,9 +822,14 @@ export default function WorkDetailsScreen() {
                     </View>
                     <View style={styles.avatars}>
                       {participants.slice(0, 5).map((person) => (
-                        <View
+                        <Pressable
                           key={person.participant_id}
                           style={styles.avatar}
+                          disabled={!canWrite || person.user_id === userId}
+                          onPress={() => router.push({
+                            pathname: '/messages',
+                            params: { userId: person.user_id, workId: work.id },
+                          })}
                         >
                           {person.avatar_url ? (
                             <Image
@@ -836,8 +841,21 @@ export default function WorkDetailsScreen() {
                               {initials(person.full_name)}
                             </Text>
                           )}
-                        </View>
+                        </Pressable>
                       ))}
+                      <Pressable
+                        style={styles.messageTeam}
+                        onPress={() => router.push({
+                          pathname: '/messages',
+                          params: { workId: work.id, workGroup: '1' },
+                        })}
+                      >
+                        <Ionicons
+                          name="chatbubbles-outline"
+                          size={18}
+                          color={FioColors.green}
+                        />
+                      </Pressable>
                       <Pressable
                         style={styles.addTeam}
                         onPress={() =>
@@ -1768,6 +1786,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: FioColors.lineStrong,
     borderRadius: 999,
+  },
+  messageTeam: {
+    width: 34,
+    height: 34,
+    marginLeft: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: FioColors.green,
+    borderRadius: 999,
+    backgroundColor: FioColors.greenSoft,
   },
   teamCount: { fontSize: 9, color: FioColors.textSoft },
   readOnly: {
