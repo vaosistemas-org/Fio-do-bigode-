@@ -192,6 +192,8 @@ export default function RootLayout() {
 
           <Stack.Screen name="my-professional-profile" />
 
+          <Stack.Screen name="public-profile" />
+
           <Stack.Screen name="company" />
 
           <Stack.Screen name="client-profile" />

@@ -884,10 +884,10 @@ export default function WorkDetailsScreen() {
                         <Pressable
                           key={person.participant_id}
                           style={styles.avatar}
-                          disabled={!canWrite || person.user_id === userId}
+                          disabled={person.user_id === userId}
                           onPress={() => router.push({
-                            pathname: '/messages',
-                            params: { userId: person.user_id, workId: work.id },
+                            pathname: '/public-profile',
+                            params: { userId: person.user_id },
                           })}
                         >
                           {person.avatar_url ? (
