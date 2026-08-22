@@ -123,6 +123,7 @@ export default function MessagesScreen() {
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const listRef = useRef<ScrollView>(null);
+  const realtimeChannelSequence = useRef(0);
   const handledRoute = useRef('');
 
   const activeConversation = useMemo(
@@ -178,7 +179,9 @@ export default function MessagesScreen() {
       return;
     }
     loadMessages(activeId);
-    const channel = supabase.channel(`fio-conversation-${activeId}`).on(
+    const channel = supabase.channel(
+      `fio-conversation-${activeId}-${++realtimeChannelSequence.current}`
+    ).on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'fio_messages', filter: `conversation_id=eq.${activeId}` },
       () => { loadMessages(activeId); loadConversations(); }
