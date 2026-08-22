@@ -9,7 +9,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -370,9 +372,20 @@ export default function MessagesScreen() {
           </ScrollView>
         )
       ) : (
-        <View style={styles.chatArea}>
+        <KeyboardAvoidingView
+          style={styles.chatArea}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={0}
+        >
           {loadingMessages ? <ActivityIndicator style={styles.loading} color={FioColors.gold} /> : (
-            <ScrollView ref={listRef} style={styles.messageList} contentContainerStyle={styles.messageContent} onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}>
+            <ScrollView
+              ref={listRef}
+              style={styles.messageList}
+              contentContainerStyle={styles.messageContent}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+              onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+            >
               {!!errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
               {messages.length === 0 && <View style={styles.chatEmpty}><Text style={styles.emptyTitle}>Conversa aberta</Text><Text style={styles.emptyText}>Envie a primeira mensagem para iniciar.</Text></View>}
               {messages.map((message) => {
@@ -416,7 +429,7 @@ export default function MessagesScreen() {
               </View>
             </View>
           ) : <View style={styles.readOnly}><Ionicons name="eye-outline" size={18} color={FioColors.textMuted} /><Text style={styles.readOnlyText}>Seu perfil possui acesso somente para leitura nesta conversa.</Text></View>}
-        </View>
+        </KeyboardAvoidingView>
       )}
 
       <Modal visible={createVisible} transparent animationType="slide" onRequestClose={() => setCreateVisible(false)}>
