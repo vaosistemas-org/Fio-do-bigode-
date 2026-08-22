@@ -13,6 +13,7 @@ import {
 } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   Pressable,
@@ -624,6 +625,64 @@ export default function WorkDetailsScreen() {
   function runAction(action: () => void) {
     setActionMenuVisible(false);
     action();
+  }
+
+  function editWork() {
+    runAction(() =>
+      router.push({
+        pathname: '/new-work',
+        params: { id: work?.id ?? id },
+      })
+    );
+  }
+
+  function archiveWork() {
+    if (!work) return;
+    runAction(() => {
+      Alert.alert(
+        'Arquivar obra',
+        'A obra sairá da lista principal, mas poderá ser restaurada em Arquivadas.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Arquivar',
+            onPress: async () => {
+              const { error } = await supabase.rpc('archive_work', { p_work_id: work.id });
+              if (error) {
+                setMessage(error.message);
+                return;
+              }
+              router.replace('/works');
+            },
+          },
+        ]
+      );
+    });
+  }
+
+  function trashWork() {
+    if (!work) return;
+    runAction(() => {
+      Alert.alert(
+        'Mover para a lixeira',
+        'A obra ficará recuperável por 30 dias. Depois disso, será removida definitivamente.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Mover para lixeira',
+            style: 'destructive',
+            onPress: async () => {
+              const { error } = await supabase.rpc('move_work_to_trash', { p_work_id: work.id });
+              if (error) {
+                setMessage(error.message);
+                return;
+              }
+              router.replace('/works');
+            },
+          },
+        ]
+      );
+    });
   }
 
   function openReport(
@@ -1409,6 +1468,28 @@ export default function WorkDetailsScreen() {
                 </View>
 
                 <View style={styles.actionGrid}>
+                  {!actionEnvironment && canManage && (
+                    <>
+                      <Pressable style={styles.actionItem} onPress={editWork}>
+                        <View style={styles.actionIcon}>
+                          <Ionicons name="create-outline" size={21} color={FioColors.green} />
+                        </View>
+                        <Text style={styles.actionText}>Editar obra</Text>
+                      </Pressable>
+                      <Pressable style={styles.actionItem} onPress={archiveWork}>
+                        <View style={styles.actionIcon}>
+                          <Ionicons name="archive-outline" size={21} color={FioColors.green} />
+                        </View>
+                        <Text style={styles.actionText}>Arquivar obra</Text>
+                      </Pressable>
+                      <Pressable style={styles.actionItem} onPress={trashWork}>
+                        <View style={styles.actionIcon}>
+                          <Ionicons name="trash-outline" size={21} color={FioColors.orange} />
+                        </View>
+                        <Text style={styles.actionText}>Lixeira · 30 dias</Text>
+                      </Pressable>
+                    </>
+                  )}
                   <Pressable
                     style={styles.actionItem}
                     onPress={() =>

@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   RefreshControl,
@@ -43,7 +44,13 @@ type Work = {
   cover_photo_id: string | null;
   next_visit_at: string | null;
   updated_at: string;
+  archived_at: string | null;
+  deleted_at: string | null;
+  trash_expires_at: string | null;
+  canManage: boolean;
 };
+
+type WorkView = 'active' | 'archived' | 'trash';
 
 type WorkAuxiliaryData = {
   pending: number;
@@ -144,6 +151,7 @@ export default function WorksScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
+  const [viewMode, setViewMode] = useState<WorkView>('active');
 
   const loadWorks = useCallback(async (refresh = false) => {
     if (refresh) {
@@ -153,14 +161,15 @@ export default function WorksScreen() {
     }
     setMessage('');
 
+    await supabase.rpc('purge_expired_work_trash');
+
     const [worksResult, feedResult] = await Promise.all([
       supabase
-        .from('works')
-        .select(
-          'id, code, client_name, address, project_order, status, progress, cover_photo_id, next_visit_at, updated_at'
-        )
-        .is('archived_at', null)
-        .order('updated_at', { ascending: false }),
+      .from('works')
+      .select(
+        'id, code, client_name, address, project_order, status, progress, cover_photo_id, next_visit_at, updated_at, archived_at, deleted_at, trash_expires_at'
+      )
+      .order('updated_at', { ascending: false }),
       supabase.rpc('get_my_fio_feed', { p_limit: 12 }),
     ]);
 
@@ -171,12 +180,26 @@ export default function WorksScreen() {
       return;
     }
 
-    const loaded = (worksResult.data ?? []) as Work[];
+    const allRows = (worksResult.data ?? []) as Omit<Work, 'canManage'>[];
+    const loadedRows = allRows.filter((work) =>
+      viewMode === 'active'
+        ? !work.archived_at && !work.deleted_at
+        : viewMode === 'archived'
+        ? Boolean(work.archived_at) && !work.deleted_at
+        : Boolean(work.deleted_at)
+    );
+    const manageResults = await Promise.all(
+      loadedRows.map((work) => supabase.rpc('can_manage_work', { p_work_id: work.id }))
+    );
+    const loaded = loadedRows.map((work, index) => ({
+      ...work,
+      canManage: Boolean(manageResults[index].data),
+    }));
     setWorks(loaded);
     if (!feedResult.error) setRecent(((feedResult.data ?? []) as RecentUpdate[]).slice(0, 8));
 
     const ids = loaded.map((work) => work.id);
-    if (ids.length > 0) {
+    if (ids.length > 0 && viewMode !== 'trash') {
       const [pendingResult, environmentsResult, photosResult] = await Promise.all([
         supabase
           .from('work_pending_items')
@@ -244,7 +267,7 @@ export default function WorksScreen() {
 
     setLoading(false);
     setRefreshing(false);
-  }, []);
+  }, [viewMode]);
 
   useFocusEffect(
     useCallback(() => {
@@ -273,6 +296,40 @@ export default function WorksScreen() {
   function showSearch() {
     setSearchVisible(true);
     setTimeout(() => searchRef.current?.focus(), 100);
+  }
+
+  async function runWorkAction(work: Work, action: 'archive' | 'restoreArchive' | 'trash' | 'restoreTrash') {
+    const rpcName = action === 'archive'
+      ? 'archive_work'
+      : action === 'restoreArchive'
+      ? 'restore_archived_work'
+      : action === 'trash'
+      ? 'move_work_to_trash'
+      : 'restore_work_from_trash';
+    const { error } = await supabase.rpc(rpcName, { p_work_id: work.id });
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    await loadWorks(true);
+  }
+
+  function confirmWorkAction(work: Work, action: 'archive' | 'trash') {
+    const isTrash = action === 'trash';
+    Alert.alert(
+      isTrash ? 'Mover para a lixeira' : 'Arquivar obra',
+      isTrash
+        ? 'A obra ficará recuperável por 30 dias. Depois disso, será removida definitivamente.'
+        : 'A obra sairá da lista principal, mas poderá ser restaurada em Arquivadas.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: isTrash ? 'Mover para lixeira' : 'Arquivar',
+          style: isTrash ? 'destructive' : 'default',
+          onPress: () => void runWorkAction(work, action),
+        },
+      ]
+    );
   }
 
   if (loading) {
@@ -326,6 +383,27 @@ export default function WorksScreen() {
             <Ionicons name="add-outline" size={18} color={FioColors.textOnAccent} />
             <Text style={styles.newButtonText}>Nova obra</Text>
           </Pressable>
+        </View>
+
+        <View style={styles.viewTabs}>
+          {([
+            ['active', 'Ativas'],
+            ['archived', 'Arquivadas'],
+            ['trash', 'Lixeira · 30 dias'],
+          ] as const).map(([value, label]) => (
+            <Pressable
+              key={value}
+              style={[styles.viewTab, viewMode === value && styles.viewTabActive]}
+              onPress={() => {
+                setMessage('');
+                setViewMode(value);
+              }}
+            >
+              <Text style={[styles.viewTabText, viewMode === value && styles.viewTabTextActive]}>
+                {label}
+              </Text>
+            </Pressable>
+          ))}
         </View>
 
         {searchVisible && (
@@ -419,6 +497,8 @@ export default function WorksScreen() {
               style={[
                 styles.workCard,
                 work.status === 'finalizada' && styles.workCardFinished,
+                viewMode === 'archived' && styles.workCardArchived,
+                viewMode === 'trash' && styles.workCardTrash,
               ]}
             >
               <Pressable
@@ -485,13 +565,52 @@ export default function WorksScreen() {
                       onPress={() => openSection(work.id, 'photos')}
                     />
                   </View>
-                  <Pressable
-                    style={styles.openButton}
-                    onPress={() => openSection(work.id)}
-                  >
-                    <Text style={styles.openButtonText}>Abrir obra</Text>
-                    <Ionicons name="arrow-forward-outline" size={17} color={FioColors.textOnAccent} />
-                  </Pressable>
+                  {viewMode !== 'trash' && (
+                    <Pressable
+                      style={styles.openButton}
+                      onPress={() => openSection(work.id)}
+                    >
+                      <Text style={styles.openButtonText}>Abrir obra</Text>
+                      <Ionicons name="arrow-forward-outline" size={17} color={FioColors.textOnAccent} />
+                    </Pressable>
+                  )}
+                  {viewMode === 'trash' && work.trash_expires_at && (
+                    <Text style={styles.trashExpiry}>
+                      Recuperável até {formatDate(work.trash_expires_at)}
+                    </Text>
+                  )}
+                  {work.canManage && (
+                    <View style={styles.workActions}>
+                      {viewMode === 'active' && (
+                        <>
+                          <Pressable style={styles.smallAction} onPress={() => router.push({ pathname: '/new-work', params: { id: work.id } })}>
+                            <Ionicons name="create-outline" size={16} color={FioColors.green} />
+                            <Text style={styles.smallActionText}>Editar</Text>
+                          </Pressable>
+                          <Pressable style={styles.smallAction} onPress={() => confirmWorkAction(work, 'archive')}>
+                            <Ionicons name="archive-outline" size={16} color={FioColors.green} />
+                            <Text style={styles.smallActionText}>Arquivar</Text>
+                          </Pressable>
+                          <Pressable style={styles.smallAction} onPress={() => confirmWorkAction(work, 'trash')}>
+                            <Ionicons name="trash-outline" size={16} color={FioColors.orange} />
+                            <Text style={[styles.smallActionText, styles.smallActionDanger]}>Lixeira</Text>
+                          </Pressable>
+                        </>
+                      )}
+                      {viewMode === 'archived' && (
+                        <Pressable style={styles.smallAction} onPress={() => void runWorkAction(work, 'restoreArchive')}>
+                          <Ionicons name="refresh-outline" size={16} color={FioColors.green} />
+                          <Text style={styles.smallActionText}>Restaurar</Text>
+                        </Pressable>
+                      )}
+                      {viewMode === 'trash' && (
+                        <Pressable style={styles.smallAction} onPress={() => void runWorkAction(work, 'restoreTrash')}>
+                          <Ionicons name="arrow-undo-outline" size={16} color={FioColors.green} />
+                          <Text style={styles.smallActionText}>Restaurar</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -545,6 +664,11 @@ const styles = StyleSheet.create({
   searchIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.line, borderRadius: 13, backgroundColor: FioColors.surface },
   newButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 13, borderRadius: 13, backgroundColor: FioColors.green },
   newButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.textOnAccent },
+  viewTabs: { marginTop: 14, flexDirection: 'row', gap: 7 },
+  viewTab: { minHeight: 38, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.line, borderRadius: 11, backgroundColor: FioColors.surface },
+  viewTabActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
+  viewTabText: { fontSize: 9, fontWeight: '800', color: FioColors.textMuted },
+  viewTabTextActive: { color: FioColors.green },
   searchBox: { minHeight: 50, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 13, borderWidth: 1, borderColor: FioColors.gold, borderRadius: 13, backgroundColor: FioColors.surface },
   searchInput: { flex: 1, paddingVertical: 12, fontSize: 13, color: FioColors.text },
   recentSection: { marginTop: 25 },
@@ -562,6 +686,8 @@ const styles = StyleSheet.create({
   order: { fontSize: 9, color: FioColors.textMuted },
   workCard: { marginBottom: 10, overflow: 'hidden', borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.large, backgroundColor: FioColors.surface, ...FioShadow },
   workCardFinished: { borderColor: FioColors.green, backgroundColor: FioColors.successSoft },
+  workCardArchived: { borderColor: FioColors.gold, backgroundColor: FioColors.goldSoft },
+  workCardTrash: { borderColor: FioColors.orange, backgroundColor: FioColors.orangeSoft },
   workHeader: { minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
   cover: { width: 58, height: 66, alignItems: 'center', justifyContent: 'center', gap: 3, borderRadius: 14, backgroundColor: FioColors.surfaceRaised },
   coverImage: { width: 58, height: 66, borderRadius: 14, resizeMode: 'cover', backgroundColor: FioColors.surfaceRaised },
@@ -584,6 +710,11 @@ const styles = StyleSheet.create({
   shortcutValue: { fontSize: 13, fontWeight: '900' },
   openButton: { minHeight: 44, marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: FioColors.green },
   openButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.textOnAccent },
+  workActions: { marginTop: 9, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  smallAction: { minHeight: 36, flex: 1, minWidth: 92, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 9, borderWidth: 1, borderColor: FioColors.line, borderRadius: 10, backgroundColor: FioColors.surface },
+  smallActionText: { fontSize: 9, fontWeight: '900', color: FioColors.green },
+  smallActionDanger: { color: FioColors.orange },
+  trashExpiry: { marginTop: 8, textAlign: 'center', fontSize: 9, fontWeight: '800', color: FioColors.orange },
   emptyCard: { alignItems: 'center', padding: 28, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.large, backgroundColor: FioColors.surface },
   emptyTitle: { marginTop: 10, fontSize: 15, fontWeight: '900', color: FioColors.text },
   errorCard: { padding: 13, borderRadius: 12, backgroundColor: FioColors.dangerSoft },

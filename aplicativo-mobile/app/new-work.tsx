@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -108,6 +108,8 @@ function formatLongDate(date: Date) {
 
 export default function NewWorkScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const editingWorkId = typeof id === 'string' ? id : undefined;
 
   const [clientName, setClientName] =
     useState('');
@@ -157,8 +159,50 @@ export default function NewWorkScreen() {
   const [message, setMessage] =
     useState('');
 
+  const [loadingExisting, setLoadingExisting] =
+    useState(Boolean(editingWorkId));
+
+  useEffect(() => {
+    if (!editingWorkId) {
+      setLoadingExisting(false);
+      return;
+    }
+
+    let active = true;
+    async function loadExistingWork() {
+      setLoadingExisting(true);
+      const { data, error } = await supabase
+        .from('works')
+        .select('client_name, client_phone, address, project_order, status, progress, next_visit_at, notes')
+        .eq('id', editingWorkId)
+        .maybeSingle();
+
+      if (!active) return;
+      if (error || !data) {
+        setMessage(error?.message ?? 'Não foi possível carregar a obra para edição.');
+        setLoadingExisting(false);
+        return;
+      }
+
+      setClientName(data.client_name ?? '');
+      setClientPhone(data.client_phone ?? '');
+      setAddress(data.address ?? '');
+      setProjectOrder(data.project_order ?? '');
+      setStatus(data.status as WorkStatus);
+      setProgress(String(data.progress ?? 0));
+      setNextVisit(data.next_visit_at ? new Date(data.next_visit_at) : null);
+      setNotes(data.notes ?? '');
+      setLoadingExisting(false);
+    }
+
+    void loadExistingWork();
+    return () => {
+      active = false;
+    };
+  }, [editingWorkId]);
+
   function openNextVisitPicker() {
-    if (saving) {
+    if (saving || loadingExisting) {
       return;
     }
 
@@ -357,7 +401,7 @@ export default function NewWorkScreen() {
   }
 
   async function handleCreateWork() {
-    if (saving) {
+    if (saving || loadingExisting) {
       return;
     }
 
@@ -407,53 +451,42 @@ export default function NewWorkScreen() {
     setSaving(true);
 
     try {
-      const { data, error } =
-        await supabase.rpc(
-          'create_work',
-          {
-            p_client_name:
-              clientName.trim(),
-
-            p_client_phone:
-              clientPhone.trim(),
-
-            p_address:
-              address.trim(),
-
-            p_project_order:
-              projectOrder.trim() ||
-              null,
-
+      const { data, error } = editingWorkId
+        ? await supabase.rpc('update_work_details', {
+            p_work_id: editingWorkId,
+            p_client_name: clientName.trim(),
+            p_client_phone: clientPhone.trim(),
+            p_address: address.trim(),
+            p_project_order: projectOrder.trim() || null,
             p_status: status,
-
-            p_progress:
-              Math.round(
-                parsedProgress
-              ),
-
-            p_next_visit_at:
-              nextVisit
-                ? nextVisit.toISOString()
-                : null,
-
-            p_notes:
-              notes.trim() || null,
-
+            p_progress: Math.round(parsedProgress),
+            p_next_visit_at: nextVisit ? nextVisit.toISOString() : null,
+            p_notes: notes.trim() || null,
+          })
+        : await supabase.rpc('create_work', {
+            p_client_name: clientName.trim(),
+            p_client_phone: clientPhone.trim(),
+            p_address: address.trim(),
+            p_project_order: projectOrder.trim() || null,
+            p_status: status,
+            p_progress: Math.round(parsedProgress),
+            p_next_visit_at: nextVisit ? nextVisit.toISOString() : null,
+            p_notes: notes.trim() || null,
             p_company_id: null,
-
             p_role_title: null,
-          }
-        );
+          });
 
       if (error) {
         setMessage(error.message);
         return;
       }
 
-      const result =
-        Array.isArray(data)
-          ? data[0]
-          : data;
+      if (editingWorkId) {
+        router.replace({ pathname: '/works/[id]', params: { id: editingWorkId } });
+        return;
+      }
+
+      const result = Array.isArray(data) ? data[0] : data;
 
       const workId =
         result?.work_id;
@@ -558,11 +591,11 @@ export default function NewWorkScreen() {
             <Text
               style={styles.eyebrow}
             >
-              NOVA OBRA
+              {editingWorkId ? 'EDITAR OBRA' : 'NOVA OBRA'}
             </Text>
 
             <Text style={styles.title}>
-              Cadastrar obra
+              {editingWorkId ? 'Editar dados da obra' : 'Cadastrar obra'}
             </Text>
 
             <Text
@@ -879,7 +912,7 @@ export default function NewWorkScreen() {
             onPress={
               handleCreateWork
             }
-            disabled={saving}
+            disabled={saving || loadingExisting}
           >
             {saving ? (
               <View
@@ -897,7 +930,7 @@ export default function NewWorkScreen() {
                     styles.createButtonText
                   }
                 >
-                  Criando obra...
+                {editingWorkId ? 'Salvando alterações...' : 'Criando obra...'}
                 </Text>
               </View>
             ) : (
@@ -906,7 +939,7 @@ export default function NewWorkScreen() {
                   styles.createButtonText
                 }
               >
-                Criar obra
+                {editingWorkId ? 'Salvar alterações' : 'Criar obra'}
               </Text>
             )}
           </Pressable>
