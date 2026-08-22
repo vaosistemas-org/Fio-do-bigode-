@@ -6,6 +6,7 @@ import * as DocumentPicker from 'expo-document-picker';
 // @ts-ignore installed with the Expo SDK 54 dependencies declared in package.json
 import { File as ExpoFile } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import {
   openBrowserAsync,
   WebBrowserPresentationStyle,
@@ -271,6 +272,7 @@ export function WorkDocumentsPanel({
 }) {
   const measurementMode = categoryFilter === 'measurement';
   const projectMode = categoryFilter === 'project';
+  const router = useRouter();
   const [documents, setDocuments] = useState<WorkDocument[]>([]);
   const [uploadInfo, setUploadInfo] = useState<
     Record<string, DocumentUploadInfo>
@@ -316,6 +318,11 @@ export function WorkDocumentsPanel({
           participant.full_name,
         ])
       ),
+    [participants]
+  );
+
+  const participantAvatars = useMemo(
+    () => Object.fromEntries(participants.map((participant) => [participant.user_id, participant.avatar_url])),
     [participants]
   );
 
@@ -487,7 +494,15 @@ export function WorkDocumentsPanel({
   function userLabel(id: string | null) {
     if (!id) return 'Usuário do FIO';
     if (id === userId) return 'você';
-    return participantNames[id] ?? 'Usuário do FIO';
+    return participantNames[id]?.trim().split(/\s+/)[0] ?? 'Usuário';
+  }
+
+  function openAuthor(id: string | null) {
+    if (!id) return;
+    router.push({
+      pathname: '/public-profile',
+      params: { userId: id, ...(id === userId ? { preview: '1' } : {}) },
+    });
   }
 
   function resetForm() {
@@ -1023,29 +1038,29 @@ export function WorkDocumentsPanel({
               <Text style={styles.documentMeta}>
                 {categoryLabel(document.category)} · {document.environment_name || 'Geral da obra'}
               </Text>
-              <View style={styles.authorDateRow}>
-                <Ionicons
-                  name="person-circle-outline"
-                  size={14}
-                  color={FioColors.textMuted}
-                />
+              <Pressable style={styles.authorDateRow} onPress={() => openAuthor(document.created_by)}>
+                {participantAvatars[document.created_by] ? (
+                  <Image source={{ uri: participantAvatars[document.created_by] ?? undefined }} style={styles.authorAvatar} contentFit="cover" />
+                ) : (
+                  <View style={styles.authorAvatarFallback}><Ionicons name="person-outline" size={12} color={FioColors.green} /></View>
+                )}
                 <Text numberOfLines={1} style={styles.authorDateText}>
                   Criado por {userLabel(document.created_by)}
                 </Text>
-              </View>
-              <View style={styles.authorDateRow}>
-                <Ionicons
-                  name="cloud-upload-outline"
-                  size={14}
-                  color={FioColors.textMuted}
-                />
+              </Pressable>
+              <Pressable style={styles.authorDateRow} onPress={() => openAuthor(uploadInfo[document.id]?.latestUploaderId ?? null)}>
+                {participantAvatars[uploadInfo[document.id]?.latestUploaderId ?? ''] ? (
+                  <Image source={{ uri: participantAvatars[uploadInfo[document.id]?.latestUploaderId ?? ''] ?? undefined }} style={styles.authorAvatar} contentFit="cover" />
+                ) : (
+                  <View style={styles.authorAvatarFallback}><Ionicons name="cloud-upload-outline" size={12} color={FioColors.green} /></View>
+                )}
                 <Text numberOfLines={1} style={styles.authorDateText}>
                   Versão atual enviada por{' '}
                   {userLabel(uploadInfo[document.id]?.latestUploaderId ?? null)}
                   {' · '}
                   {formatDate(document.version_created_at ?? document.created_at)}
                 </Text>
-              </View>
+              </Pressable>
               <View style={styles.tagRow}>
                 {projectMode && (
                   <View
@@ -1670,6 +1685,8 @@ const styles = StyleSheet.create({
   documentTitle: { fontSize: 12, fontWeight: '800', color: FioColors.text },
   documentMeta: { marginTop: 2, fontSize: 9, color: FioColors.textMuted },
   authorDateRow: { marginTop: 5, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  authorAvatar: { width: 21, height: 21, overflow: 'hidden', borderRadius: 999, backgroundColor: FioColors.greenSoft },
+  authorAvatarFallback: { width: 21, height: 21, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: FioColors.greenSoft },
   authorDateText: { flex: 1, minWidth: 0, fontSize: 8, color: FioColors.textMuted },
   tagRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   projectStatusTag: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 999 },

@@ -92,6 +92,10 @@ function dayKey(value: string) {
   return `${year}-${month}-${day}`;
 }
 
+function firstName(value: string | null) {
+  return value?.trim().split(/\s+/)[0] || 'Usuário';
+}
+
 function isToday(value: string) {
   return dayKey(value) === dayKey(new Date().toISOString());
 }
@@ -628,6 +632,17 @@ export function WorkTimelinePanel({
         ))}
       </ScrollView>
 
+      <View style={styles.collapseRow}>
+        <Text style={styles.collapseHint}>Dias e filtros da linha do tempo</Text>
+        <Pressable
+          style={styles.collapseButton}
+          onPress={() => setDayOpen(Object.fromEntries(groupedEvents.map((group) => [group.key, false])))}
+        >
+          <Ionicons name="chevron-up-outline" size={15} color={FioColors.green} />
+          <Text style={styles.collapseButtonText}>Recolher tudo</Text>
+        </Pressable>
+      </View>
+
       {!!successMessage && (
         <View style={styles.successCard}>
           <Ionicons name="checkmark-circle-outline" size={18} color={FioColors.success} />
@@ -889,7 +904,7 @@ export function WorkTimelinePanel({
                               onPress={() => event.actor_user_id && router.push({ pathname: '/public-profile', params: { userId: event.actor_user_id } })}
                             >
                               <Text numberOfLines={1} style={styles.eventActor}>
-                                {event.actor_full_name || 'Usuário do FIO'}
+                                {firstName(event.actor_full_name)}
                               </Text>
                             </Pressable>
                           </View>
@@ -1211,6 +1226,10 @@ const styles = StyleSheet.create({
   filterChipActive: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
   filterText: { fontSize: 10, fontWeight: '700', color: FioColors.textMuted },
   filterTextActive: { color: FioColors.green },
+  collapseRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  collapseHint: { flex: 1, fontSize: 9, color: FioColors.textSoft },
+  collapseButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, borderWidth: 1, borderColor: FioColors.green, borderRadius: 9, backgroundColor: FioColors.greenSoft },
+  collapseButtonText: { fontSize: 9, fontWeight: '900', color: FioColors.green },
   successCard: { marginTop: 10, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 11, backgroundColor: FioColors.successSoft },
   successText: { flex: 1, fontSize: 10, color: FioColors.success },
   errorCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: FioColors.dangerSoft },
