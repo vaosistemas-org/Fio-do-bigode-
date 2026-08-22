@@ -23,6 +23,7 @@ import { FioColors } from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
 type DeliveryStatus = 'preparing' | 'ready';
+type AcceptanceStatus = 'pending' | 'accepted' | 'accepted_with_reservations';
 type ChecklistStatus = 'open' | 'completed';
 type PhotoSource = 'camera' | 'gallery';
 type PhotoVisibility = 'internal' | 'shared';
@@ -32,6 +33,11 @@ type DeliveryState = {
   status: DeliveryStatus;
   ready_by: string | null;
   ready_at: string | null;
+  acceptance_status: AcceptanceStatus;
+  acceptance_name: string | null;
+  acceptance_role: string | null;
+  acceptance_notes: string | null;
+  accepted_at: string | null;
 };
 
 type ChecklistItem = {
@@ -76,6 +82,11 @@ const EMPTY_STATE: DeliveryState = {
   status: 'preparing',
   ready_by: null,
   ready_at: null,
+  acceptance_status: 'pending',
+  acceptance_name: null,
+  acceptance_role: null,
+  acceptance_notes: null,
+  accepted_at: null,
 };
 
 function makeFileName() {
@@ -157,6 +168,11 @@ export function WorkDeliveryPanel({
   const [observationItemId, setObservationItemId] = useState<string | null>(null);
   const [itemObservation, setItemObservation] = useState('');
   const [savingObservation, setSavingObservation] = useState(false);
+  const [acceptanceModalVisible, setAcceptanceModalVisible] = useState(false);
+  const [acceptanceName, setAcceptanceName] = useState('');
+  const [acceptanceRole, setAcceptanceRole] = useState('');
+  const [acceptanceNotes, setAcceptanceNotes] = useState('');
+  const [savingAcceptance, setSavingAcceptance] = useState(false);
 
   const activeEnvironments = useMemo(
     () => environments.filter((environment) => environment.status !== 'cancelado'),
@@ -208,7 +224,7 @@ export function WorkDeliveryPanel({
       await Promise.all([
         supabase
           .from('work_delivery_states')
-          .select('notes, status, ready_by, ready_at')
+          .select('notes, status, ready_by, ready_at, acceptance_status, acceptance_name, acceptance_role, acceptance_notes, accepted_at')
           .eq('work_id', workId)
           .maybeSingle(),
         supabase
@@ -250,7 +266,10 @@ export function WorkDeliveryPanel({
       return;
     }
 
-    const nextState = (stateResult.data as DeliveryState | null) ?? EMPTY_STATE;
+    const nextState = ({
+      ...EMPTY_STATE,
+      ...((stateResult.data as Partial<DeliveryState> | null) ?? {}),
+    }) as DeliveryState;
     setDeliveryState(nextState);
     setNotes(nextState.notes ?? '');
     setItems((itemsResult.data ?? []) as ChecklistItem[]);
@@ -761,10 +780,88 @@ export function WorkDeliveryPanel({
         status: 'preparing',
         ready_by: null,
         ready_at: null,
+        acceptance_status: 'pending',
+        acceptance_name: null,
+        acceptance_role: null,
+        acceptance_notes: null,
+        accepted_at: null,
       }));
       setSuccessMessage('Preparação para entrega reaberta.');
     }
     setSaving(false);
+  }
+
+  function openAcceptanceForm() {
+    setAcceptanceName(deliveryState.acceptance_name ?? '');
+    setAcceptanceRole(deliveryState.acceptance_role ?? '');
+    setAcceptanceNotes(deliveryState.acceptance_notes ?? '');
+    setAcceptanceModalVisible(true);
+    clearFeedback();
+  }
+
+  async function saveAcceptance(nextStatus: Exclude<AcceptanceStatus, 'pending'>) {
+    if (!canManage || savingAcceptance) return;
+    if (!acceptanceName.trim()) {
+      setMessage('Informe o nome de quem registrou o aceite.');
+      return;
+    }
+    setSavingAcceptance(true);
+    clearFeedback();
+    const { error } = await supabase.rpc('save_work_delivery_acceptance', {
+      p_work_id: workId,
+      p_acceptance_status: nextStatus,
+      p_acceptance_name: acceptanceName.trim(),
+      p_acceptance_role: acceptanceRole.trim() || null,
+      p_acceptance_notes: acceptanceNotes.trim() || null,
+    });
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setDeliveryState((current) => ({
+        ...current,
+        acceptance_status: nextStatus,
+        acceptance_name: acceptanceName.trim(),
+        acceptance_role: acceptanceRole.trim() || null,
+        acceptance_notes: acceptanceNotes.trim() || null,
+        accepted_at: new Date().toISOString(),
+      }));
+      setAcceptanceModalVisible(false);
+      setSuccessMessage(
+        nextStatus === 'accepted'
+          ? 'Aceite da obra registrado.'
+          : 'Aceite com ressalvas registrado.'
+      );
+      onChanged?.();
+    }
+    setSavingAcceptance(false);
+  }
+
+  async function reopenAcceptance() {
+    if (!canManage || savingAcceptance) return;
+    setSavingAcceptance(true);
+    clearFeedback();
+    const { error } = await supabase.rpc('save_work_delivery_acceptance', {
+      p_work_id: workId,
+      p_acceptance_status: 'pending',
+      p_acceptance_name: null,
+      p_acceptance_role: null,
+      p_acceptance_notes: null,
+    });
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setDeliveryState((current) => ({
+        ...current,
+        acceptance_status: 'pending',
+        acceptance_name: null,
+        acceptance_role: null,
+        acceptance_notes: null,
+        accepted_at: null,
+      }));
+      setSuccessMessage('Aceite reaberto para revisão.');
+      onChanged?.();
+    }
+    setSavingAcceptance(false);
   }
 
   function renderChecklist(scopeEnvironmentId: string | null) {
@@ -1296,9 +1393,137 @@ export function WorkDeliveryPanel({
         </View>
       )}
 
+      {ready && !environmentFilterId && (
+        <View
+          style={[
+            styles.acceptanceCard,
+            deliveryState.acceptance_status === 'accepted' && styles.acceptanceCardAccepted,
+            deliveryState.acceptance_status === 'accepted_with_reservations' && styles.acceptanceCardReserved,
+          ]}
+        >
+          <View style={styles.acceptanceIcon}>
+            <Ionicons
+              name={deliveryState.acceptance_status === 'pending' ? 'create-outline' : 'checkmark-circle-outline'}
+              size={22}
+              color={deliveryState.acceptance_status === 'accepted_with_reservations' ? FioColors.orange : FioColors.green}
+            />
+          </View>
+          <View style={styles.headingIdentity}>
+            <Text style={styles.finalActionTitle}>
+              {deliveryState.acceptance_status === 'pending'
+                ? 'Encerramento da obra'
+                : deliveryState.acceptance_status === 'accepted'
+                ? 'Aceite registrado'
+                : 'Aceite registrado com ressalvas'}
+            </Text>
+            <Text style={styles.finalActionDetail}>
+              {deliveryState.acceptance_status === 'pending'
+                ? 'Registre o responsável e deixe o relatório pronto para assinatura digital.'
+                : `${deliveryState.acceptance_name ?? 'Responsável'} · ${formatDate(deliveryState.accepted_at)}`}
+            </Text>
+            {!!deliveryState.acceptance_notes && deliveryState.acceptance_status !== 'pending' && (
+              <Text style={styles.acceptanceNotes}>{deliveryState.acceptance_notes}</Text>
+            )}
+          </View>
+          {canManage && (
+            <Pressable
+              style={styles.acceptanceButton}
+              onPress={() =>
+                deliveryState.acceptance_status === 'pending'
+                  ? openAcceptanceForm()
+                  : void reopenAcceptance()
+              }
+              disabled={savingAcceptance}
+            >
+              {savingAcceptance ? (
+                <ActivityIndicator color={FioColors.textOnAccent} />
+              ) : (
+                <Ionicons
+                  name={deliveryState.acceptance_status === 'pending' ? 'create-outline' : 'refresh-outline'}
+                  size={18}
+                  color={FioColors.textOnAccent}
+                />
+              )}
+              <Text style={styles.acceptanceButtonText}>
+                {deliveryState.acceptance_status === 'pending' ? 'Registrar aceite' : 'Reabrir aceite'}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
       <Text style={styles.futureNote}>
-        A confirmação do cliente e o aceite formal serão adicionados no Portal do Cliente.
+        O PDF emitido permanece imutável. Uma nova emissão cria outra versão com os dados atualizados.
       </Text>
+
+      <Modal
+        visible={acceptanceModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAcceptanceModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.observationModalCard}>
+            <View style={styles.modalHeader}>
+              <View style={styles.headingIdentity}>
+                <Text style={styles.modalTitle}>Registrar aceite</Text>
+                <Text style={styles.modalSubtitle}>
+                  Esta informação ficará no histórico da obra e prepara o relatório para assinatura digital.
+                </Text>
+              </View>
+              <Pressable style={styles.closeButton} onPress={() => setAcceptanceModalVisible(false)}>
+                <Ionicons name="close-outline" size={24} color={FioColors.text} />
+              </Pressable>
+            </View>
+            <Text style={styles.fieldLabel}>NOME DO RESPONSÁVEL *</Text>
+            <TextInput
+              style={styles.input}
+              value={acceptanceName}
+              onChangeText={setAcceptanceName}
+              placeholder="Nome de quem confirmou"
+              placeholderTextColor="#9299A6"
+              editable={!savingAcceptance}
+            />
+            <Text style={styles.fieldLabel}>FUNÇÃO</Text>
+            <TextInput
+              style={styles.input}
+              value={acceptanceRole}
+              onChangeText={setAcceptanceRole}
+              placeholder="Ex.: Proprietário, gerente ou cliente"
+              placeholderTextColor="#9299A6"
+              editable={!savingAcceptance}
+            />
+            <Text style={styles.fieldLabel}>OBSERVAÇÕES OU RESSALVAS</Text>
+            <TextInput
+              style={[styles.input, styles.observationInput]}
+              value={acceptanceNotes}
+              onChangeText={setAcceptanceNotes}
+              placeholder="Descreva o que ficou registrado"
+              placeholderTextColor="#9299A6"
+              multiline
+              editable={!savingAcceptance}
+            />
+            <View style={styles.acceptanceModalActions}>
+              <Pressable
+                style={styles.acceptanceModalButton}
+                onPress={() => void saveAcceptance('accepted_with_reservations')}
+                disabled={savingAcceptance}
+              >
+                <Ionicons name="alert-circle-outline" size={18} color={FioColors.orange} />
+                <Text style={styles.acceptanceModalReservedText}>Aceite com ressalvas</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.acceptanceModalButton, styles.acceptanceModalConfirm]}
+                onPress={() => void saveAcceptance('accepted')}
+                disabled={savingAcceptance}
+              >
+                <Ionicons name="checkmark-circle-outline" size={18} color={FioColors.textOnAccent} />
+                <Text style={styles.acceptanceModalConfirmText}>Confirmar aceite</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={observationItemId !== null}
@@ -1572,6 +1797,18 @@ const styles = StyleSheet.create({
   finalActionButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, backgroundColor: FioColors.green },
   finalActionButtonDisabled: { backgroundColor: '#9DA5A0' },
   finalActionButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.textOnAccent },
+  acceptanceCard: { marginTop: 10, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: FioColors.gold, borderRadius: 14, backgroundColor: FioColors.goldSoft },
+  acceptanceCardAccepted: { borderColor: FioColors.green, backgroundColor: FioColors.greenSoft },
+  acceptanceCardReserved: { borderColor: FioColors.orange, backgroundColor: FioColors.orangeSoft },
+  acceptanceIcon: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
+  acceptanceNotes: { marginTop: 5, fontSize: 9, lineHeight: 13, color: FioColors.textMuted },
+  acceptanceButton: { minHeight: 43, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 11, backgroundColor: FioColors.green },
+  acceptanceButtonText: { fontSize: 9, fontWeight: '900', color: FioColors.textOnAccent },
+  acceptanceModalActions: { marginTop: 7, flexDirection: 'row', gap: 7 },
+  acceptanceModalButton: { minHeight: 50, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderColor: FioColors.orange, borderRadius: 11, backgroundColor: FioColors.orangeSoft },
+  acceptanceModalReservedText: { fontSize: 9, fontWeight: '900', color: FioColors.orange },
+  acceptanceModalConfirm: { borderColor: FioColors.green, backgroundColor: FioColors.green },
+  acceptanceModalConfirmText: { fontSize: 9, fontWeight: '900', color: FioColors.textOnAccent },
   futureNote: { marginTop: 12, paddingHorizontal: 8, textAlign: 'center', fontSize: 8, lineHeight: 13, color: FioColors.textSoft },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12, 15, 12, 0.68)' },
   modalCard: { maxHeight: '90%', padding: 18, paddingBottom: 28, borderTopWidth: 2, borderColor: FioColors.lineStrong, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: FioColors.surface },
