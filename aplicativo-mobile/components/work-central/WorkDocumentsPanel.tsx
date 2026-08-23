@@ -903,7 +903,7 @@ export function WorkDocumentsPanel({
             {projectMode
               ? 'Uma versão vigente por obra, com histórico preservado.'
               : measurementMode
-              ? 'Fotos e arquivos de medidas com versões preservadas.'
+              ? 'Arquivos técnicos da obra, com versões preservadas.'
               : 'Arquivos da obra com versões e acesso controlado.'}
           </Text>
         </View>
@@ -914,7 +914,7 @@ export function WorkDocumentsPanel({
               {projectMode
                 ? 'Novo projeto'
                 : measurementMode
-                ? 'Nova medição'
+                ? 'Novo arquivo'
                 : 'Adicionar'}
             </Text>
           </Pressable>

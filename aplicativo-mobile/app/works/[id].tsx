@@ -1228,8 +1228,8 @@ export default function WorkDetailsScreen() {
                 </ExpandableWorkSection>
 
                 <ExpandableWorkSection
-                  title="Medições"
-                  subtitle="Documentos e registros de medidas"
+                  title="Arquivos de medição"
+                  subtitle="Fotos e arquivos técnicos da obra"
                   icon="resize-outline"
                   badge={measurementCount ? String(measurementCount) : undefined}
                   open={openSection === 'measurements'}
@@ -1572,7 +1572,7 @@ export default function WorkDetailsScreen() {
                     <View style={styles.actionIcon}>
                       <Ionicons name="resize-outline" size={21} color={FioColors.green} />
                     </View>
-                    <Text style={styles.actionText}>Nova medição</Text>
+                    <Text style={styles.actionText}>Arquivo de medição</Text>
                   </Pressable>
 
                   {!actionEnvironment && (
