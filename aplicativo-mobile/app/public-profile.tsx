@@ -59,6 +59,10 @@ function Counter({ icon, value, label }: { icon: keyof typeof Ionicons.glyphMap;
   );
 }
 
+function Stat({ icon, value, label }: { icon: keyof typeof Ionicons.glyphMap; value: number; label: string }) {
+  return <View style={styles.stat}><Ionicons name={icon} size={18} color={FioColors.green} /><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>;
+}
+
 export default function PublicProfileScreen() {
   const router = useRouter();
   const { userId, preview } = useLocalSearchParams<{ userId?: string; preview?: string }>();
@@ -128,11 +132,16 @@ export default function PublicProfileScreen() {
 
   return (
     <View style={styles.page}>
-      <FioPageHeader eyebrow={isOwnPreview ? 'PRÉVIA DO PERFIL PÚBLICO' : 'PERFIL PÚBLICO'} title="Meu perfil" subtitle="Informações profissionais compartilhadas no FIO" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.publicTop}>
+          <Pressable onPress={() => router.back()}><Ionicons name="arrow-back" size={23} color={FioColors.text} /></Pressable>
+          <View style={styles.publicBrand}><Text style={styles.publicBrandName}>Fio do Bigode</Text><Text style={styles.publicBrandCaption}>Conectando obras, pessoas e histórias.</Text></View>
+          <View style={styles.publicTopActions}><Ionicons name="calendar-outline" size={20} color={FioColors.text} /><Ionicons name="chatbubble-ellipses-outline" size={20} color={FioColors.text} /></View>
+        </View>
         {!!message && !profile && <View style={styles.errorCard}><Ionicons name="information-circle-outline" size={19} color={FioColors.orange} /><Text style={styles.errorText}>{message}</Text></View>}
         {profile && (
           <>
+            <View style={styles.coverBanner}><View><Text style={styles.coverEyebrow}>{isOwnPreview ? 'PRÉVIA DO PERFIL' : 'PERFIL PÚBLICO'}</Text><Text style={styles.coverTitle}>FIO</Text></View><Ionicons name="construct-outline" size={42} color={FioColors.gold} /></View>
             <View style={styles.heroCard}>
               {isOwnPreview && !profile.professional_profile_enabled && <View style={styles.previewBadge}><Ionicons name="eye-off-outline" size={13} color={FioColors.orange} /><Text style={styles.previewBadgeText}>Desativado · somente você vê esta prévia</Text></View>}
               <View style={styles.heroTop}>
@@ -153,12 +162,20 @@ export default function PublicProfileScreen() {
               </View>
             </View>
 
+            <View style={styles.statsRow}>
+              <Stat icon="business-outline" value={summary.active_works} label="Obras ativas" />
+              <Stat icon="people-outline" value={summary.companies} label="Empresas" />
+              <Stat icon="calendar-outline" value={companies.length} label="Vínculos" />
+              <Stat icon="checkmark-circle-outline" value={profile.professional_profile_enabled ? 1 : 0} label="Verificado" />
+            </View>
+            <View style={styles.tabs}><Text style={[styles.tab, styles.tabActive]}>Atividades</Text><Text style={styles.tab}>Portfólio</Text><Text style={styles.tab}>Agenda</Text><Text style={styles.tab}>Avaliações</Text></View>
+
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>DADOS BÁSICOS</Text>
+              <Text style={styles.sectionTitle}>ATIVIDADES RECENTES</Text>
               <DataRow icon="person-outline" label="Nome" value={profile.full_name} />
               {profile.phone && <DataRow icon="call-outline" label="Telefone" value={profile.phone} />}
-              <DataRow icon="people-outline" label="Função" value={profile.job_title || 'Profissional do FIO'} />
-              <DataRow icon="location-outline" label="Área de abrangência" value={profile.coverage_area || 'Não informada'} />
+              <View style={styles.activityRow}><Ionicons name="pulse-outline" size={19} color={FioColors.green} /><View style={styles.activityCopy}><Text style={styles.activityTitle}>Atuação no FIO</Text><Text style={styles.activityText}>{profile.job_title || 'Profissional do FIO'} · {summary.active_works} obras ativas</Text></View><Ionicons name="chevron-forward-outline" size={17} color={FioColors.textSoft} /></View>
+              <View style={styles.activityRow}><Ionicons name="location-outline" size={19} color={FioColors.orange} /><View style={styles.activityCopy}><Text style={styles.activityTitle}>Área de atendimento</Text><Text style={styles.activityText}>{profile.coverage_area || 'Área não informada'}</Text></View></View>
             </View>
 
             <View style={styles.sectionCard}>
@@ -187,9 +204,17 @@ export default function PublicProfileScreen() {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: FioColors.canvas },
   content: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 14, paddingBottom: 70 },
+  publicTop: { minHeight: 68, marginHorizontal: -14, paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: FioColors.ink },
+  publicBrand: { flex: 1 },
+  publicBrandName: { fontFamily: 'serif', fontSize: 19, fontWeight: '900', color: FioColors.text },
+  publicBrandCaption: { marginTop: 2, fontSize: 9, color: FioColors.gold },
+  publicTopActions: { flexDirection: 'row', gap: 15 },
+  coverBanner: { minHeight: 132, marginHorizontal: -1, padding: 18, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', borderBottomLeftRadius: 19, borderBottomRightRadius: 19, backgroundColor: FioColors.inkSoft },
+  coverEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1.2, color: FioColors.gold },
+  coverTitle: { marginTop: 5, fontFamily: 'serif', fontSize: 34, fontWeight: '900', color: FioColors.text },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: FioColors.canvas },
   loadingText: { marginTop: 10, fontSize: 12, color: FioColors.textMuted },
-  heroCard: { padding: 16, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.large, backgroundColor: FioColors.surface, ...FioShadow },
+  heroCard: { marginTop: -38, padding: 16, paddingTop: 47, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.large, backgroundColor: FioColors.surface, ...FioShadow },
   previewBadge: { alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999, backgroundColor: FioColors.orangeSoft },
   previewBadgeText: { fontSize: 8, fontWeight: '900', color: FioColors.orange },
   heroTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -207,11 +232,22 @@ const styles = StyleSheet.create({
   heroAction: { minHeight: 40, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 11, backgroundColor: FioColors.greenSoft },
   heroActionText: { fontSize: 10, fontWeight: '900', color: FioColors.green },
   orangeText: { color: FioColors.orange },
+  statsRow: { marginTop: 12, flexDirection: 'row', gap: 7 },
+  stat: { flex: 1, minHeight: 76, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: FioColors.line, borderRadius: 13, backgroundColor: FioColors.surface },
+  statValue: { marginTop: 3, fontSize: 19, fontWeight: '900', color: FioColors.text },
+  statLabel: { marginTop: 1, textAlign: 'center', fontSize: 8, color: FioColors.textMuted },
+  tabs: { marginTop: 12, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', borderBottomWidth: 1, borderBottomColor: FioColors.line, backgroundColor: FioColors.surface },
+  tab: { paddingHorizontal: 7, paddingVertical: 14, fontSize: 10, fontWeight: '800', color: FioColors.textMuted },
+  tabActive: { color: FioColors.green, borderBottomWidth: 2, borderBottomColor: FioColors.green },
   sectionCard: { marginTop: 12, padding: 15, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.large, backgroundColor: FioColors.surface },
   sectionTitle: { fontSize: 11, fontWeight: '900', letterSpacing: 1.1, color: FioColors.green },
   dataRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 9, borderBottomWidth: 1, borderBottomColor: FioColors.line },
   dataLabel: { fontSize: 11, color: FioColors.textMuted },
   dataValue: { flex: 1, textAlign: 'right', fontSize: 11, fontWeight: '800', color: FioColors.text },
+  activityRow: { minHeight: 59, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: FioColors.line },
+  activityCopy: { flex: 1 },
+  activityTitle: { fontSize: 12, fontWeight: '900', color: FioColors.text },
+  activityText: { marginTop: 3, fontSize: 10, color: FioColors.textMuted },
   companyCard: { marginTop: 11, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: FioColors.line, borderRadius: 13, backgroundColor: FioColors.surfaceRaised },
   companyLogo: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: FioColors.ink },
   companyLogoText: { fontSize: 11, fontWeight: '900', color: FioColors.gold },
