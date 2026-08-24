@@ -2,7 +2,10 @@ import {
   DarkTheme,
   ThemeProvider,
 } from '@react-navigation/native';
-import { Stack, usePathname } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
 import {
   useEffect,
@@ -15,6 +18,7 @@ import {
   FIO_SIDEBAR_RAIL_WIDTH,
   FioGlobalSidebar,
 } from '@/components/fio-shell/FioGlobalSidebar';
+import { FIO_CLIENT_SIDEBAR_WIDTH, FioClientSidebar } from '@/components/fio-shell/FioClientSidebar';
 import { FioColors } from '@/constants/fio-theme';
 import { supabase } from '@/lib/supabase';
 
@@ -35,8 +39,19 @@ const FioNavigationTheme = {
   },
 };
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+
 export default function RootLayout() {
   const pathname = usePathname();
+  const router = useRouter();
   const [
     isAuthenticated,
     setIsAuthenticated,
@@ -47,34 +62,57 @@ export default function RootLayout() {
     setIsProfileComplete,
   ] = useState(false);
 
+  const [hasClientAccess, setHasClientAccess] = useState(false);
+  const [hasProfessionalAccess, setHasProfessionalAccess] = useState(false);
+
   const [
     isLoading,
     setIsLoading,
   ] = useState(true);
 
+  useEffect(() => {
+    if (!isAuthenticated || !isProfileComplete || !Device.isDevice) return;
+    let active = true;
+    async function registerPush() {
+      const permissions = await Notifications.getPermissionsAsync();
+      let status = permissions.status;
+      if (status !== 'granted') {
+        const requested = await Notifications.requestPermissionsAsync();
+        status = requested.status;
+      }
+      if (status !== 'granted' || !active) return;
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      const token = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+      await supabase.rpc('register_fio_push_token', {
+        p_token: token.data,
+        p_platform: 'ios',
+      });
+    }
+    registerPush().catch(() => undefined);
+    return () => { active = false; };
+  }, [isAuthenticated, isProfileComplete]);
+
   async function checkProfile(
     userId: string
   ) {
-    const { data } =
-      await supabase
+    const [profileResult, clientResult] = await Promise.all([
+      supabase
         .from('profiles')
         .select(
           'full_name, phone, job_title, coverage_area'
         )
         .eq('id', userId)
-        .maybeSingle();
+        .maybeSingle(),
+      supabase.rpc('is_client_portal_user'),
+    ]);
+    const data = profileResult.data;
+    const clientPortal = Boolean(clientResult.data);
 
-    const profileComplete =
-      Boolean(
-        data?.full_name?.trim() &&
-          data?.phone?.trim() &&
-          data?.job_title?.trim() &&
-          data?.coverage_area?.trim()
-      );
-
-    setIsProfileComplete(
-      profileComplete
-    );
+    const professionalComplete = Boolean(data?.full_name?.trim() && data?.phone?.trim() && data?.job_title?.trim() && data?.job_title.trim().toLowerCase() !== 'cliente' && data?.coverage_area?.trim());
+    const clientComplete = Boolean(data?.full_name?.trim());
+    setHasClientAccess(clientPortal);
+    setHasProfessionalAccess(professionalComplete);
+    setIsProfileComplete(clientPortal ? clientComplete : professionalComplete);
   }
 
   useEffect(() => {
@@ -116,6 +154,8 @@ export default function RootLayout() {
             setIsProfileComplete(
               false
             );
+            setHasClientAccess(false);
+            setHasProfessionalAccess(false);
 
             setIsLoading(false);
 
@@ -144,14 +184,18 @@ export default function RootLayout() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isLoading && hasClientAccess && !hasProfessionalAccess && (pathname === '/' || pathname === '/(tabs)')) {
+      router.replace('/client/home');
+    }
+  }, [hasClientAccess, hasProfessionalAccess, isLoading, pathname, router]);
+
   if (isLoading) {
     return null;
   }
 
-  const showInternalShell =
-    isAuthenticated &&
-    isProfileComplete &&
-    !pathname.startsWith('/fio/');
+  const isClientArea = pathname.startsWith('/client/');
+  const showInternalShell = isAuthenticated && isProfileComplete && !pathname.startsWith('/fio/');
 
   return (
     <ThemeProvider value={FioNavigationTheme}>
@@ -159,7 +203,7 @@ export default function RootLayout() {
         <View
           style={[
             styles.navigator,
-            showInternalShell && styles.navigatorWithSidebar,
+            showInternalShell && [styles.navigatorWithSidebar, isClientArea && { marginLeft: FIO_CLIENT_SIDEBAR_WIDTH }],
           ]}
         >
           <Stack
@@ -175,7 +219,8 @@ export default function RootLayout() {
         <Stack.Protected
           guard={
             isAuthenticated &&
-            isProfileComplete
+            isProfileComplete &&
+            hasProfessionalAccess
           }
         >
           <Stack.Screen
@@ -269,10 +314,6 @@ export default function RootLayout() {
           />
 
           <Stack.Screen
-            name="edit-profile"
-          />
-
-          <Stack.Screen
             name="company-link"
           />
 
@@ -308,6 +349,18 @@ export default function RootLayout() {
               title: 'Modal',
             }}
           />
+        </Stack.Protected>
+
+        <Stack.Protected guard={isAuthenticated && isProfileComplete && hasClientAccess}>
+          <Stack.Screen name="client/home" />
+          <Stack.Screen name="client/works" />
+          <Stack.Screen name="client/work" />
+          <Stack.Screen name="client/fio" />
+          <Stack.Screen name="client/settings" />
+          <Stack.Screen name="client/professionals" />
+          <Stack.Screen name="client/public-profile" />
+          <Stack.Screen name="client/edit-profile" />
+          <Stack.Screen name="client/security" />
         </Stack.Protected>
 
         {/* LOGADO MAS PERFIL INCOMPLETO */}
@@ -350,7 +403,7 @@ export default function RootLayout() {
           </Stack>
         </View>
 
-        {showInternalShell && <FioGlobalSidebar />}
+        {showInternalShell && (isClientArea ? <FioClientSidebar hasProfessionalAccess={hasProfessionalAccess} /> : <FioGlobalSidebar hasClientAccess={hasClientAccess} />)}
       </View>
 
       <StatusBar style="light" />

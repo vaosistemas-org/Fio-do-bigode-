@@ -105,11 +105,11 @@ const NAVIGATION: NavigationItem[] = [
   },
 ];
 
-export const FIO_SIDEBAR_RAIL_WIDTH = 22;
+export const FIO_SIDEBAR_RAIL_WIDTH = 44;
 const SIDEBAR_SWIPE_DISTANCE = 44;
 const SIDEBAR_SWIPE_VELOCITY = 0.25;
 
-export function FioGlobalSidebar() {
+export function FioGlobalSidebar({ hasClientAccess = false }: { hasClientAccess?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
@@ -130,10 +130,8 @@ export function FioGlobalSidebar() {
     return () => { active = false; };
   }, [pathname]);
 
-  const activeItem = useMemo(
-    () => NAVIGATION.find((item) => item.match(pathname)) ?? NAVIGATION[0],
-    [pathname]
-  );
+  const navigation = useMemo(() => hasClientAccess ? [...NAVIGATION, { key: 'client-area', label: 'Área do Cliente', href: '/client/home', icon: 'person-circle-outline' as keyof typeof Ionicons.glyphMap, match: (route: string) => route.startsWith('/client/') }] : NAVIGATION, [hasClientAccess]);
+  const activeItem = useMemo(() => navigation.find((item) => item.match(pathname)) ?? navigation[0], [navigation, pathname]);
 
   const width = level === 2 ? 220 : FIO_SIDEBAR_RAIL_WIDTH;
 
@@ -178,13 +176,13 @@ export function FioGlobalSidebar() {
       }),
     // The responder intentionally reads the current route and menu level.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeItem.key, level]
+    [activeItem.key, level, navigation]
   );
 
   function navigateVertical(direction: 1 | -1) {
-    const activeIndex = NAVIGATION.findIndex((item) => item.key === activeItem.key);
-    const nextIndex = (activeIndex + direction + NAVIGATION.length) % NAVIGATION.length;
-    router.push(NAVIGATION[nextIndex].href as never);
+    const activeIndex = navigation.findIndex((item) => item.key === activeItem.key);
+    const nextIndex = (activeIndex + direction + navigation.length) % navigation.length;
+    router.push(navigation[nextIndex].href as never);
     setLevel(0);
   }
 
@@ -260,7 +258,7 @@ export function FioGlobalSidebar() {
           pointerEvents={level === 0 ? 'none' : 'auto'}
           style={styles.navigation}
         >
-          {NAVIGATION.map((item) => {
+          {navigation.map((item) => {
             const active = item.key === activeItem.key;
             const unreadCount = item.key === 'notifications'
               ? unreadNotifications
