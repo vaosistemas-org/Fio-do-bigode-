@@ -95,6 +95,10 @@ function clamp(value: number) {
   return Math.max(0, Math.min(1, value));
 }
 
+function keepInside(value: number, minimum: number, maximum: number) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
 function toNumber(value: unknown) {
   return typeof value === 'number' ? value : Number(value ?? 0);
 }
@@ -732,8 +736,8 @@ export default function MeasurementEditorScreen() {
                     <Line x1={x - Math.sin(Math.atan2(y2 - y, x2 - x)) * 7} y1={y + Math.cos(Math.atan2(y2 - y, x2 - x)) * 7} x2={x + Math.sin(Math.atan2(y2 - y, x2 - x)) * 7} y2={y - Math.cos(Math.atan2(y2 - y, x2 - x)) * 7} stroke={selectedAnnotation ? FioColors.orange : FioColors.green} strokeWidth={2} />
                     <Line x1={x2 - Math.sin(Math.atan2(y2 - y, x2 - x)) * 7} y1={y2 + Math.cos(Math.atan2(y2 - y, x2 - x)) * 7} x2={x2 + Math.sin(Math.atan2(y2 - y, x2 - x)) * 7} y2={y2 - Math.cos(Math.atan2(y2 - y, x2 - x)) * 7} stroke={selectedAnnotation ? FioColors.orange : FioColors.green} strokeWidth={2} />
                     <SvgText
-                      x={(x + x2) / 2}
-                      y={(y + y2) / 2 - 9}
+                      x={keepInside((x + x2) / 2, 36, Math.max(36, canvas.width - 36))}
+                      y={keepInside((y + y2) / 2 - 9, 17, Math.max(17, canvas.height - 9))}
                       fill={FioColors.white}
                       stroke={FioColors.canvas}
                       strokeWidth={0.8}
@@ -760,7 +764,7 @@ export default function MeasurementEditorScreen() {
                     <G key={annotation.id}>
                       <Line x1={0} y1={(y + y2) / 2} x2={left} y2={(y + y2) / 2} stroke={FioColors.gold} strokeWidth={1.2} strokeDasharray="5 7" />
                       <Rect x={left} y={top} width={width} height={height} fill="transparent" stroke={selectedAnnotation ? FioColors.orange : FioColors.gold} strokeWidth={2} />
-                      <SvgText x={Math.min(canvas.width - 8, left + width / 2)} y={labelY} fill={FioColors.white} stroke={FioColors.canvas} strokeWidth={0.7} fontSize={11} fontWeight="900" textAnchor="middle">
+                      <SvgText x={keepInside(left + width / 2, 42, Math.max(42, canvas.width - 42))} y={labelY} fill={FioColors.white} stroke={FioColors.canvas} strokeWidth={0.7} fontSize={11} fontWeight="900" textAnchor="middle">
                         {annotation.inner_width_mm ?? '?'} × {annotation.inner_height_mm ?? '?'} mm
                       </SvgText>
                     </G>
@@ -772,7 +776,7 @@ export default function MeasurementEditorScreen() {
                     <Line x1={x} y1={y} x2={x} y2={canvas.height} stroke={FioColors.gold} strokeWidth={1.2} strokeDasharray="5 7" opacity={0.9} />
                     <Rect x={x - 13} y={y - 13} width={26} height={26} rx={7} fill={selectedAnnotation ? FioColors.orange : FioColors.gold} />
                     {annotation.floor_height_mm !== null && annotation.reference_distance_mm !== null && (
-                      <SvgText x={x > canvas.width * 0.7 ? x - 16 : x + 16} y={Math.max(14, y - 12)} fill={FioColors.white} stroke={FioColors.canvas} strokeWidth={0.7} fontSize={11} fontWeight="900" textAnchor={x > canvas.width * 0.7 ? "end" : "start"}>
+                      <SvgText x={x > canvas.width * 0.7 ? keepInside(x - 16, 84, canvas.width - 8) : keepInside(x + 16, 8, canvas.width - 84)} y={keepInside(y - 12, 14, Math.max(14, canvas.height - 8))} fill={FioColors.white} stroke={FioColors.canvas} strokeWidth={0.7} fontSize={11} fontWeight="900" textAnchor={x > canvas.width * 0.7 ? "end" : "start"}>
                         H {annotation.floor_height_mm} · R {annotation.reference_distance_mm}
                       </SvgText>
                     )}
@@ -783,13 +787,14 @@ export default function MeasurementEditorScreen() {
               return (
                 <SvgText
                   key={annotation.id}
-                  x={x}
-                  y={y}
+                  x={x > canvas.width * 0.7 ? keepInside(x - 8, 8, canvas.width - 8) : keepInside(x + 8, 8, canvas.width - 8)}
+                  y={keepInside(y, 16, Math.max(16, canvas.height - 8))}
                   fill={selectedAnnotation ? FioColors.orange : FioColors.white}
                   stroke={FioColors.canvas}
                   strokeWidth={0.8}
                   fontSize={14}
                   fontWeight="900"
+                  textAnchor={x > canvas.width * 0.7 ? "end" : "start"}
                 >
                   {annotation.text}
                 </SvgText>
