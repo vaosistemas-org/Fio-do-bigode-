@@ -1,6 +1,7 @@
 import { decode } from 'base64-arraybuffer';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -52,6 +53,14 @@ type PendingPhoto = {
   created_by: string | null;
   created_at: string;
   signed_url: string | null;
+};
+
+type PieceTrack = {
+  id: string;
+  pending_item_id: string;
+  status: string;
+  expected_date: string | null;
+  last_status_at: string;
 };
 
 type PhotoSource = 'camera' | 'gallery';
@@ -121,9 +130,12 @@ export function WorkPendingPanel({
   onOpenCountChange?: (count: number) => void;
   onChanged?: () => void;
 }) {
+  const router = useRouter();
   const [items, setItems] = useState<PendingItem[]>([]);
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
+  const [pieceTracks, setPieceTracks] = useState<PieceTrack[]>([]);
   const [tab, setTab] = useState<PendingStatus>('open');
+  const [trackingOnly, setTrackingOnly] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -198,6 +210,13 @@ export function WorkPendingPanel({
       onOpenCountChange?.(
         loaded.filter((item) => item.status === 'open').length
       );
+      const tracksResult = await supabase
+        .from('work_piece_tracks')
+        .select('id, pending_item_id, status, expected_date, last_status_at')
+        .eq('work_id', workId);
+      if (!tracksResult.error) {
+        setPieceTracks((tracksResult.data ?? []) as PieceTrack[]);
+      }
     }
     setLoading(false);
   }
@@ -565,6 +584,7 @@ export function WorkPendingPanel({
     : items;
   const visibleItems = scopedItems
     .filter((item) => item.status === tab)
+    .filter((item) => !trackingOnly || pieceTracks.some((track) => track.pending_item_id === item.id))
     .sort((a, b) => {
       if (a.blocks_delivery !== b.blocks_delivery) {
         return a.blocks_delivery ? -1 : 1;
@@ -573,6 +593,7 @@ export function WorkPendingPanel({
     });
   const openCount = scopedItems.filter((item) => item.status === 'open').length;
   const completedCount = scopedItems.length - openCount;
+  const trackedCount = scopedItems.filter((item) => pieceTracks.some((track) => track.pending_item_id === item.id)).length;
 
   if (loading) {
     return (
@@ -626,6 +647,18 @@ export function WorkPendingPanel({
         </Pressable>
       </View>
 
+      {trackedCount > 0 && (
+        <Pressable
+          style={[styles.trackingFilter, trackingOnly && styles.trackingFilterActive]}
+          onPress={() => setTrackingOnly((current) => !current)}
+        >
+          <Ionicons name="cube-outline" size={16} color={trackingOnly ? FioColors.textOnAccent : FioColors.gold} />
+          <Text style={[styles.trackingFilterText, trackingOnly && styles.trackingFilterTextActive]}>
+            Peças em rastreio ({trackedCount})
+          </Text>
+        </Pressable>
+      )}
+
       {!!message && (
         <View style={styles.errorCard}>
           <Text style={styles.errorText}>{message}</Text>
@@ -641,6 +674,7 @@ export function WorkPendingPanel({
       ) : (
         visibleItems.map((item) => {
           const expanded = expandedId === item.id;
+          const pieceTrack = pieceTracks.find((track) => track.pending_item_id === item.id);
           const itemPhotos = photos.filter(
             (photo) => photo.pending_item_id === item.id
           );
@@ -678,6 +712,12 @@ export function WorkPendingPanel({
                         {itemPhotos.length}{' '}
                         {itemPhotos.length === 1 ? 'foto no B.O.' : 'fotos no B.O.'}
                       </Text>
+                    </View>
+                  )}
+                  {pieceTrack && (
+                    <View style={styles.trackingBadge}>
+                      <Ionicons name="cube-outline" size={12} color={FioColors.gold} />
+                      <Text style={styles.trackingBadgeText}>Peça: {pieceTrack.status.replaceAll('_', ' ')}</Text>
                     </View>
                   )}
                 </View>
@@ -785,6 +825,13 @@ export function WorkPendingPanel({
                   )}
                   {canWrite && (
                     <View style={styles.itemActions}>
+                      <Pressable
+                        style={styles.trackButton}
+                        onPress={() => router.push({ pathname: '/piece-tracking', params: { workId, pendingId: item.id } })}
+                      >
+                        <Ionicons name="cube-outline" size={16} color={FioColors.gold} />
+                        <Text style={styles.trackButtonText}>{pieceTrack ? 'Ver rastreio' : 'Rastrear peça'}</Text>
+                      </Pressable>
                       <Pressable style={styles.editButton} onPress={() => openEdit(item)}>
                         <Text style={styles.editText}>Editar</Text>
                       </Pressable>
@@ -989,6 +1036,10 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: FioColors.greenSoft },
   tabText: { fontSize: 10, fontWeight: '700', color: FioColors.textMuted },
   tabTextActive: { color: FioColors.green },
+  trackingFilter: { minHeight: 39, marginTop: 9, alignSelf: 'flex-start', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: FioColors.gold, borderRadius: 999, backgroundColor: FioColors.goldSoft },
+  trackingFilterActive: { backgroundColor: FioColors.gold },
+  trackingFilterText: { fontSize: 10, fontWeight: '900', color: FioColors.gold },
+  trackingFilterTextActive: { color: FioColors.textOnAccent },
   errorCard: { marginTop: 10, padding: 12, borderRadius: 11, backgroundColor: FioColors.dangerSoft },
   errorText: { fontSize: 11, lineHeight: 16, color: FioColors.danger },
   emptyCard: { marginTop: 10, padding: 18, alignItems: 'center', borderRadius: 12, backgroundColor: FioColors.surfaceRaised },
@@ -1009,6 +1060,8 @@ const styles = StyleSheet.create({
   itemMeta: { marginTop: 3, fontSize: 10, color: FioColors.textMuted },
   photoCountRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
   photoCountText: { fontSize: 9, fontWeight: '700', color: FioColors.gold },
+  trackingBadge: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  trackingBadgeText: { fontSize: 9, fontWeight: '900', color: FioColors.gold },
   itemBody: { padding: 10, paddingTop: 2, borderTopWidth: 1, borderTopColor: FioColors.line },
   description: { marginTop: 9, fontSize: 12, lineHeight: 17, color: FioColors.textMuted },
   detail: { marginTop: 8, fontSize: 10, color: FioColors.textMuted },
@@ -1034,6 +1087,8 @@ const styles = StyleSheet.create({
   uploadingText: { fontSize: 10, fontWeight: '700', color: FioColors.textMuted },
   photoErrorCard: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: FioColors.dangerSoft },
   itemActions: { marginTop: 12, flexDirection: 'row', gap: 8 },
+  trackButton: { minHeight: 42, flex: 1.25, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderColor: FioColors.gold, borderRadius: 11, backgroundColor: FioColors.goldSoft },
+  trackButtonText: { fontSize: 10, fontWeight: '900', color: FioColors.gold },
   editButton: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 11 },
   editText: { fontSize: 11, fontWeight: '800', color: FioColors.green },
   finishButton: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: FioColors.green },

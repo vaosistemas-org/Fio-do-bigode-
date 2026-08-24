@@ -204,6 +204,8 @@ export default function RootLayout() {
 
           <Stack.Screen name="security" />
 
+          <Stack.Screen name="piece-tracking" />
+
           <Stack.Screen
             name="works"
           />
