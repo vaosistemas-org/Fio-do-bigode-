@@ -306,12 +306,6 @@ export default function ProfileScreen() {
             onPress={() => router.push('/company')}
             tone="gold"
           />
-          <ContextCard
-            icon="search-outline"
-            title="Buscar perfil"
-            subtitle="Encontre profissionais públicos do FIO"
-            onPress={() => router.push('/search-profile')}
-          />
         </View>
 
         <View style={styles.sections}>
