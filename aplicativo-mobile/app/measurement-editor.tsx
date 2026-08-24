@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Svg, { Circle, G, Line, Text as SvgText } from 'react-native-svg';
@@ -22,6 +23,8 @@ import { useWorkAccess } from '@/hooks/use-work-access';
 import { supabase } from '@/lib/supabase';
 
 type Tool = 'measurement' | 'point' | 'text' | 'delete' | 'moveStart' | 'moveEnd' | 'moveItem';
+type MeasurementMode = 'confirmEach' | 'markFirst';
+type ModalMode = 'createMeasurement' | 'editMeasurement' | 'createText' | 'editText' | 'pointDetails';
 
 type MeasurementPhoto = {
   id: string;
@@ -50,6 +53,8 @@ type Annotation = {
   value_mm: number | null;
   marker_type: MarkerType | null;
   text: string | null;
+  floor_height_mm: number | null;
+  reference_distance_mm: number | null;
   source: 'manual' | 'lidar' | 'ai';
   confirmed: boolean;
 };
@@ -98,8 +103,23 @@ function markerLabel(value: MarkerType | null) {
   return MARKERS.find((marker) => marker.key === value)?.label ?? 'Ponto';
 }
 
+function distanceToSegment(
+  point: { x: number; y: number },
+  start: { x: number; y: number },
+  end: { x: number; y: number }
+) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (!lengthSquared) return Math.hypot(point.x - start.x, point.y - start.y);
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  return Math.hypot(point.x - (start.x + t * dx), point.y - (start.y + t * dy));
+}
+
 export default function MeasurementEditorScreen() {
   const router = useRouter();
+  const window = useWindowDimensions();
+  const isLandscape = window.width > window.height;
   const { id } = useLocalSearchParams<{ id: string }>();
   const [photo, setPhoto] = useState<MeasurementPhoto | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
@@ -108,6 +128,8 @@ export default function MeasurementEditorScreen() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [tool, setTool] = useState<Tool>('measurement');
+  const [measurementMode, setMeasurementMode] = useState<MeasurementMode>('confirmEach');
+  const [fullScreen, setFullScreen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftStart, setDraftStart] = useState<{ x: number; y: number } | null>(null);
   const [canvas, setCanvas] = useState({ width: 1, height: 1 });
@@ -118,6 +140,9 @@ export default function MeasurementEditorScreen() {
   const [pendingPoint, setPendingPoint] = useState<{ x: number; y: number } | null>(null);
   const [pendingEnd, setPendingEnd] = useState<{ x: number; y: number } | null>(null);
   const [inputValue, setInputValue] = useState('');
+  const [floorHeight, setFloorHeight] = useState('');
+  const [referenceDistance, setReferenceDistance] = useState('');
+  const [modalMode, setModalMode] = useState<ModalMode>('createMeasurement');
 
   const { canWrite, isViewer, loadingAccess } = useWorkAccess(photo?.work_id);
 
@@ -318,6 +343,32 @@ export default function MeasurementEditorScreen() {
     if (!canWrite || saving) return;
     const point = pointFromEvent(event);
 
+    const touchedMeasurement = annotations.find(
+      (annotation) =>
+        annotation.type === 'measurement' &&
+        distanceToSegment(
+          point,
+          { x: annotation.start_x, y: annotation.start_y },
+          { x: annotation.end_x ?? annotation.start_x, y: annotation.end_y ?? annotation.start_y }
+        ) < 0.035
+    );
+
+    if (touchedMeasurement) {
+      setSelectedId(touchedMeasurement.id);
+      if (!touchedMeasurement.confirmed || tool === 'delete') {
+        if (tool === 'delete') {
+          void deleteAnnotation(touchedMeasurement.id);
+        } else {
+          setInputValue(touchedMeasurement.value_mm ? String(touchedMeasurement.value_mm) : '');
+          setPendingPoint({ x: touchedMeasurement.start_x, y: touchedMeasurement.start_y });
+          setPendingEnd({ x: touchedMeasurement.end_x ?? touchedMeasurement.start_x, y: touchedMeasurement.end_y ?? touchedMeasurement.start_y });
+          setModalMode('editMeasurement');
+          setValueModal(true);
+        }
+      }
+      return;
+    }
+
     if (tool === 'measurement') {
       if (!draftStart) {
         setDraftStart(point);
@@ -325,16 +376,31 @@ export default function MeasurementEditorScreen() {
         return;
       }
 
-      setPendingPoint(draftStart);
-      setPendingEnd(point);
-      setInputValue('');
-      setValueModal(true);
       setDraftStart(null);
-      setMessage('');
+      if (measurementMode === 'markFirst') {
+        void insertAnnotation({
+          type: 'measurement',
+          start_x: draftStart.x,
+          start_y: draftStart.y,
+          end_x: point.x,
+          end_y: point.y,
+          value_mm: null,
+          confirmed: false,
+        });
+        setMessage('Linha marcada. Toque em outra linha para informar a medida.');
+      } else {
+        setPendingPoint(draftStart);
+        setPendingEnd(point);
+        setInputValue('');
+        setModalMode('createMeasurement');
+        setValueModal(true);
+        setMessage('');
+      }
       return;
     }
 
     if (tool === 'point') {
+      setSelectedId(null);
       setPendingPoint(point);
       setMarkerModal(true);
       return;
@@ -343,6 +409,7 @@ export default function MeasurementEditorScreen() {
     if (tool === 'text') {
       setPendingPoint(point);
       setInputValue('');
+      setModalMode('createText');
       setTextModal(true);
       return;
     }
@@ -381,6 +448,17 @@ export default function MeasurementEditorScreen() {
     setPendingEnd(null);
   }
 
+  function saveMeasurement() {
+    if (modalMode === 'editMeasurement' && selected) {
+      const value = Number(inputValue.replace(/\D/g, ''));
+      if (!value) return;
+      setValueModal(false);
+      void updateAnnotation(selected.id, { value_mm: value, confirmed: true });
+      return;
+    }
+    createMeasurement();
+  }
+
   function createText() {
     const text = inputValue.trim();
     if (!pendingPoint || !text) return;
@@ -397,12 +475,40 @@ export default function MeasurementEditorScreen() {
   function createMarker(markerType: MarkerType) {
     if (!pendingPoint) return;
     setMarkerModal(false);
-    void insertAnnotation({
-      type: 'point',
-      start_x: pendingPoint.x,
-      start_y: pendingPoint.y,
-      marker_type: markerType,
-    });
+    setInputValue(markerType);
+    if (selected?.type !== 'point') {
+      setFloorHeight('');
+      setReferenceDistance('');
+    }
+    setModalMode('pointDetails');
+    setTextModal(true);
+  }
+
+  function savePointDetails() {
+    if (!pendingPoint) return;
+    const markerType = inputValue as MarkerType;
+    const floor = Number(floorHeight.replace(/\D/g, ''));
+    const reference = Number(referenceDistance.replace(/\D/g, ''));
+    if (!floorHeight.trim() || !referenceDistance.trim() || !Number.isFinite(floor) || !Number.isFinite(reference)) return;
+    setTextModal(false);
+    if (selected?.type === 'point') {
+      void updateAnnotation(selected.id, {
+        marker_type: markerType,
+        floor_height_mm: floor,
+        reference_distance_mm: reference,
+        confirmed: true,
+      });
+    } else {
+      void insertAnnotation({
+        type: 'point',
+        start_x: pendingPoint.x,
+        start_y: pendingPoint.y,
+        marker_type: markerType,
+        floor_height_mm: floor,
+        reference_distance_mm: reference,
+        confirmed: true,
+      });
+    }
     setPendingPoint(null);
   }
 
@@ -410,14 +516,19 @@ export default function MeasurementEditorScreen() {
     if (!selected) return;
     if (selected.type === 'measurement') {
       setInputValue(String(selected.value_mm ?? ''));
+      setModalMode('editMeasurement');
       setValueModal(true);
       setPendingPoint({ x: selected.start_x, y: selected.start_y });
       setPendingEnd({ x: selected.end_x ?? selected.start_x, y: selected.end_y ?? selected.start_y });
     } else if (selected.type === 'text') {
       setInputValue(selected.text ?? '');
+      setModalMode('editText');
       setTextModal(true);
       setPendingPoint({ x: selected.start_x, y: selected.start_y });
     } else {
+      setInputValue(selected.marker_type ?? 'other');
+      setFloorHeight(selected.floor_height_mm ? String(selected.floor_height_mm) : '');
+      setReferenceDistance(selected.reference_distance_mm ? String(selected.reference_distance_mm) : '');
       setMarkerModal(true);
       setPendingPoint({ x: selected.start_x, y: selected.start_y });
     }
@@ -449,20 +560,28 @@ export default function MeasurementEditorScreen() {
 
   return (
     <View style={styles.page}>
-      <FioPageHeader
-        eyebrow={photo?.environments?.name ?? 'Ambiente'}
-        title="Editar medições"
-        subtitle={isViewer ? 'Somente visualização' : saving ? 'Salvando...' : 'Manual'}
-        actionIcon="refresh-outline"
-        actionLabel="Atualizar"
-        onAction={loadData}
-      />
+      {!fullScreen && (
+        <FioPageHeader
+          eyebrow={photo?.environments?.name ?? 'Ambiente'}
+          title="Editar medições"
+          subtitle={isViewer ? 'Somente visualização' : saving ? 'Salvando...' : 'Manual'}
+          actionIcon="refresh-outline"
+          actionLabel="Atualizar"
+          onAction={loadData}
+        />
+      )}
 
-      <ScrollView contentContainerStyle={styles.content} maximumZoomScale={3} minimumZoomScale={1}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back-outline" size={19} color={FioColors.green} />
-          <Text style={styles.backText}>Voltar às medições</Text>
-        </Pressable>
+      <ScrollView contentContainerStyle={[styles.content, fullScreen && styles.fullContent]} maximumZoomScale={3} minimumZoomScale={1}>
+        <View style={styles.topActions}>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="chevron-back-outline" size={19} color={FioColors.green} />
+            <Text style={styles.backText}>Voltar</Text>
+          </Pressable>
+          <Pressable style={styles.fullScreenButton} onPress={() => setFullScreen((current) => !current)}>
+            <Ionicons name={fullScreen ? 'contract-outline' : 'expand-outline'} size={17} color={FioColors.green} />
+            <Text style={styles.fullScreenText}>{fullScreen ? 'Sair' : 'Tela cheia'}</Text>
+          </Pressable>
+        </View>
 
         <View style={styles.toolbar}>
           {TOOLS.map((item) => (
@@ -486,10 +605,28 @@ export default function MeasurementEditorScreen() {
           ))}
         </View>
 
+        {tool === 'measurement' && canWrite && (
+          <View style={styles.modeRow}>
+            <Pressable
+              style={[styles.modeButton, measurementMode === 'confirmEach' && styles.modeButtonActive]}
+              onPress={() => setMeasurementMode('confirmEach')}
+            >
+              <Text style={[styles.modeText, measurementMode === 'confirmEach' && styles.modeTextActive]}>Confirmar cada linha</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.modeButton, measurementMode === 'markFirst' && styles.modeButtonActive]}
+              onPress={() => setMeasurementMode('markFirst')}
+            >
+              <Text style={[styles.modeText, measurementMode === 'markFirst' && styles.modeTextActive]}>Marcar primeiro</Text>
+            </Pressable>
+          </View>
+        )}
+
         <Pressable
           style={[
             styles.canvas,
-            { aspectRatio: imageRatio },
+            fullScreen && styles.canvasFull,
+            { aspectRatio: imageRatio, minHeight: fullScreen ? (isLandscape ? 330 : 500) : 260 },
           ]}
           onLayout={(event) => setCanvas(event.nativeEvent.layout)}
           onPress={handleCanvasPress}
@@ -569,7 +706,9 @@ export default function MeasurementEditorScreen() {
         <Text style={styles.helpText}>
           {canWrite
             ? tool === 'measurement'
-              ? 'Toque no início e depois no fim da medida.'
+              ? measurementMode === 'markFirst'
+                ? 'Marque quantas linhas quiser. Depois, toque em cada linha para informar a medida.'
+                : 'Toque no início e depois no fim da medida. Confirme para salvar e adicionar a próxima.'
               : tool === 'delete'
                 ? 'Selecione uma marcação abaixo e confirme excluir.'
                 : 'Toque na foto para adicionar.'
@@ -620,8 +759,8 @@ export default function MeasurementEditorScreen() {
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>Marcações</Text>
-        {annotations.length === 0 ? (
+        {!fullScreen && <Text style={styles.sectionTitle}>Marcações</Text>}
+        {!fullScreen && (annotations.length === 0 ? (
           <Text style={styles.emptyText}>Nenhuma marcação nesta foto.</Text>
         ) : (
           annotations.map((annotation) => (
@@ -650,7 +789,7 @@ export default function MeasurementEditorScreen() {
               </Text>
             </Pressable>
           ))
-        )}
+        ))}
 
         {!!message && <Text style={styles.errorText}>{message}</Text>}
       </ScrollView>
@@ -671,8 +810,8 @@ export default function MeasurementEditorScreen() {
               <Pressable style={styles.secondaryButton} onPress={() => setValueModal(false)}>
                 <Text style={styles.secondaryButtonText}>Cancelar</Text>
               </Pressable>
-              <Pressable style={styles.primaryButton} onPress={selected?.type === 'measurement' ? updateSelectedValue : createMeasurement}>
-                <Text style={styles.primaryButtonText}>Salvar</Text>
+              <Pressable style={styles.primaryButton} onPress={saveMeasurement}>
+                <Text style={styles.primaryButtonText}>Confirmar medida</Text>
               </Pressable>
             </View>
           </View>
@@ -682,20 +821,31 @@ export default function MeasurementEditorScreen() {
       <Modal visible={textModal} transparent animationType="fade" onRequestClose={() => setTextModal(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Observação curta</Text>
-            <TextInput
-              value={inputValue}
-              onChangeText={setInputValue}
-              placeholder="conferir com projeto"
-              placeholderTextColor={FioColors.textSoft}
-              style={styles.input}
-            />
+            {modalMode === 'pointDetails' ? (
+              <>
+                <Text style={styles.modalTitle}>{markerLabel(inputValue as MarkerType)}</Text>
+                <Text style={styles.modalHint}>Informe as duas referências para confirmar este ponto.</Text>
+                <TextInput value={floorHeight} onChangeText={setFloorHeight} keyboardType="number-pad" placeholder="Altura do chão em mm · ex.: 1100" placeholderTextColor={FioColors.textSoft} style={styles.input} />
+                <TextInput value={referenceDistance} onChangeText={setReferenceDistance} keyboardType="number-pad" placeholder="Distância da referência em mm · ex.: 600" placeholderTextColor={FioColors.textSoft} style={styles.input} />
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Observação curta</Text>
+                <TextInput
+                  value={inputValue}
+                  onChangeText={setInputValue}
+                  placeholder="conferir com projeto"
+                  placeholderTextColor={FioColors.textSoft}
+                  style={styles.input}
+                />
+              </>
+            )}
             <View style={styles.modalActions}>
               <Pressable style={styles.secondaryButton} onPress={() => setTextModal(false)}>
                 <Text style={styles.secondaryButtonText}>Cancelar</Text>
               </Pressable>
-              <Pressable style={styles.primaryButton} onPress={selected?.type === 'text' ? updateSelectedValue : createText}>
-                <Text style={styles.primaryButtonText}>Salvar</Text>
+              <Pressable style={styles.primaryButton} onPress={modalMode === 'pointDetails' ? savePointDetails : modalMode === 'editText' ? updateSelectedValue : createText}>
+                <Text style={styles.primaryButtonText}>{modalMode === 'pointDetails' ? 'Confirmar ponto' : 'Salvar'}</Text>
               </Pressable>
             </View>
           </View>
@@ -711,14 +861,7 @@ export default function MeasurementEditorScreen() {
                 <Pressable
                   key={marker.key}
                   style={styles.markerButton}
-                  onPress={() => {
-                    if (selected?.type === 'point') {
-                      setMarkerModal(false);
-                      void updateAnnotation(selected.id, { marker_type: marker.key });
-                    } else {
-                      createMarker(marker.key);
-                    }
-                  }}
+                  onPress={() => createMarker(marker.key)}
                 >
                   <Ionicons name={marker.icon} size={17} color={FioColors.green} />
                   <Text style={styles.markerText}>{marker.label}</Text>
@@ -737,14 +880,24 @@ const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: FioColors.canvas },
   muted: { fontSize: 12, color: FioColors.textMuted },
   content: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 10, paddingBottom: 90 },
+  fullContent: { maxWidth: undefined, flexGrow: 1, paddingTop: 16 },
+  topActions: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   backButton: { minHeight: 40, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4 },
   backText: { fontSize: 12, fontWeight: '900', color: FioColors.green },
+  fullScreenButton: { minHeight: 38, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 11, backgroundColor: FioColors.surface },
+  fullScreenText: { fontSize: 10, fontWeight: '900', color: FioColors.green },
   toolbar: { flexDirection: 'row', gap: 7, marginBottom: 9 },
   toolButton: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, borderWidth: 1, borderColor: FioColors.line, borderRadius: 12, backgroundColor: FioColors.surface },
   toolButtonActive: { borderColor: FioColors.green, backgroundColor: FioColors.green },
   toolText: { fontSize: 8, fontWeight: '900', color: FioColors.textMuted },
   toolTextActive: { color: FioColors.textOnAccent },
+  modeRow: { marginBottom: 9, flexDirection: 'row', gap: 7 },
+  modeButton: { minHeight: 36, flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 10, backgroundColor: FioColors.surface },
+  modeButtonActive: { borderColor: FioColors.orange, backgroundColor: FioColors.orangeSoft },
+  modeText: { fontSize: 9, fontWeight: '900', color: FioColors.textMuted, textAlign: 'center' },
+  modeTextActive: { color: FioColors.orange },
   canvas: { width: '100%', minHeight: 260, overflow: 'hidden', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: FioRadius.medium, backgroundColor: '#141714' },
+  canvasFull: { borderRadius: 0, borderColor: FioColors.green },
   noImage: { flex: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', gap: 8 },
   helpText: { marginTop: 8, fontSize: 10, color: FioColors.textMuted },
   selectedPanel: { marginTop: 10, padding: 10, borderWidth: 1, borderColor: FioColors.green, borderRadius: 13, backgroundColor: FioColors.greenSoft },
@@ -756,6 +909,7 @@ const styles = StyleSheet.create({
   deleteButtonText: { fontSize: 9, fontWeight: '900', color: FioColors.danger },
   sectionTitle: { marginTop: 16, marginBottom: 8, fontSize: 13, fontWeight: '900', color: FioColors.text },
   emptyText: { fontSize: 10, color: FioColors.textMuted },
+  modalHint: { marginTop: -4, marginBottom: 10, fontSize: 10, lineHeight: 15, color: FioColors.textMuted },
   annotationRow: { minHeight: 44, marginBottom: 7, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: FioColors.line, borderRadius: 12, backgroundColor: FioColors.surface },
   annotationRowActive: { borderColor: FioColors.orange, backgroundColor: FioColors.orangeSoft },
   annotationText: { flex: 1, fontSize: 11, fontWeight: '800', color: FioColors.text },
