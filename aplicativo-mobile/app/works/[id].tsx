@@ -1084,6 +1084,12 @@ export default function WorkDetailsScreen() {
                                     targetSection
                                   )
                                 }
+                                onOpenMeasurements={() =>
+                                  router.push({
+                                    pathname: '/environment-measurements',
+                                    params: { id: environment.id },
+                                  })
+                                }
                                 onCamera={() =>
                                   openEnvironmentCamera(environment.id)
                                 }

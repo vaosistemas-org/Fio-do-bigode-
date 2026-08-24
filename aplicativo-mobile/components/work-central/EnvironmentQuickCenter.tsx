@@ -79,6 +79,7 @@ export function EnvironmentQuickCenter({
   counts,
   canWrite,
   onOpenSection,
+  onOpenMeasurements,
   onCamera,
   onMore,
   showHeaderActions = true,
@@ -86,6 +87,7 @@ export function EnvironmentQuickCenter({
   counts: EnvironmentQuickCounts;
   canWrite: boolean;
   onOpenSection: (section: Exclude<WorkSectionKey, 'environments'>) => void;
+  onOpenMeasurements: () => void;
   onCamera: () => void;
   onMore: () => void;
   showHeaderActions?: boolean;
@@ -139,7 +141,11 @@ export function EnvironmentQuickCenter({
               styles.quickCard,
               pressed && styles.quickCardPressed,
             ]}
-            onPress={() => onOpenSection(item.section)}
+            onPress={() =>
+              item.section === 'measurements'
+                ? onOpenMeasurements()
+                : onOpenSection(item.section)
+            }
           >
             <View style={[styles.iconBox, { backgroundColor: item.soft }]}>
               <Ionicons name={item.icon} size={21} color={item.tone} />
