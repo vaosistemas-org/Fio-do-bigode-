@@ -127,6 +127,7 @@ export default function MeasurementEditorScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [photoReady, setPhotoReady] = useState(false);
   const [tool, setTool] = useState<Tool>('measurement');
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>('confirmEach');
   const [fullScreen, setFullScreen] = useState(false);
@@ -160,6 +161,7 @@ export default function MeasurementEditorScreen() {
 
     setLoading(true);
     setMessage('');
+    setPhotoReady(false);
 
     try {
       const photoResult = await supabase
@@ -192,9 +194,12 @@ export default function MeasurementEditorScreen() {
 
       const storagePath = loadedPhoto.work_photos?.storage_path;
       if (storagePath) {
-        const { data } = await supabase.storage
+        const { data, error: signedUrlError } = await supabase.storage
           .from('work-photos')
           .createSignedUrl(storagePath, 60 * 60);
+        if (signedUrlError || !data?.signedUrl) {
+          throw signedUrlError ?? new Error('A foto foi registrada, mas não pôde ser carregada.');
+        }
         setSignedUrl(data?.signedUrl ?? null);
         if (data?.signedUrl) {
           Image.getSize(
@@ -222,6 +227,7 @@ export default function MeasurementEditorScreen() {
           end_y: annotation.end_y === null ? null : toNumber(annotation.end_y),
         }))
       );
+      setPhotoReady(true);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível carregar a medição.');
     } finally {
@@ -366,6 +372,16 @@ export default function MeasurementEditorScreen() {
           setValueModal(true);
         }
       }
+      return;
+    }
+
+    const touchedPoint = annotations.find(
+      (annotation) =>
+        annotation.type === 'point' &&
+        Math.hypot(point.x - annotation.start_x, point.y - annotation.start_y) < 0.045
+    );
+    if (touchedPoint) {
+      setSelectedId(touchedPoint.id);
       return;
     }
 
@@ -651,9 +667,9 @@ export default function MeasurementEditorScreen() {
                 const y2 = (annotation.end_y ?? annotation.start_y) * canvas.height;
                 return (
                   <G key={annotation.id}>
-                    <Line x1={x} y1={y} x2={x2} y2={y2} stroke={selectedAnnotation ? FioColors.orange : FioColors.green} strokeWidth={4} />
-                    <Circle cx={x} cy={y} r={9} fill={selectedAnnotation ? FioColors.orange : FioColors.green} />
-                    <Circle cx={x2} cy={y2} r={9} fill={selectedAnnotation ? FioColors.orange : FioColors.green} />
+                    <Line x1={x} y1={y} x2={x2} y2={y2} stroke={selectedAnnotation ? FioColors.orange : FioColors.green} strokeWidth={2} />
+                    <Line x1={x - Math.sin(Math.atan2(y2 - y, x2 - x)) * 7} y1={y + Math.cos(Math.atan2(y2 - y, x2 - x)) * 7} x2={x + Math.sin(Math.atan2(y2 - y, x2 - x)) * 7} y2={y - Math.cos(Math.atan2(y2 - y, x2 - x)) * 7} stroke={selectedAnnotation ? FioColors.orange : FioColors.green} strokeWidth={2} />
+                    <Line x1={x2 - Math.sin(Math.atan2(y2 - y, x2 - x)) * 7} y1={y2 + Math.cos(Math.atan2(y2 - y, x2 - x)) * 7} x2={x2 + Math.sin(Math.atan2(y2 - y, x2 - x)) * 7} y2={y2 - Math.cos(Math.atan2(y2 - y, x2 - x)) * 7} stroke={selectedAnnotation ? FioColors.orange : FioColors.green} strokeWidth={2} />
                     <SvgText
                       x={(x + x2) / 2}
                       y={(y + y2) / 2 - 9}
@@ -673,10 +689,17 @@ export default function MeasurementEditorScreen() {
               if (annotation.type === 'point') {
                 return (
                   <G key={annotation.id}>
+                    <Line x1={0} y1={y} x2={x} y2={y} stroke={FioColors.gold} strokeWidth={1.2} strokeDasharray="5 7" opacity={0.9} />
+                    <Line x1={x} y1={y} x2={x} y2={canvas.height} stroke={FioColors.gold} strokeWidth={1.2} strokeDasharray="5 7" opacity={0.9} />
                     <Circle cx={x} cy={y} r={13} fill={selectedAnnotation ? FioColors.orange : FioColors.gold} />
                     <SvgText x={x} y={y + 4} fill={FioColors.textOnAccent} fontSize={12} fontWeight="900" textAnchor="middle">
                       +
                     </SvgText>
+                    {annotation.floor_height_mm !== null && annotation.reference_distance_mm !== null && (
+                      <SvgText x={x + 16} y={y - 12} fill={FioColors.white} stroke={FioColors.canvas} strokeWidth={0.7} fontSize={11} fontWeight="900">
+                        H {annotation.floor_height_mm} · R {annotation.reference_distance_mm}
+                      </SvgText>
+                    )}
                   </G>
                 );
               }
@@ -714,6 +737,14 @@ export default function MeasurementEditorScreen() {
                 : 'Toque na foto para adicionar.'
             : 'Visualização liberada. Edição bloqueada para este perfil.'}
         </Text>
+
+        <View style={styles.photoSaveRow}>
+          <Ionicons name={photoReady ? 'checkmark-circle-outline' : 'cloud-upload-outline'} size={17} color={photoReady ? FioColors.green : FioColors.gold} />
+          <Text style={styles.photoSaveText}>{photoReady ? 'Foto salva e disponível nesta medição.' : 'Salvando foto...'}</Text>
+          <Pressable style={styles.saveExitButton} onPress={() => router.back()}>
+            <Text style={styles.saveExitText}>Salvar e voltar</Text>
+          </Pressable>
+        </View>
 
         {selected && (
           <View style={styles.selectedPanel}>
@@ -900,6 +931,10 @@ const styles = StyleSheet.create({
   canvasFull: { borderRadius: 0, borderColor: FioColors.green },
   noImage: { flex: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', gap: 8 },
   helpText: { marginTop: 8, fontSize: 10, color: FioColors.textMuted },
+  photoSaveRow: { minHeight: 48, marginTop: 10, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderColor: FioColors.line, borderRadius: 12, backgroundColor: FioColors.surface },
+  photoSaveText: { flex: 1, fontSize: 9, fontWeight: '700', color: FioColors.textMuted },
+  saveExitButton: { minHeight: 32, paddingHorizontal: 9, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: FioColors.green },
+  saveExitText: { fontSize: 9, fontWeight: '900', color: FioColors.textOnAccent },
   selectedPanel: { marginTop: 10, padding: 10, borderWidth: 1, borderColor: FioColors.green, borderRadius: 13, backgroundColor: FioColors.greenSoft },
   selectedTitle: { fontSize: 12, fontWeight: '900', color: FioColors.text },
   selectedActions: { marginTop: 9, flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
