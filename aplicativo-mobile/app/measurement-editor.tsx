@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
+  Image as NativeImage,
   Modal,
   NativeSyntheticEvent,
   Pressable,
@@ -15,7 +16,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import Svg, { Circle, G, Line, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, G, Line, Rect, Text as SvgText } from 'react-native-svg';
 
 import { FioPageHeader } from '@/components/fio-shell/FioPageHeader';
 import { FioColors, FioRadius } from '@/constants/fio-theme';
@@ -24,7 +25,7 @@ import { supabase } from '@/lib/supabase';
 
 type Tool = 'measurement' | 'point' | 'text' | 'delete' | 'moveStart' | 'moveEnd' | 'moveItem';
 type MeasurementMode = 'confirmEach' | 'markFirst';
-type ModalMode = 'createMeasurement' | 'editMeasurement' | 'createText' | 'editText' | 'pointDetails';
+type ModalMode = 'createMeasurement' | 'editMeasurement' | 'createText' | 'editText' | 'pointDetails' | 'openingDetails';
 
 type MeasurementPhoto = {
   id: string;
@@ -55,6 +56,10 @@ type Annotation = {
   text: string | null;
   floor_height_mm: number | null;
   reference_distance_mm: number | null;
+  inner_width_mm: number | null;
+  inner_height_mm: number | null;
+  reference_left_mm: number | null;
+  reference_right_mm: number | null;
   source: 'manual' | 'lidar' | 'ai';
   confirmed: boolean;
 };
@@ -103,6 +108,14 @@ function markerLabel(value: MarkerType | null) {
   return MARKERS.find((marker) => marker.key === value)?.label ?? 'Ponto';
 }
 
+function markerIcon(value: MarkerType | null): keyof typeof Ionicons.glyphMap {
+  return MARKERS.find((marker) => marker.key === value)?.icon ?? 'ellipse-outline';
+}
+
+function isOpening(value: MarkerType | null) {
+  return value === 'door' || value === 'window';
+}
+
 function distanceToSegment(
   point: { x: number; y: number },
   start: { x: number; y: number },
@@ -143,6 +156,11 @@ export default function MeasurementEditorScreen() {
   const [inputValue, setInputValue] = useState('');
   const [floorHeight, setFloorHeight] = useState('');
   const [referenceDistance, setReferenceDistance] = useState('');
+  const [innerWidth, setInnerWidth] = useState('');
+  const [innerHeight, setInnerHeight] = useState('');
+  const [referenceLeft, setReferenceLeft] = useState('');
+  const [referenceRight, setReferenceRight] = useState('');
+  const [pendingOpening, setPendingOpening] = useState<MarkerType | null>(null);
   const [modalMode, setModalMode] = useState<ModalMode>('createMeasurement');
 
   const { canWrite, isViewer, loadingAccess } = useWorkAccess(photo?.work_id);
@@ -202,7 +220,7 @@ export default function MeasurementEditorScreen() {
         }
         setSignedUrl(data?.signedUrl ?? null);
         if (data?.signedUrl) {
-          Image.getSize(
+          NativeImage.getSize(
             data.signedUrl,
             (width, height) => setImageRatio(width / Math.max(height, 1)),
             () => setImageRatio(1)
@@ -349,6 +367,19 @@ export default function MeasurementEditorScreen() {
     if (!canWrite || saving) return;
     const point = pointFromEvent(event);
 
+    if (pendingOpening && pendingPoint) {
+      setPendingEnd(point);
+      setInputValue(pendingOpening);
+      setInnerWidth('');
+      setInnerHeight('');
+      setReferenceLeft('');
+      setReferenceRight('');
+      setModalMode('openingDetails');
+      setTextModal(true);
+      setPendingOpening(null);
+      return;
+    }
+
     const touchedMeasurement = annotations.find(
       (annotation) =>
         annotation.type === 'measurement' &&
@@ -491,6 +522,11 @@ export default function MeasurementEditorScreen() {
   function createMarker(markerType: MarkerType) {
     if (!pendingPoint) return;
     setMarkerModal(false);
+    if (isOpening(markerType)) {
+      setPendingOpening(markerType);
+      setMessage(`Toque no canto oposto da ${markerLabel(markerType).toLowerCase()}.`);
+      return;
+    }
     setInputValue(markerType);
     if (selected?.type !== 'point') {
       setFloorHeight('');
@@ -498,6 +534,32 @@ export default function MeasurementEditorScreen() {
     }
     setModalMode('pointDetails');
     setTextModal(true);
+  }
+
+  function saveOpeningDetails() {
+    if (!pendingPoint || !pendingEnd) return;
+    const markerType = inputValue as MarkerType;
+    const width = Number(innerWidth.replace(/\D/g, ''));
+    const height = Number(innerHeight.replace(/\D/g, ''));
+    const left = Number(referenceLeft.replace(/\D/g, ''));
+    const right = Number(referenceRight.replace(/\D/g, ''));
+    if (!innerWidth.trim() || !innerHeight.trim() || !referenceLeft.trim() || !referenceRight.trim()) return;
+    setTextModal(false);
+    void insertAnnotation({
+      type: 'point',
+      start_x: pendingPoint.x,
+      start_y: pendingPoint.y,
+      end_x: pendingEnd.x,
+      end_y: pendingEnd.y,
+      marker_type: markerType,
+      inner_width_mm: width,
+      inner_height_mm: height,
+      reference_left_mm: left,
+      reference_right_mm: right,
+      confirmed: true,
+    });
+    setPendingPoint(null);
+    setPendingEnd(null);
   }
 
   function savePointDetails() {
@@ -648,7 +710,13 @@ export default function MeasurementEditorScreen() {
           onPress={handleCanvasPress}
         >
           {signedUrl ? (
-            <Image source={{ uri: signedUrl }} style={StyleSheet.absoluteFill} resizeMode="contain" />
+            <ExpoImage
+              source={{ uri: signedUrl }}
+              style={StyleSheet.absoluteFill}
+              contentFit="contain"
+              transition={120}
+              onError={() => setMessage('Não foi possível carregar esta foto. Toque em Atualizar e tente novamente.')}
+            />
           ) : (
             <View style={styles.noImage}>
               <Ionicons name="image-outline" size={30} color={FioColors.textMuted} />
@@ -687,16 +755,31 @@ export default function MeasurementEditorScreen() {
               }
 
               if (annotation.type === 'point') {
+                if (isOpening(annotation.marker_type) && annotation.end_x !== null && annotation.end_y !== null) {
+                  const x2 = annotation.end_x * canvas.width;
+                  const y2 = annotation.end_y * canvas.height;
+                  const left = Math.min(x, x2);
+                  const top = Math.min(y, y2);
+                  const width = Math.abs(x2 - x);
+                  const height = Math.abs(y2 - y);
+                  const labelY = Math.max(16, top - 8);
+                  return (
+                    <G key={annotation.id}>
+                      <Line x1={0} y1={(y + y2) / 2} x2={left} y2={(y + y2) / 2} stroke={FioColors.gold} strokeWidth={1.2} strokeDasharray="5 7" />
+                      <Rect x={left} y={top} width={width} height={height} fill="transparent" stroke={selectedAnnotation ? FioColors.orange : FioColors.gold} strokeWidth={2} />
+                      <SvgText x={Math.min(canvas.width - 8, left + width / 2)} y={labelY} fill={FioColors.white} stroke={FioColors.canvas} strokeWidth={0.7} fontSize={11} fontWeight="900" textAnchor="middle">
+                        {annotation.inner_width_mm ?? '?'} × {annotation.inner_height_mm ?? '?'} mm
+                      </SvgText>
+                    </G>
+                  );
+                }
                 return (
                   <G key={annotation.id}>
                     <Line x1={0} y1={y} x2={x} y2={y} stroke={FioColors.gold} strokeWidth={1.2} strokeDasharray="5 7" opacity={0.9} />
                     <Line x1={x} y1={y} x2={x} y2={canvas.height} stroke={FioColors.gold} strokeWidth={1.2} strokeDasharray="5 7" opacity={0.9} />
-                    <Circle cx={x} cy={y} r={13} fill={selectedAnnotation ? FioColors.orange : FioColors.gold} />
-                    <SvgText x={x} y={y + 4} fill={FioColors.textOnAccent} fontSize={12} fontWeight="900" textAnchor="middle">
-                      +
-                    </SvgText>
+                    <Rect x={x - 13} y={y - 13} width={26} height={26} rx={7} fill={selectedAnnotation ? FioColors.orange : FioColors.gold} />
                     {annotation.floor_height_mm !== null && annotation.reference_distance_mm !== null && (
-                      <SvgText x={x + 16} y={y - 12} fill={FioColors.white} stroke={FioColors.canvas} strokeWidth={0.7} fontSize={11} fontWeight="900">
+                      <SvgText x={x > canvas.width * 0.7 ? x - 16 : x + 16} y={Math.max(14, y - 12)} fill={FioColors.white} stroke={FioColors.canvas} strokeWidth={0.7} fontSize={11} fontWeight="900" textAnchor={x > canvas.width * 0.7 ? "end" : "start"}>
                         H {annotation.floor_height_mm} · R {annotation.reference_distance_mm}
                       </SvgText>
                     )}
@@ -724,6 +807,17 @@ export default function MeasurementEditorScreen() {
               <Circle cx={draftStart.x * canvas.width} cy={draftStart.y * canvas.height} r={10} fill={FioColors.orange} />
             )}
           </Svg>
+          {annotations
+            .filter((annotation) => annotation.type === 'point' && !isOpening(annotation.marker_type))
+            .map((annotation) => {
+              const x = annotation.start_x * canvas.width;
+              const y = annotation.start_y * canvas.height;
+              return (
+                <View key={`icon-${annotation.id}`} pointerEvents="none" style={[styles.pointIconBadge, { left: x - 13, top: y - 13 }]}>
+                  <Ionicons name={markerIcon(annotation.marker_type)} size={15} color={FioColors.textOnAccent} />
+                </View>
+              );
+            })}
         </Pressable>
 
         <Text style={styles.helpText}>
@@ -852,7 +946,16 @@ export default function MeasurementEditorScreen() {
       <Modal visible={textModal} transparent animationType="fade" onRequestClose={() => setTextModal(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            {modalMode === 'pointDetails' ? (
+            {modalMode === 'openingDetails' ? (
+              <>
+                <Text style={styles.modalTitle}>{markerLabel(inputValue as MarkerType)}</Text>
+                <Text style={styles.modalHint}>Informe o vão interno e as referências laterais para confirmar.</Text>
+                <TextInput value={innerWidth} onChangeText={setInnerWidth} keyboardType="number-pad" placeholder="Largura interna em mm" placeholderTextColor={FioColors.textSoft} style={styles.input} />
+                <TextInput value={innerHeight} onChangeText={setInnerHeight} keyboardType="number-pad" placeholder="Altura interna em mm" placeholderTextColor={FioColors.textSoft} style={styles.input} />
+                <TextInput value={referenceLeft} onChangeText={setReferenceLeft} keyboardType="number-pad" placeholder="Referência esquerda em mm" placeholderTextColor={FioColors.textSoft} style={styles.input} />
+                <TextInput value={referenceRight} onChangeText={setReferenceRight} keyboardType="number-pad" placeholder="Referência direita em mm" placeholderTextColor={FioColors.textSoft} style={styles.input} />
+              </>
+            ) : modalMode === 'pointDetails' ? (
               <>
                 <Text style={styles.modalTitle}>{markerLabel(inputValue as MarkerType)}</Text>
                 <Text style={styles.modalHint}>Informe as duas referências para confirmar este ponto.</Text>
@@ -875,8 +978,8 @@ export default function MeasurementEditorScreen() {
               <Pressable style={styles.secondaryButton} onPress={() => setTextModal(false)}>
                 <Text style={styles.secondaryButtonText}>Cancelar</Text>
               </Pressable>
-              <Pressable style={styles.primaryButton} onPress={modalMode === 'pointDetails' ? savePointDetails : modalMode === 'editText' ? updateSelectedValue : createText}>
-                <Text style={styles.primaryButtonText}>{modalMode === 'pointDetails' ? 'Confirmar ponto' : 'Salvar'}</Text>
+              <Pressable style={styles.primaryButton} onPress={modalMode === 'openingDetails' ? saveOpeningDetails : modalMode === 'pointDetails' ? savePointDetails : modalMode === 'editText' ? updateSelectedValue : createText}>
+                <Text style={styles.primaryButtonText}>{modalMode === 'openingDetails' ? 'Confirmar abertura' : modalMode === 'pointDetails' ? 'Confirmar ponto' : 'Salvar'}</Text>
               </Pressable>
             </View>
           </View>
@@ -929,6 +1032,7 @@ const styles = StyleSheet.create({
   modeTextActive: { color: FioColors.orange },
   canvas: { width: '100%', minHeight: 260, overflow: 'hidden', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: FioRadius.medium, backgroundColor: '#141714' },
   canvasFull: { borderRadius: 0, borderColor: FioColors.green },
+  pointIconBadge: { position: 'absolute', width: 26, height: 26, alignItems: 'center', justifyContent: 'center' },
   noImage: { flex: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', gap: 8 },
   helpText: { marginTop: 8, fontSize: 10, color: FioColors.textMuted },
   photoSaveRow: { minHeight: 48, marginTop: 10, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderColor: FioColors.line, borderRadius: 12, backgroundColor: FioColors.surface },
