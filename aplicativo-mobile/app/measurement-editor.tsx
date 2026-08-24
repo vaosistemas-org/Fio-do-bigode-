@@ -115,6 +115,17 @@ function isOpening(value: MarkerType | null) {
   return value === 'door' || value === 'window';
 }
 
+function pointDetailsLabel(annotation: Annotation) {
+  const base = markerLabel(annotation.marker_type);
+  if (isOpening(annotation.marker_type)) {
+    return `${base} · ${annotation.inner_width_mm ?? '?'} × ${annotation.inner_height_mm ?? '?'} mm`;
+  }
+  if (annotation.floor_height_mm !== null || annotation.reference_distance_mm !== null) {
+    return `${base} · altura ${annotation.floor_height_mm ?? '?'} mm · ref. ${annotation.reference_distance_mm ?? '?'} mm`;
+  }
+  return base;
+}
+
 function distanceToSegment(
   point: { x: number; y: number },
   start: { x: number; y: number },
@@ -775,11 +786,6 @@ export default function MeasurementEditorScreen() {
                     <Line x1={0} y1={y} x2={x} y2={y} stroke={FioColors.gold} strokeWidth={1.2} strokeDasharray="5 7" opacity={0.9} />
                     <Line x1={x} y1={y} x2={x} y2={canvas.height} stroke={FioColors.gold} strokeWidth={1.2} strokeDasharray="5 7" opacity={0.9} />
                     <Rect x={x - 13} y={y - 13} width={26} height={26} rx={7} fill={selectedAnnotation ? FioColors.orange : FioColors.gold} />
-                    {annotation.floor_height_mm !== null && annotation.reference_distance_mm !== null && (
-                      <SvgText x={x > canvas.width * 0.7 ? keepInside(x - 16, 84, canvas.width - 8) : keepInside(x + 16, 8, canvas.width - 84)} y={keepInside(y - 12, 14, Math.max(14, canvas.height - 8))} fill={FioColors.white} stroke={FioColors.canvas} strokeWidth={0.7} fontSize={11} fontWeight="900" textAnchor={x > canvas.width * 0.7 ? "end" : "start"}>
-                        H {annotation.floor_height_mm} · R {annotation.reference_distance_mm}
-                      </SvgText>
-                    )}
                   </G>
                 );
               }
@@ -844,7 +850,7 @@ export default function MeasurementEditorScreen() {
               {selected.type === 'measurement'
                 ? `${selected.value_mm ?? ''} mm`
                 : selected.type === 'point'
-                  ? markerLabel(selected.marker_type)
+                  ? pointDetailsLabel(selected)
                   : selected.text}
             </Text>
             {canEdit && (
@@ -907,7 +913,7 @@ export default function MeasurementEditorScreen() {
                 {annotation.type === 'measurement'
                   ? `${annotation.value_mm ?? 0} mm`
                   : annotation.type === 'point'
-                    ? markerLabel(annotation.marker_type)
+                    ? pointDetailsLabel(annotation)
                     : annotation.text}
               </Text>
             </Pressable>
@@ -987,7 +993,12 @@ export default function MeasurementEditorScreen() {
       <Modal visible={markerModal} transparent animationType="fade" onRequestClose={() => setMarkerModal(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Tipo de ponto</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Tipo de ponto</Text>
+              <Pressable accessibilityLabel="Fechar tipos de ponto" style={styles.modalClose} onPress={() => setMarkerModal(false)}>
+                <Ionicons name="close-outline" size={22} color={FioColors.text} />
+              </Pressable>
+            </View>
             <View style={styles.markerGrid}>
               {MARKERS.map((marker) => (
                 <Pressable
@@ -1054,6 +1065,8 @@ const styles = StyleSheet.create({
   errorText: { marginTop: 10, fontSize: 11, lineHeight: 17, color: FioColors.danger },
   modalBackdrop: { flex: 1, justifyContent: 'center', padding: 18, backgroundColor: 'rgba(0,0,0,0.62)' },
   modalCard: { padding: 15, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: FioRadius.medium, backgroundColor: FioColors.surface },
+  modalHeader: { minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  modalClose: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 19, backgroundColor: FioColors.surfaceRaised },
   modalTitle: { fontSize: 15, fontWeight: '900', color: FioColors.text },
   input: { minHeight: 48, marginTop: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 12, color: FioColors.text, backgroundColor: FioColors.surfaceRaised },
   modalActions: { marginTop: 12, flexDirection: 'row', gap: 8 },
