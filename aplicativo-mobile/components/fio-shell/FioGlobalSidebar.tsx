@@ -26,13 +26,6 @@ const NAVIGATION: NavigationItem[] = [
     match: (pathname) => pathname.startsWith('/home'),
   },
   {
-    key: 'fio',
-    label: 'Meu FIO',
-    href: '/',
-    icon: 'pulse-outline',
-    match: (pathname) => pathname === '/' || pathname === '/(tabs)',
-  },
-  {
     key: 'works',
     label: 'Obras',
     href: '/works',
