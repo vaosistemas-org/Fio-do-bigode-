@@ -30,6 +30,7 @@ type ProfileData = {
   coverageArea: string;
   avatarUrl: string | null;
   professionalEnabled: boolean;
+  clientEnabled: boolean;
   activeWorks: number;
   links: number;
 };
@@ -42,6 +43,7 @@ const EMPTY_PROFILE: ProfileData = {
   coverageArea: '',
   avatarUrl: null,
   professionalEnabled: false,
+  clientEnabled: false,
   activeWorks: 0,
   links: 0,
 };
@@ -62,6 +64,7 @@ export default function ProfileScreen() {
   const [openSection, setOpenSection] = useState<OpenSection>('personal');
   const [loading, setLoading] = useState(true);
   const [savingToggle, setSavingToggle] = useState(false);
+  const [savingClientToggle, setSavingClientToggle] = useState(false);
   const [message, setMessage] = useState('');
 
   const loadProfile = useCallback(async () => {
@@ -79,7 +82,7 @@ export default function ProfileScreen() {
       supabase
         .from('profiles')
         .select(
-          'full_name, phone, job_title, coverage_area, avatar_url, professional_profile_enabled'
+          'full_name, phone, job_title, coverage_area, avatar_url, professional_profile_enabled, client_profile_enabled'
         )
         .eq('id', authData.user.id)
         .maybeSingle(),
@@ -106,6 +109,7 @@ export default function ProfileScreen() {
       coverageArea: data?.coverage_area ?? '',
       avatarUrl: data?.avatar_url ?? null,
       professionalEnabled: Boolean(data?.professional_profile_enabled),
+      clientEnabled: Boolean(data?.client_profile_enabled),
       activeWorks: worksResult.count ?? 0,
       links: Array.isArray(contextsResult.data) ? contextsResult.data.length : 0,
     });
@@ -138,6 +142,22 @@ export default function ProfileScreen() {
       setMessage(error.message);
     }
     setSavingToggle(false);
+  }
+
+  async function toggleClient(value: boolean) {
+    if (savingClientToggle) return;
+    const previous = profile.clientEnabled;
+    setProfile((current) => ({ ...current, clientEnabled: value }));
+    setSavingClientToggle(true);
+    setMessage('');
+    const { error } = await supabase.rpc('set_my_client_profile_enabled', { p_enabled: value });
+    if (error) {
+      setProfile((current) => ({ ...current, clientEnabled: previous }));
+      setMessage(error.message);
+    } else {
+      await supabase.auth.refreshSession();
+    }
+    setSavingClientToggle(false);
   }
 
   function toggleSection(section: Exclude<OpenSection, null>) {
@@ -240,6 +260,17 @@ export default function ProfileScreen() {
                 }
               />
             </View>
+            <View style={styles.clientAction}>
+              <Text numberOfLines={2} style={styles.clientActionText}>Perfil de cliente</Text>
+              <Switch
+                accessibilityLabel="Ativar perfil de cliente"
+                value={profile.clientEnabled}
+                onValueChange={toggleClient}
+                disabled={savingClientToggle}
+                trackColor={{ false: '#D7D5CF', true: '#86A792' }}
+                thumbColor={profile.clientEnabled ? FioColors.green : '#F7F5EF'}
+              />
+            </View>
           </View>
         </View>
 
@@ -293,6 +324,7 @@ export default function ProfileScreen() {
               label="Perfil profissional"
               value={profile.professionalEnabled ? 'Ativo' : 'Desativado'}
             />
+            <DataRow label="Perfil de cliente" value={profile.clientEnabled ? 'Ativo' : 'Desativado'} />
             <Text style={styles.privacyExplanation}>
               Seus dados privados não aparecem no perfil profissional nem no
               perfil da empresa.
@@ -493,6 +525,20 @@ const styles = StyleSheet.create({
     backgroundColor: FioColors.greenSoft,
   },
   professionalActionText: { flex: 1, fontSize: 9, lineHeight: 12, fontWeight: '800', color: FioColors.green },
+  clientAction: {
+    minHeight: 54,
+    minWidth: 160,
+    flex: 1.4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: FioColors.goldSoft,
+    borderRadius: 13,
+    backgroundColor: FioColors.goldSoft,
+  },
+  clientActionText: { flex: 1, fontSize: 9, lineHeight: 12, fontWeight: '800', color: FioColors.ink },
   sections: { marginTop: 16, gap: 10 },
   sectionCard: {
     overflow: 'hidden',
