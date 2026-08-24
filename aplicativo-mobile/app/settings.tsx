@@ -25,7 +25,11 @@ export default function SettingsScreen() {
   return <View style={styles.page}><FioPageHeader eyebrow="SUA CONTA" title="Configurações" subtitle="Conta, privacidade e segurança do aplicativo." /><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
     <Text style={styles.section}>CONTA</Text>
     <SettingRow icon="person-outline" title="Dados da conta" subtitle="Nome, telefone, função e área de atuação" onPress={() => router.push('/edit-profile')} />
-    <SettingRow icon="id-card-outline" title="Meu perfil" subtitle="Foto, dados e visibilidade profissional" onPress={() => router.push('/profile')} />
+    <SettingRow icon="id-card-outline" title="Meu perfil" subtitle="Foto, dados pessoais e privacidade" onPress={() => router.push('/profile')} />
+    <Text style={styles.section}>AMPLIAR MEU ACESSO</Text>
+    <SettingRow icon="construct-outline" title="Criar perfil profissional" subtitle="Adicione função, atuação e perfil público profissional" onPress={() => router.push('/profile')} />
+    <SettingRow icon="storefront-outline" title="Criar ou acessar empresa" subtitle="Administre loja, marcenaria ou outro perfil empresarial" onPress={() => router.push('/company')} tone="gold" />
+    <SettingRow icon="git-network-outline" title="Vínculos e convites" subtitle="Entre em empresas e aceite solicitações" onPress={() => router.push('/links')} />
     <Text style={styles.section}>PREFERÊNCIAS</Text>
     <SettingRow icon="notifications-outline" title="Notificações" subtitle="Avisos de obras, agenda, documentos e mensagens" onPress={() => router.push('/notifications')} tone="orange" />
     <View style={styles.infoRow}><Ionicons name="sync-outline" size={19} color={FioColors.gold} /><View style={styles.identity}><Text style={styles.title}>Sincronização</Text><Text style={styles.subtitle}>Os dados deste dispositivo são salvos na nuvem quando há conexão.</Text></View></View>

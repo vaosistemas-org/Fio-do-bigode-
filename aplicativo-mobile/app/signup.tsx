@@ -30,7 +30,6 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -129,8 +128,7 @@ export default function SignupScreen() {
           <Text style={styles.title}>Criar conta</Text>
 
           <Text style={styles.subtitle}>
-            Crie seu acesso ao FIO. Depois você completa seu perfil
-            profissional.
+          Crie seu acesso. As possibilidades aumentam conforme seus vínculos e perfis.
           </Text>
 
           <Text style={styles.label}>E-mail</Text>

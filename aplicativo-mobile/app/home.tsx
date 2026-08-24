@@ -75,10 +75,10 @@ export default function HomeScreen() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [works, setWorks] = useState<Work[]>([]);
-  const [pendingCount, setPendingCount] = useState(0);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [feed, setFeed] = useState<FeedEvent[]>([]);
+  const [showAllFeed, setShowAllFeed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
@@ -101,7 +101,7 @@ export default function HomeScreen() {
         supabase.from('works').select('id, code, client_name, address, status, progress, next_visit_at, updated_at, archived_at, deleted_at').is('archived_at', null).is('deleted_at', null).order('updated_at', { ascending: false }),
         supabase.rpc('get_work_visits', { p_scope: 'mine', p_work_id: null }),
         supabase.rpc('get_my_notification_unread_count'),
-        supabase.rpc('get_my_fio_feed', { p_limit: 6 }),
+        supabase.rpc('get_my_fio_feed', { p_limit: 40 }),
       ]);
       if (worksResult.error) throw worksResult.error;
       const userId = userResult.data.user?.id;
@@ -111,15 +111,8 @@ export default function HomeScreen() {
       setUnreadCount(Number(notificationsResult.data ?? 0));
       if (!feedResult.error) setFeed((feedResult.data ?? []) as FeedEvent[]);
       if (userId) {
-        const [profileResult, pendingResult] = await Promise.all([
-          supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle(),
-          loadedWorks.length
-            ? supabase.from('work_pending_items').select('id', { count: 'exact', head: true }).in('work_id', loadedWorks.map((work) => work.id)).eq('status', 'open')
-            : Promise.resolve({ count: 0, error: null }),
-        ]);
+        const profileResult = await supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle();
         setName(firstName(profileResult.data?.full_name));
-        if (pendingResult.error) throw pendingResult.error;
-        setPendingCount(pendingResult.count ?? 0);
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Não foi possível carregar a página inicial.');
@@ -135,12 +128,11 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.page}>
-      <FioPageHeader eyebrow="PAINEL OPERACIONAL" title={name ? `Olá, ${name}` : 'Página inicial'} subtitle="O que precisa da sua atenção hoje." />
+      <FioPageHeader eyebrow="FIO" title={name ? `Olá, ${name}` : 'Página inicial'} subtitle="Suas obras, compromissos e atualizações em um só lugar." />
       <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={FioColors.green} />}>
         {!!message && <Text style={styles.error}>{message}</Text>}
         <View style={styles.stats}>
           <Pressable style={styles.stat} onPress={() => router.push('/works')}><Ionicons name="business-outline" size={21} color={FioColors.green} /><Text style={styles.statNumber}>{activeWorks.length}</Text><Text style={styles.statLabel}>obras ativas</Text></Pressable>
-          <Pressable style={styles.stat} onPress={() => router.push('/works')}><Ionicons name="alert-circle-outline" size={21} color={FioColors.orange} /><Text style={styles.statNumber}>{pendingCount}</Text><Text style={styles.statLabel}>pendências abertas</Text></Pressable>
           <Pressable style={styles.stat} onPress={() => router.push('/notifications')}><Ionicons name="notifications-outline" size={21} color={FioColors.gold} /><Text style={styles.statNumber}>{unreadCount}</Text><Text style={styles.statLabel}>não lidas</Text></Pressable>
         </View>
 
@@ -157,11 +149,11 @@ export default function HomeScreen() {
 
         <View style={styles.sectionRow}><Text style={styles.sectionTitle}>Obras recentes</Text><Pressable onPress={() => router.push('/works')}><Text style={styles.link}>Ver todas</Text></Pressable></View>
         {works.slice(0, 4).map((work) => <Pressable key={work.id} style={styles.workCard} onPress={() => router.push(`/works/${work.id}`)}><View style={styles.workTop}><View style={styles.grow}><Text style={styles.workCode}>{work.code}</Text><Text style={styles.workName}>{work.client_name}</Text><Text numberOfLines={1} style={styles.subtle}>{work.address}</Text></View><View style={[styles.status, work.status === 'finalizada' && styles.statusFinished]}><Text style={styles.statusText}>{STATUS_LABEL[work.status]}</Text></View></View><View style={styles.progressMeta}><Text style={styles.subtle}>Andamento</Text><Text style={styles.progressValue}>{work.progress}%</Text></View><View style={styles.track}><View style={[styles.fill, { width: `${Math.max(0, Math.min(100, work.progress))}%` }]} /></View></Pressable>)}
-        {!works.length && <View style={styles.emptyCard}><Ionicons name="business-outline" size={25} color={FioColors.green} /><View style={styles.grow}><Text style={styles.emptyTitle}>Você ainda não tem obras</Text><Text style={styles.subtle}>Crie a primeira obra para começar.</Text></View></View>}
+        {!works.length && <View style={styles.emptyCard}><Ionicons name="business-outline" size={25} color={FioColors.green} /><View style={styles.grow}><Text style={styles.emptyTitle}>Você ainda não tem obras</Text><Text style={styles.subtle}>Crie uma obra ou aguarde o convite de uma empresa.</Text></View></View>}
 
-        <View style={styles.sectionRow}><Text style={styles.sectionTitle}>Meu FIO</Text><Pressable onPress={() => router.push('/')}><Text style={styles.link}>Ver histórico</Text></Pressable></View>
+        <View style={styles.sectionRow}><Text style={styles.sectionTitle}>Meu FIO</Text>{feed.length > 5 && <Pressable onPress={() => setShowAllFeed((current) => !current)}><Text style={styles.link}>{showAllFeed ? 'Recolher' : 'Ver histórico'}</Text></Pressable>}</View>
         <Text style={styles.fioHelp}>Últimas atualizações de todas as suas obras.</Text>
-        {feed.slice(0, 5).map((event) => <Pressable key={event.id} style={styles.feedCard} onPress={() => router.push({ pathname: '/works/[id]', params: { id: event.work_id, section: 'fio' } })}><View style={styles.feedIcon}><Ionicons name={event.event_type?.startsWith('FOTO_') ? 'camera-outline' : event.event_type?.startsWith('PENDENCIA_') ? 'alert-circle-outline' : 'pulse-outline'} size={19} color={FioColors.orange} /></View><View style={styles.grow}><Text style={styles.feedWork}>{event.work_code} · {event.work_name}</Text><Text numberOfLines={1} style={styles.feedTitle}>{event.title || feedType(event.event_type)}</Text><Text numberOfLines={2} style={styles.subtle}>{event.description || feedType(event.event_type)}</Text></View><Text style={styles.feedTime}>{new Date(event.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</Text></Pressable>)}
+        {feed.slice(0, showAllFeed ? feed.length : 5).map((event) => <Pressable key={event.id} style={styles.feedCard} onPress={() => router.push({ pathname: '/works/[id]', params: { id: event.work_id, section: 'fio' } })}><View style={styles.feedIcon}><Ionicons name={event.event_type?.startsWith('FOTO_') ? 'camera-outline' : event.event_type?.startsWith('PENDENCIA_') ? 'alert-circle-outline' : 'pulse-outline'} size={19} color={FioColors.orange} /></View><View style={styles.grow}><Text style={styles.feedWork}>{event.work_code} · {event.work_name}</Text><Text numberOfLines={1} style={styles.feedTitle}>{event.title || feedType(event.event_type)}</Text><Text numberOfLines={2} style={styles.subtle}>{event.description || feedType(event.event_type)}</Text></View><Text style={styles.feedTime}>{new Date(event.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</Text></Pressable>)}
         {!feed.length && <View style={styles.emptyCard}><Ionicons name="pulse-outline" size={25} color={FioColors.green} /><View style={styles.grow}><Text style={styles.emptyTitle}>Nenhuma atualização ainda</Text><Text style={styles.subtle}>Os registros das obras aparecerão aqui.</Text></View></View>}
       </ScrollView>
     </View>

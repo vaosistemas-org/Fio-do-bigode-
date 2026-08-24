@@ -12,21 +12,9 @@ import {
 import { ProfileAvatar } from '@/components/profile-avatar';
 import { supabase } from '@/lib/supabase';
 
-const JOB_OPTIONS = [
-  'Montador',
-  'Gestor de obras',
-  'Marceneiro',
-  'Arquiteto',
-  'Engenheiro',
-  'Outro',
-];
-
 export default function CompleteProfileScreen() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [jobTitle, setJobTitle] = useState('');
-  const [customJobTitle, setCustomJobTitle] = useState('');
-  const [coverageArea, setCoverageArea] = useState('');
   const [email, setEmail] = useState('');
   const [userId, setUserId] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -53,29 +41,16 @@ export default function CompleteProfileScreen() {
 
     setUserId(user.id);
     setEmail(user.email ?? '');
-
     const { data } = await supabase
       .from('profiles')
-      .select(
-        'full_name, phone, job_title, coverage_area, avatar_url'
-      )
+      .select('full_name, phone, avatar_url')
       .eq('id', user.id)
       .maybeSingle();
 
     if (data) {
       setFullName(data.full_name ?? '');
       setPhone(data.phone ?? '');
-      setCoverageArea(data.coverage_area ?? '');
       setAvatarUrl(data.avatar_url ?? '');
-
-      const savedJobTitle = data.job_title ?? '';
-
-      if (JOB_OPTIONS.includes(savedJobTitle)) {
-        setJobTitle(savedJobTitle);
-      } else if (savedJobTitle) {
-        setJobTitle('Outro');
-        setCustomJobTitle(savedJobTitle);
-      }
     }
 
     setLoading(false);
@@ -84,11 +59,6 @@ export default function CompleteProfileScreen() {
   async function handleSave() {
     setMessage('');
 
-    const finalJobTitle =
-      jobTitle === 'Outro'
-        ? customJobTitle.trim()
-        : jobTitle.trim();
-
     if (!fullName.trim()) {
       setMessage('Informe seu nome completo.');
       return;
@@ -96,16 +66,6 @@ export default function CompleteProfileScreen() {
 
     if (!phone.trim()) {
       setMessage('Informe seu telefone.');
-      return;
-    }
-
-    if (!finalJobTitle) {
-      setMessage('Informe sua função.');
-      return;
-    }
-
-    if (!coverageArea.trim()) {
-      setMessage('Informe sua área de atuação.');
       return;
     }
 
@@ -126,8 +86,6 @@ export default function CompleteProfileScreen() {
       .update({
         full_name: fullName.trim(),
         phone: phone.trim(),
-        job_title: finalJobTitle,
-        coverage_area: coverageArea.trim(),
       })
       .eq('id', user.id);
 
@@ -187,9 +145,7 @@ export default function CompleteProfileScreen() {
 
         <Text style={styles.title}>Complete seu perfil</Text>
 
-        <Text style={styles.subtitle}>
-          Essas informações ajudam a identificar você dentro das obras.
-        </Text>
+        <Text style={styles.subtitle}>Comece com seus dados básicos. Perfis profissionais e empresas podem ser adicionados depois.</Text>
       </View>
 
       <View style={styles.card}>
@@ -226,57 +182,6 @@ export default function CompleteProfileScreen() {
           keyboardType="phone-pad"
         />
 
-        <Text style={styles.label}>Função</Text>
-
-        <View style={styles.options}>
-          {JOB_OPTIONS.map((option) => {
-            const selected = jobTitle === option;
-
-            return (
-              <Pressable
-                key={option}
-                style={[
-                  styles.option,
-                  selected && styles.optionSelected,
-                ]}
-                onPress={() => setJobTitle(option)}
-              >
-                <Text
-                  style={[
-                    styles.optionText,
-                    selected && styles.optionTextSelected,
-                  ]}
-                >
-                  {option}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {jobTitle === 'Outro' && (
-          <>
-            <Text style={styles.label}>Qual função?</Text>
-
-            <TextInput
-              style={styles.input}
-              value={customJobTitle}
-              onChangeText={setCustomJobTitle}
-              placeholder="Digite sua função"
-              placeholderTextColor="#8A9094"
-            />
-          </>
-        )}
-
-        <Text style={styles.label}>Área de atuação</Text>
-
-        <TextInput
-          style={styles.input}
-          value={coverageArea}
-          onChangeText={setCoverageArea}
-          placeholder="Ex.: Florianópolis e região"
-          placeholderTextColor="#8A9094"
-        />
       </View>
 
       {!!message && (

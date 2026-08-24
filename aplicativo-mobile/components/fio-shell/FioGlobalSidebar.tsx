@@ -61,40 +61,12 @@ const NAVIGATION: NavigationItem[] = [
     match: (pathname) => pathname.startsWith('/messages'),
   },
   {
-    key: 'links',
-    label: 'Vínculos',
-    href: '/links',
-    icon: 'git-network-outline',
-    match: (pathname) =>
-      pathname.startsWith('/links') ||
-      pathname.startsWith('/company-link') ||
-      pathname.startsWith('/company-invitation'),
-  },
-  {
     key: 'profile',
     label: 'Meu perfil',
     href: '/profile',
     icon: 'person-outline',
     match: (pathname) =>
       pathname === '/profile' || pathname === '/edit-profile',
-  },
-  {
-    key: 'professional',
-    label: 'Perfil profissional',
-    href: '/my-professional-profile',
-    icon: 'id-card-outline',
-    match: (pathname) => pathname.startsWith('/my-professional-profile'),
-  },
-  {
-    key: 'company',
-    label: 'Empresa',
-    href: '/company',
-    icon: 'storefront-outline',
-    match: (pathname) =>
-      pathname === '/company' ||
-      pathname.startsWith('/professional-profile') ||
-      pathname.startsWith('/company-team') ||
-      pathname.startsWith('/edit-professional-profile'),
   },
   {
     key: 'settings',
@@ -109,7 +81,7 @@ export const FIO_SIDEBAR_RAIL_WIDTH = 44;
 const SIDEBAR_SWIPE_DISTANCE = 44;
 const SIDEBAR_SWIPE_VELOCITY = 0.25;
 
-export function FioGlobalSidebar({ hasClientAccess = false }: { hasClientAccess?: boolean }) {
+export function FioGlobalSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
@@ -130,7 +102,7 @@ export function FioGlobalSidebar({ hasClientAccess = false }: { hasClientAccess?
     return () => { active = false; };
   }, [pathname]);
 
-  const navigation = useMemo(() => hasClientAccess ? [...NAVIGATION, { key: 'client-area', label: 'Área do Cliente', href: '/client/home', icon: 'person-circle-outline' as keyof typeof Ionicons.glyphMap, match: (route: string) => route.startsWith('/client/') }] : NAVIGATION, [hasClientAccess]);
+  const navigation = NAVIGATION;
   const activeItem = useMemo(() => navigation.find((item) => item.match(pathname)) ?? navigation[0], [navigation, pathname]);
 
   const width = level === 2 ? 220 : FIO_SIDEBAR_RAIL_WIDTH;

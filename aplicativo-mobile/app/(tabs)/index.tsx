@@ -1,1 +1,5 @@
-export { default } from '@/components/fio-feed/FioFeedScreen';
+import { Redirect } from 'expo-router';
+
+export default function InitialRoute() {
+  return <Redirect href="/home" />;
+}
