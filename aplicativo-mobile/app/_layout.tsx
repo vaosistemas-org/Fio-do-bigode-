@@ -200,6 +200,8 @@ export default function RootLayout() {
 
           <Stack.Screen name="client-profile" />
 
+          <Stack.Screen name="work-person-profile" />
+
           <Stack.Screen name="settings" />
 
           <Stack.Screen name="security" />

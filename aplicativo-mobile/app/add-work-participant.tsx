@@ -78,6 +78,8 @@ export default function AddWorkParticipantScreen() {
     setRoleTitle,
   ] = useState('');
 
+  const [participantType, setParticipantType] = useState<'professional' | 'client'>('professional');
+
   const [
     accessLevel,
     setAccessLevel,
@@ -247,16 +249,8 @@ export default function AddWorkParticipantScreen() {
       candidate
     );
 
-    setRoleTitle(
-      candidate
-        .suggested_role_title ||
-        candidate.job_title ||
-        ''
-    );
-
-    setAccessLevel(
-      'collaborator'
-    );
+    setRoleTitle(participantType === 'client' ? 'Cliente' : candidate.suggested_role_title || candidate.job_title || '');
+    setAccessLevel(participantType === 'client' ? 'viewer' : 'collaborator');
 
     setCandidates([]);
     setMessage('');
@@ -265,9 +259,7 @@ export default function AddWorkParticipantScreen() {
   function clearSelection() {
     setSelectedCandidate(null);
     setRoleTitle('');
-    setAccessLevel(
-      'collaborator'
-    );
+    setAccessLevel(participantType === 'client' ? 'viewer' : 'collaborator');
     setSearch('');
     setCandidates([]);
     setMessage('');
@@ -287,7 +279,7 @@ export default function AddWorkParticipantScreen() {
 
     if (!cleanedRole) {
       setMessage(
-        'Informe a função do profissional nesta obra.'
+        'Informe a função da pessoa nesta obra.'
       );
       return;
     }
@@ -320,9 +312,23 @@ export default function AddWorkParticipantScreen() {
         return;
       }
 
+      if (participantType === 'client') {
+        const portalResult = await supabase.rpc('set_work_client_portal_member', {
+          p_work_id: workId,
+          p_user_id: selectedCandidate.user_id,
+          p_enabled: true,
+        });
+        if (portalResult.error) {
+          setMessage(portalResult.error.message);
+          return;
+        }
+      }
+
       Alert.alert(
         'Participante adicionado',
-        `${selectedCandidate.full_name} agora tem acesso a esta obra.`,
+        participantType === 'client'
+          ? `${selectedCandidate.full_name} agora tem acesso à Área do Cliente desta obra.`
+          : `${selectedCandidate.full_name} agora tem acesso a esta obra.`,
         [
           {
             text:
@@ -433,6 +439,17 @@ export default function AddWorkParticipantScreen() {
           >
             BUSCAR PERFIL NO FIO
           </Text>
+
+          <View style={styles.typeOptions}>
+            <Pressable style={[styles.typeOption, participantType === 'professional' && styles.typeOptionSelected]} onPress={() => setParticipantType('professional')}>
+              <Text style={styles.typeTitle}>Profissional</Text>
+              <Text style={styles.typeHelp}>Trabalha na obra</Text>
+            </Pressable>
+            <Pressable style={[styles.typeOption, participantType === 'client' && styles.typeOptionSelected]} onPress={() => setParticipantType('client')}>
+              <Text style={styles.typeTitle}>Cliente</Text>
+              <Text style={styles.typeHelp}>Acompanha pelo portal</Text>
+            </Pressable>
+          </View>
 
           <TextInput
             style={
@@ -573,7 +590,7 @@ export default function AddWorkParticipantScreen() {
               styles.fieldLabel
             }
           >
-            PROFISSIONAL
+            {participantType === 'client' ? 'CLIENTE SELECIONADO' : 'PESSOA SELECIONADA'}
           </Text>
 
           <View
@@ -581,25 +598,23 @@ export default function AddWorkParticipantScreen() {
               styles.selectedCard
             }
           >
-            <ProfessionalMiniProfile
-              name={
-                selectedCandidate.full_name
+            <Pressable
+              style={styles.profilePressable}
+              onPress={() =>
+                router.push({
+                  pathname: '/work-person-profile',
+                  params: { workId, userId: selectedCandidate.user_id },
+                })
               }
-              avatarUrl={
-                selectedCandidate.avatar_url
-              }
-              role={
-                selectedCandidate.job_title ||
-                selectedCandidate
-                  .suggested_role_title ||
-                'Profissional FIO'
-              }
-              detail={
-                selectedCandidate
-                  .company_name ||
-                'Perfil FIO'
-              }
-            />
+            >
+              <ProfessionalMiniProfile
+                name={selectedCandidate.full_name}
+                avatarUrl={selectedCandidate.avatar_url}
+                role={participantType === 'client' ? 'Cliente' : selectedCandidate.job_title || selectedCandidate.suggested_role_title || 'Perfil FIO'}
+                detail={participantType === 'client' ? 'Área do Cliente' : selectedCandidate.company_name || 'Perfil FIO'}
+              />
+              <Text style={styles.viewProfileText}>Ver perfil</Text>
+            </Pressable>
 
             <Pressable
               style={
@@ -614,7 +629,7 @@ export default function AddWorkParticipantScreen() {
                   styles.changeButtonText
                 }
               >
-                Trocar profissional
+                Trocar pessoa
               </Text>
             </Pressable>
           </View>
@@ -633,23 +648,14 @@ export default function AddWorkParticipantScreen() {
               styles.input
             }
             value={roleTitle}
-            onChangeText={
-              setRoleTitle
-            }
-            placeholder="Ex.: Montador"
+            onChangeText={setRoleTitle}
+            editable={participantType !== 'client'}
+            placeholder={participantType === 'client' ? 'Cliente' : 'Ex.: Montador'}
             placeholderTextColor="#9A9FA2"
             autoCapitalize="words"
           />
 
-          <Text
-            style={
-              styles.helperText
-            }
-          >
-            A função acima vale para esta
-            obra e pode ser diferente do
-            cargo geral do perfil.
-          </Text>
+          <Text style={styles.helperText}>{participantType === 'client' ? 'O cliente terá acesso somente de consulta à Área do Cliente desta obra.' : 'A função acima vale para esta obra e pode ser diferente do cargo geral do perfil.'}</Text>
 
           <Text
             style={[
@@ -660,11 +666,8 @@ export default function AddWorkParticipantScreen() {
             NÍVEL DE ACESSO
           </Text>
 
-          <View
-            style={
-              styles.accessOptions
-            }
-          >
+          <View style={styles.accessOptions}>
+            {participantType === 'client' ? <View style={[styles.accessOption, styles.accessOptionSelected]}><Text style={styles.accessOptionTitle}>Visualização</Text><Text style={styles.accessOptionText}>Acesso somente para consulta no portal do cliente.</Text></View> : <>
             {canAssignManager && (
               <Pressable
                 style={[
@@ -759,6 +762,7 @@ export default function AddWorkParticipantScreen() {
                 consulta.
               </Text>
             </Pressable>
+            </>}
           </View>
 
           <Pressable
@@ -879,6 +883,40 @@ const styles =
       marginTop: 20,
     },
 
+    typeOptions: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 12,
+    },
+
+    typeOption: {
+      flex: 1,
+      minHeight: 72,
+      padding: 11,
+      borderWidth: 1,
+      borderColor: '#687069',
+      borderRadius: 12,
+      backgroundColor: '#2E332F',
+    },
+
+    typeOptionSelected: {
+      borderColor: '#74B892',
+      backgroundColor: '#383E39',
+    },
+
+    typeTitle: {
+      fontSize: 12,
+      fontWeight: '800',
+      color: '#F2F3EF',
+    },
+
+    typeHelp: {
+      marginTop: 4,
+      fontSize: 9,
+      lineHeight: 13,
+      color: '#C0C7C1',
+    },
+
     searchInput: {
       minHeight: 48,
       paddingHorizontal: 13,
@@ -934,6 +972,18 @@ const styles =
       borderColor: '#DADFDA',
       borderRadius: 14,
       backgroundColor: '#2E332F',
+    },
+
+    profilePressable: {
+      width: '100%',
+      alignItems: 'center',
+    },
+
+    viewProfileText: {
+      marginTop: 9,
+      fontSize: 12,
+      fontWeight: '800',
+      color: '#74B892',
     },
 
     changeButton: {
