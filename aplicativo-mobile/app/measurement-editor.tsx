@@ -128,7 +128,7 @@ export default function MeasurementEditorScreen() {
   const router = useRouter();
   const window = useWindowDimensions();
   const isLandscape = window.width > window.height;
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
   const [photo, setPhoto] = useState<MeasurementPhoto | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
@@ -139,6 +139,7 @@ export default function MeasurementEditorScreen() {
   const [tool, setTool] = useState<Tool>('measurement');
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>('confirmEach');
   const [fullScreen, setFullScreen] = useState(false);
+  const [editing, setEditing] = useState(mode === 'edit');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftStart, setDraftStart] = useState<{ x: number; y: number } | null>(null);
   const [canvas, setCanvas] = useState({ width: 1, height: 1 });
@@ -159,6 +160,7 @@ export default function MeasurementEditorScreen() {
   const [modalMode, setModalMode] = useState<ModalMode>('createMeasurement');
 
   const { canWrite, isViewer, loadingAccess } = useWorkAccess(photo?.work_id);
+  const canEdit = canWrite && editing;
 
   const selected = useMemo(
     () => annotations.find((annotation) => annotation.id === selectedId) ?? null,
@@ -258,7 +260,7 @@ export default function MeasurementEditorScreen() {
   }
 
   async function insertAnnotation(payload: Partial<Annotation>) {
-    if (!photo || !canWrite || saving) return;
+    if (!photo || !canEdit || saving) return;
 
     setSaving(true);
     setMessage('');
@@ -296,7 +298,7 @@ export default function MeasurementEditorScreen() {
   }
 
   async function updateAnnotation(annotationId: string, payload: Partial<Annotation>) {
-    if (!canWrite || saving) return;
+    if (!canEdit || saving) return;
 
     setSaving(true);
     setMessage('');
@@ -333,7 +335,7 @@ export default function MeasurementEditorScreen() {
   }
 
   async function deleteAnnotation(annotationId: string) {
-    if (!canWrite || saving) return;
+    if (!canEdit || saving) return;
 
     setSaving(true);
     setMessage('');
@@ -355,7 +357,7 @@ export default function MeasurementEditorScreen() {
   }
 
   function handleCanvasPress(event: NativeSyntheticEvent<{ locationX: number; locationY: number }>) {
-    if (!canWrite || saving) return;
+    if (!canEdit || saving) return;
     const point = pointFromEvent(event);
 
     if (pendingOpening && pendingPoint) {
@@ -632,11 +634,11 @@ export default function MeasurementEditorScreen() {
       {!fullScreen && (
         <FioPageHeader
           eyebrow={photo?.environments?.name ?? 'Ambiente'}
-          title="Editar medições"
-          subtitle={isViewer ? 'Somente visualização' : saving ? 'Salvando...' : 'Manual'}
-          actionIcon="refresh-outline"
-          actionLabel="Atualizar"
-          onAction={loadData}
+          title={editing ? 'Editar medições' : 'Visualizar medição'}
+          subtitle={isViewer ? 'Somente visualização' : saving ? 'Salvando...' : editing ? 'Edição manual' : 'Foto e marcações'}
+          actionIcon={canWrite && !editing ? 'create-outline' : 'refresh-outline'}
+          actionLabel={canWrite && !editing ? 'Editar medições' : 'Atualizar'}
+          onAction={canWrite && !editing ? () => setEditing(true) : loadData}
         />
       )}
 
@@ -652,7 +654,7 @@ export default function MeasurementEditorScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.toolbar}>
+        {editing && <View style={styles.toolbar}>
           {TOOLS.map((item) => (
             <Pressable
               key={item.key}
@@ -662,7 +664,7 @@ export default function MeasurementEditorScreen() {
                 setDraftStart(null);
                 setMessage('');
               }}
-              disabled={!canWrite}
+              disabled={!canEdit}
             >
               <Ionicons
                 name={item.icon}
@@ -672,9 +674,9 @@ export default function MeasurementEditorScreen() {
               <Text style={[styles.toolText, tool === item.key && styles.toolTextActive]}>{item.label}</Text>
             </Pressable>
           ))}
-        </View>
+        </View>}
 
-        {tool === 'measurement' && canWrite && (
+        {editing && tool === 'measurement' && canEdit && (
           <View style={styles.modeRow}>
             <Pressable
               style={[styles.modeButton, measurementMode === 'confirmEach' && styles.modeButtonActive]}
@@ -812,7 +814,7 @@ export default function MeasurementEditorScreen() {
         </Pressable>
 
         <Text style={styles.helpText}>
-          {canWrite
+          {canEdit
             ? tool === 'measurement'
               ? measurementMode === 'markFirst'
                 ? 'Marque quantas linhas quiser. Depois, toque em cada linha para informar a medida.'
@@ -826,8 +828,8 @@ export default function MeasurementEditorScreen() {
         <View style={styles.photoSaveRow}>
           <Ionicons name={photoReady ? 'checkmark-circle-outline' : 'cloud-upload-outline'} size={17} color={photoReady ? FioColors.green : FioColors.gold} />
           <Text style={styles.photoSaveText}>{photoReady ? 'Foto salva e disponível nesta medição.' : 'Salvando foto...'}</Text>
-          <Pressable style={styles.saveExitButton} onPress={() => router.back()}>
-            <Text style={styles.saveExitText}>Salvar e voltar</Text>
+          <Pressable style={styles.saveExitButton} onPress={() => editing ? setEditing(false) : router.back()}>
+            <Text style={styles.saveExitText}>{editing ? 'Salvar e visualizar' : 'Voltar'}</Text>
           </Pressable>
         </View>
 
@@ -840,7 +842,7 @@ export default function MeasurementEditorScreen() {
                   ? markerLabel(selected.marker_type)
                   : selected.text}
             </Text>
-            {canWrite && (
+            {canEdit && (
               <View style={styles.selectedActions}>
                 <Pressable style={styles.smallButton} onPress={editSelectedValue}>
                   <Text style={styles.smallButtonText}>Editar</Text>

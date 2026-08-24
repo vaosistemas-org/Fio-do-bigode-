@@ -249,7 +249,7 @@ export default function EnvironmentMeasurementsScreen() {
 
     router.push({
       pathname: '/measurement-editor',
-      params: { id: measurementData.id },
+      params: { id: measurementData.id, mode: 'view' },
     });
   }
 
@@ -356,7 +356,7 @@ export default function EnvironmentMeasurementsScreen() {
             <Pressable
               key={photo.id}
               style={({ pressed }) => [styles.photoCard, pressed && styles.pressed]}
-              onPress={() => router.push({ pathname: '/measurement-editor', params: { id: photo.id } })}
+              onPress={() => router.push({ pathname: '/measurement-editor', params: { id: photo.id, mode: 'view' } })}
             >
               {photo.signed_url ? (
                 <Image source={{ uri: photo.signed_url }} style={styles.thumbnail} contentFit="cover" />
