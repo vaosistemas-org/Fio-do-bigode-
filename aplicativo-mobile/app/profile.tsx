@@ -280,6 +280,34 @@ export default function ProfileScreen() {
           </View>
         )}
 
+        <View style={styles.contextsCard}>
+          <Text style={styles.contextsEyebrow}>MEUS PERFIS</Text>
+          <Text style={styles.contextsTitle}>Escolha o contexto que deseja abrir</Text>
+          <Text style={styles.contextsSubtitle}>
+            A mesma conta pode ter perfil pessoal, profissional e empresa.
+          </Text>
+          <ContextCard
+            icon="person-outline"
+            title="Perfil pessoal"
+            subtitle="Seus dados e preferências privadas"
+            onPress={() => router.push('/profile')}
+          />
+          <ContextCard
+            icon="construct-outline"
+            title="Perfil profissional"
+            subtitle={profile.professionalEnabled ? 'Ativo e visível conforme sua permissão' : 'Ative para apresentar sua atuação'}
+            onPress={() => router.push('/my-professional-profile')}
+            tone="green"
+          />
+          <ContextCard
+            icon="storefront-outline"
+            title="Perfil da loja ou empresa"
+            subtitle="Obras, equipe, mensagens e agenda da empresa"
+            onPress={() => router.push('/company')}
+            tone="gold"
+          />
+        </View>
+
         <View style={styles.sections}>
           <ProfileSection
             icon="person-outline"
@@ -373,6 +401,34 @@ function CompactAction({
       <Text numberOfLines={2} style={styles.compactActionText}>
         {label}
       </Text>
+    </Pressable>
+  );
+}
+
+function ContextCard({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  tone = 'green',
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  tone?: 'green' | 'gold';
+}) {
+  const color = tone === 'gold' ? FioColors.gold : FioColors.green;
+  return (
+    <Pressable style={({ pressed }) => [styles.contextCard, pressed && styles.pressed]} onPress={onPress}>
+      <View style={[styles.contextIcon, { backgroundColor: tone === 'gold' ? FioColors.goldSoft : FioColors.greenSoft }]}>
+        <Ionicons name={icon} size={20} color={color} />
+      </View>
+      <View style={styles.contextIdentity}>
+        <Text style={styles.contextTitle}>{title}</Text>
+        <Text style={styles.contextSubtitle}>{subtitle}</Text>
+      </View>
+      <Ionicons name="chevron-forward-outline" size={19} color={FioColors.textSoft} />
     </Pressable>
   );
 }
@@ -511,6 +567,22 @@ const styles = StyleSheet.create({
     backgroundColor: FioColors.goldSoft,
   },
   compactActionText: { flex: 1, fontSize: 9, lineHeight: 12, fontWeight: '800', color: FioColors.text },
+  contextsCard: {
+    marginTop: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: FioColors.line,
+    borderRadius: FioRadius.large,
+    backgroundColor: FioColors.surface,
+  },
+  contextsEyebrow: { fontSize: 10, fontWeight: '900', letterSpacing: 1.3, color: FioColors.gold },
+  contextsTitle: { marginTop: 5, fontSize: 17, fontWeight: '900', color: FioColors.text },
+  contextsSubtitle: { marginTop: 3, marginBottom: 10, fontSize: 11, lineHeight: 16, color: FioColors.textMuted },
+  contextCard: { minHeight: 62, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderWidth: 1, borderColor: FioColors.line, borderRadius: FioRadius.medium, backgroundColor: FioColors.surfaceMuted },
+  contextIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 11 },
+  contextIdentity: { flex: 1, minWidth: 0 },
+  contextTitle: { fontSize: 13, fontWeight: '900', color: FioColors.text },
+  contextSubtitle: { marginTop: 2, fontSize: 10, lineHeight: 14, color: FioColors.textMuted },
   professionalAction: {
     minHeight: 54,
     minWidth: 160,
