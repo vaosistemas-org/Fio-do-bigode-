@@ -182,6 +182,8 @@ export default function RootLayout() {
             name="(tabs)"
           />
 
+          <Stack.Screen name="home" />
+
           <Stack.Screen
             name="profile"
           />

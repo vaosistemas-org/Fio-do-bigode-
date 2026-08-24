@@ -19,6 +19,13 @@ type NavigationItem = {
 
 const NAVIGATION: NavigationItem[] = [
   {
+    key: 'home',
+    label: 'Página inicial',
+    href: '/home',
+    icon: 'home-outline',
+    match: (pathname) => pathname.startsWith('/home'),
+  },
+  {
     key: 'fio',
     label: 'Meu FIO',
     href: '/',
