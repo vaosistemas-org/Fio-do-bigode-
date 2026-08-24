@@ -117,17 +117,7 @@ export default function EnvironmentMeasurementsScreen() {
             .maybeSingle(),
           supabase
             .from('work_measurement_photos')
-            .select(`
-              id,
-              work_id,
-              environment_id,
-              photo_id,
-              created_by,
-              created_at,
-              profiles:created_by(full_name),
-              work_photos:photo_id(storage_path, file_name),
-              annotations:work_measurement_annotations(count)
-            `)
+            .select('id, work_id, environment_id, photo_id, created_by, created_at')
             .eq('environment_id', loadedEnvironment.id)
             .order('created_at', { ascending: false }),
         ]);
@@ -137,24 +127,49 @@ export default function EnvironmentMeasurementsScreen() {
 
         if (photosResult.error) throw photosResult.error;
 
+        const basePhotos = (photosResult.data ?? []) as RawMeasurementPhoto[];
+        const measurementIds = basePhotos.map((photo) => photo.id);
+        const photoIds = basePhotos.map((photo) => photo.photo_id);
+        const creatorIds = basePhotos.map((photo) => photo.created_by).filter((value): value is string => !!value);
+
+        const [workPhotosResult, profilesResult, annotationsResult] = await Promise.all([
+          photoIds.length
+            ? supabase.from('work_photos').select('id, storage_path, file_name').in('id', photoIds)
+            : Promise.resolve({ data: [], error: null }),
+          creatorIds.length
+            ? supabase.from('profiles').select('id, full_name').in('id', creatorIds)
+            : Promise.resolve({ data: [], error: null }),
+          measurementIds.length
+            ? supabase.from('work_measurement_annotations').select('measurement_photo_id').in('measurement_photo_id', measurementIds)
+            : Promise.resolve({ data: [], error: null }),
+        ]);
+
+        if (workPhotosResult.error) throw workPhotosResult.error;
+        if (profilesResult.error) throw profilesResult.error;
+        if (annotationsResult.error) throw annotationsResult.error;
+
+        const workPhotosById = new Map((workPhotosResult.data ?? []).map((photo) => [photo.id, photo]));
+        const profilesById = new Map((profilesResult.data ?? []).map((profile) => [profile.id, profile]));
+        const annotationsByPhotoId = new Map<string, number>();
+        for (const annotation of annotationsResult.data ?? []) {
+          annotationsByPhotoId.set(annotation.measurement_photo_id, (annotationsByPhotoId.get(annotation.measurement_photo_id) ?? 0) + 1);
+        }
+
         const signedPhotos = await Promise.all(
-          ((photosResult.data ?? []) as RawMeasurementPhoto[]).map(async (rawPhoto) => {
-            const profile = Array.isArray(rawPhoto.profiles)
-              ? rawPhoto.profiles[0] ?? null
-              : rawPhoto.profiles ?? null;
-            const workPhoto = Array.isArray(rawPhoto.work_photos)
-              ? rawPhoto.work_photos[0] ?? null
-              : rawPhoto.work_photos ?? null;
+          basePhotos.map(async (rawPhoto) => {
+            const workPhoto = workPhotosById.get(rawPhoto.photo_id) ?? null;
             const photo: MeasurementPhoto = {
               ...rawPhoto,
-              profiles: profile,
+              profiles: rawPhoto.created_by ? profilesById.get(rawPhoto.created_by) ?? null : null,
               work_photos: workPhoto,
+              annotations: [{ count: annotationsByPhotoId.get(rawPhoto.id) ?? 0 }],
             };
             const storagePath = workPhoto?.storage_path;
             if (!storagePath) return { ...photo, signed_url: null };
-            const { data } = await supabase.storage
+            const { data, error } = await supabase.storage
               .from('work-photos')
               .createSignedUrl(storagePath, 60 * 60);
+            if (error) throw error;
             return { ...photo, signed_url: data?.signedUrl ?? null };
           })
         );

@@ -36,11 +36,6 @@ type MeasurementPhoto = {
   environments?: { name: string | null } | null;
 };
 
-type RawMeasurementPhoto = Omit<MeasurementPhoto, 'work_photos' | 'environments'> & {
-  work_photos?: { storage_path: string; file_name: string | null }[] | { storage_path: string; file_name: string | null } | null;
-  environments?: { name: string | null }[] | { name: string | null } | null;
-};
-
 type AnnotationType = 'measurement' | 'point' | 'text';
 
 type Annotation = {
@@ -184,29 +179,25 @@ export default function MeasurementEditorScreen() {
     try {
       const photoResult = await supabase
         .from('work_measurement_photos')
-        .select(`
-          id,
-          work_id,
-          environment_id,
-          photo_id,
-          work_photos:photo_id(storage_path, file_name),
-          environments:environment_id(name)
-        `)
+        .select('id, work_id, environment_id, photo_id')
         .eq('id', id)
         .maybeSingle();
 
       if (photoResult.error) throw photoResult.error;
       if (!photoResult.data) throw new Error('Medição não encontrada.');
 
-      const rawPhoto = photoResult.data as RawMeasurementPhoto;
+      const basePhoto = photoResult.data as MeasurementPhoto;
+      const [workPhotoResult, environmentResult] = await Promise.all([
+        supabase.from('work_photos').select('storage_path, file_name').eq('id', basePhoto.photo_id).maybeSingle(),
+        supabase.from('environments').select('name').eq('id', basePhoto.environment_id).maybeSingle(),
+      ]);
+      if (workPhotoResult.error) throw workPhotoResult.error;
+      if (environmentResult.error) throw environmentResult.error;
+
       const loadedPhoto: MeasurementPhoto = {
-        ...rawPhoto,
-        work_photos: Array.isArray(rawPhoto.work_photos)
-          ? rawPhoto.work_photos[0] ?? null
-          : rawPhoto.work_photos ?? null,
-        environments: Array.isArray(rawPhoto.environments)
-          ? rawPhoto.environments[0] ?? null
-          : rawPhoto.environments ?? null,
+        ...basePhoto,
+        work_photos: workPhotoResult.data ?? null,
+        environments: environmentResult.data ?? null,
       };
       setPhoto(loadedPhoto);
 
