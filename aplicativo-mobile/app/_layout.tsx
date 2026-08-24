@@ -324,18 +324,6 @@ export default function RootLayout() {
           />
         </Stack.Protected>
 
-        <Stack.Protected guard={isAuthenticated && isProfileComplete}>
-          <Stack.Screen name="client/home" />
-          <Stack.Screen name="client/works" />
-          <Stack.Screen name="client/work" />
-          <Stack.Screen name="client/fio" />
-          <Stack.Screen name="client/settings" />
-          <Stack.Screen name="client/professionals" />
-          <Stack.Screen name="client/public-profile" />
-          <Stack.Screen name="client/edit-profile" />
-          <Stack.Screen name="client/security" />
-        </Stack.Protected>
-
         {/* LOGADO MAS PERFIL INCOMPLETO */}
         <Stack.Protected
           guard={
