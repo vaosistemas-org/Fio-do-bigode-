@@ -785,6 +785,35 @@ export default function MeasurementEditorScreen() {
                   <G key={annotation.id}>
                     <Line x1={0} y1={y} x2={x} y2={y} stroke={FioColors.gold} strokeWidth={1.2} strokeDasharray="5 7" opacity={0.9} />
                     <Line x1={x} y1={y} x2={x} y2={canvas.height} stroke={FioColors.gold} strokeWidth={1.2} strokeDasharray="5 7" opacity={0.9} />
+                    {annotation.reference_distance_mm !== null && (
+                      <SvgText
+                        x={keepInside(x / 2, 28, Math.max(28, canvas.width - 28))}
+                        y={keepInside(y - 9, 16, Math.max(16, canvas.height - 8))}
+                        fill={FioColors.white}
+                        stroke={FioColors.canvas}
+                        strokeWidth={0.8}
+                        fontSize={12}
+                        fontWeight="900"
+                        textAnchor="middle"
+                      >
+                        {annotation.reference_distance_mm} mm
+                      </SvgText>
+                    )}
+                    {annotation.floor_height_mm !== null && (
+                      <SvgText
+                        x={keepInside(x + (x > canvas.width * 0.72 ? -11 : 11), 12, Math.max(12, canvas.width - 12))}
+                        y={keepInside((y + canvas.height) / 2, 30, Math.max(30, canvas.height - 30))}
+                        fill={FioColors.white}
+                        stroke={FioColors.canvas}
+                        strokeWidth={0.8}
+                        fontSize={12}
+                        fontWeight="900"
+                        textAnchor="middle"
+                        transform={`rotate(-90 ${keepInside(x + (x > canvas.width * 0.72 ? -11 : 11), 12, Math.max(12, canvas.width - 12))} ${keepInside((y + canvas.height) / 2, 30, Math.max(30, canvas.height - 30))})`}
+                      >
+                        {annotation.floor_height_mm} mm
+                      </SvgText>
+                    )}
                     <Rect x={x - 13} y={y - 13} width={26} height={26} rx={7} fill={selectedAnnotation ? FioColors.orange : FioColors.gold} />
                   </G>
                 );
