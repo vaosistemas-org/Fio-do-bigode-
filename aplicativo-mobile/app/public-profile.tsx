@@ -70,6 +70,7 @@ export default function PublicProfileScreen() {
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [companies, setCompanies] = useState<PublicCompany[]>([]);
   const [summary, setSummary] = useState<Summary>({ active_works: 0, companies: 0 });
+  const [activeTab, setActiveTab] = useState<'activities' | 'portfolio' | 'agenda' | 'messages'>('activities');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
@@ -168,15 +169,23 @@ export default function PublicProfileScreen() {
               <Stat icon="calendar-outline" value={companies.length} label="Vínculos" />
               <Stat icon="checkmark-circle-outline" value={profile.professional_profile_enabled ? 1 : 0} label="Verificado" />
             </View>
-            <View style={styles.tabs}><Text style={[styles.tab, styles.tabActive]}>Atividades</Text><Text style={styles.tab}>Portfólio</Text><Text style={styles.tab}>Agenda</Text><Text style={styles.tab}>Avaliações</Text></View>
+            <View style={styles.tabs}>
+              {([['activities', 'Atividades'], ['portfolio', 'Portfólio'], ['agenda', 'Agenda'], ['messages', 'Mensagens']] as const).map(([key, label]) => (
+                <Pressable key={key} onPress={() => setActiveTab(key)}><Text style={[styles.tab, activeTab === key && styles.tabActive]}>{label}</Text></Pressable>
+              ))}
+            </View>
 
-            <View style={styles.sectionCard}>
+            {activeTab === 'activities' && <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>ATIVIDADES RECENTES</Text>
               <DataRow icon="person-outline" label="Nome" value={profile.full_name} />
               {profile.phone && <DataRow icon="call-outline" label="Telefone" value={profile.phone} />}
               <View style={styles.activityRow}><Ionicons name="pulse-outline" size={19} color={FioColors.green} /><View style={styles.activityCopy}><Text style={styles.activityTitle}>Atuação no FIO</Text><Text style={styles.activityText}>{profile.job_title || 'Profissional do FIO'} · {summary.active_works} obras ativas</Text></View><Ionicons name="chevron-forward-outline" size={17} color={FioColors.textSoft} /></View>
               <View style={styles.activityRow}><Ionicons name="location-outline" size={19} color={FioColors.orange} /><View style={styles.activityCopy}><Text style={styles.activityTitle}>Área de atendimento</Text><Text style={styles.activityText}>{profile.coverage_area || 'Área não informada'}</Text></View></View>
-            </View>
+            </View>}
+
+            {activeTab === 'portfolio' && <View style={styles.sectionCard}><Text style={styles.sectionTitle}>PORTFÓLIO</Text><View style={styles.placeholder}><Ionicons name="images-outline" size={30} color={FioColors.green} /><Text style={styles.placeholderTitle}>Portfólio em preparação</Text><Text style={styles.placeholderText}>Fotos de ambientes, obras e trabalhos publicados aparecerão aqui.</Text></View></View>}
+            {activeTab === 'agenda' && <View style={styles.sectionCard}><Text style={styles.sectionTitle}>AGENDA</Text><View style={styles.placeholder}><Ionicons name="calendar-outline" size={30} color={FioColors.gold} /><Text style={styles.placeholderTitle}>Agenda profissional</Text><Text style={styles.placeholderText}>Os horários e visitas autorizados para este perfil aparecerão aqui.</Text><Pressable style={styles.placeholderButton} onPress={() => router.push('/agenda')}><Text style={styles.placeholderButtonText}>Abrir agenda</Text></Pressable></View></View>}
+            {activeTab === 'messages' && <View style={styles.sectionCard}><Text style={styles.sectionTitle}>MENSAGENS</Text><View style={styles.placeholder}><Ionicons name="chatbubble-ellipses-outline" size={30} color={FioColors.orange} /><Text style={styles.placeholderTitle}>Fale com este perfil</Text><Text style={styles.placeholderText}>Envie uma mensagem rápida para iniciar o contato.</Text><Pressable style={[styles.placeholderButton, styles.orangeButton]} onPress={() => router.push({ pathname: '/messages', params: { userId: profile.user_id } })}><Text style={styles.placeholderButtonText}>Enviar mensagem</Text></Pressable></View></View>}
 
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>VÍNCULO PROFISSIONAL</Text>
@@ -248,6 +257,12 @@ const styles = StyleSheet.create({
   activityCopy: { flex: 1 },
   activityTitle: { fontSize: 12, fontWeight: '900', color: FioColors.text },
   activityText: { marginTop: 3, fontSize: 10, color: FioColors.textMuted },
+  placeholder: { alignItems: 'center', paddingVertical: 26, paddingHorizontal: 18 },
+  placeholderTitle: { marginTop: 10, fontSize: 15, fontWeight: '900', color: FioColors.text },
+  placeholderText: { marginTop: 5, textAlign: 'center', fontSize: 11, lineHeight: 17, color: FioColors.textMuted },
+  placeholderButton: { minHeight: 40, marginTop: 14, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: FioColors.green },
+  orangeButton: { backgroundColor: FioColors.orange },
+  placeholderButtonText: { fontSize: 11, fontWeight: '900', color: FioColors.textOnAccent },
   companyCard: { marginTop: 11, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: FioColors.line, borderRadius: 13, backgroundColor: FioColors.surfaceRaised },
   companyLogo: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: FioColors.ink },
   companyLogoText: { fontSize: 11, fontWeight: '900', color: FioColors.gold },
