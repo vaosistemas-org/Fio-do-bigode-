@@ -4,11 +4,13 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   Share,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -71,6 +73,9 @@ export default function PublicProfileScreen() {
   const [companies, setCompanies] = useState<PublicCompany[]>([]);
   const [summary, setSummary] = useState<Summary>({ active_works: 0, companies: 0 });
   const [activeTab, setActiveTab] = useState<'activities' | 'portfolio' | 'agenda' | 'messages'>('activities');
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerText, setComposerText] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
@@ -127,6 +132,23 @@ export default function PublicProfileScreen() {
     await Share.share({ message: `Perfil de ${profile.full_name} no FIO — Gestão de Obras.` });
   }
 
+  async function startMessage() {
+    if (!profile || !composerText.trim() || sendingMessage) return;
+    setSendingMessage(true);
+    const conversation = await supabase.rpc('open_public_direct_conversation', { p_user_id: profile.user_id });
+    if (conversation.error || !conversation.data) {
+      setMessage(conversation.error?.message ?? 'Não foi possível abrir a conversa.');
+      setSendingMessage(false);
+      return;
+    }
+    const sent = await supabase.rpc('send_fio_message', { p_conversation_id: conversation.data, p_body: composerText.trim(), p_message_type: 'text' });
+    setSendingMessage(false);
+    if (sent.error) { setMessage(sent.error.message); return; }
+    setComposerText('');
+    setComposerOpen(false);
+    router.push({ pathname: '/messages', params: { conversationId: String(conversation.data) } });
+  }
+
   if (loading) {
     return <View style={styles.loading}><ActivityIndicator color={FioColors.gold} /><Text style={styles.loadingText}>Carregando perfil público...</Text></View>;
   }
@@ -159,7 +181,7 @@ export default function PublicProfileScreen() {
               <View style={styles.heroLine} />
               <View style={styles.heroActions}>
                 <Pressable style={styles.heroAction} onPress={() => void shareProfile()}><Ionicons name="share-outline" size={18} color={FioColors.green} /><Text style={styles.heroActionText}>Compartilhar</Text></Pressable>
-                <Pressable style={styles.heroAction} onPress={() => isOwnPreview ? router.push('/edit-profile') : router.push({ pathname: '/messages', params: { userId: profile.user_id } })}><Ionicons name={isOwnPreview ? 'create-outline' : 'chatbubble-ellipses-outline'} size={18} color={FioColors.orange} /><Text style={[styles.heroActionText, styles.orangeText]}>{isOwnPreview ? 'Editar perfil' : 'Enviar mensagem'}</Text></Pressable>
+                <Pressable style={styles.heroAction} onPress={() => isOwnPreview ? router.push('/edit-profile') : setComposerOpen(true)}><Ionicons name={isOwnPreview ? 'create-outline' : 'chatbubble-ellipses-outline'} size={18} color={FioColors.orange} /><Text style={[styles.heroActionText, styles.orangeText]}>{isOwnPreview ? 'Editar perfil' : 'Enviar mensagem'}</Text></Pressable>
               </View>
             </View>
 
@@ -185,7 +207,7 @@ export default function PublicProfileScreen() {
 
             {activeTab === 'portfolio' && <View style={styles.sectionCard}><Text style={styles.sectionTitle}>PORTFÓLIO</Text><View style={styles.placeholder}><Ionicons name="images-outline" size={30} color={FioColors.green} /><Text style={styles.placeholderTitle}>Portfólio em preparação</Text><Text style={styles.placeholderText}>Fotos de ambientes, obras e trabalhos publicados aparecerão aqui.</Text></View></View>}
             {activeTab === 'agenda' && <View style={styles.sectionCard}><Text style={styles.sectionTitle}>AGENDA</Text><View style={styles.placeholder}><Ionicons name="calendar-outline" size={30} color={FioColors.gold} /><Text style={styles.placeholderTitle}>Agenda profissional</Text><Text style={styles.placeholderText}>Os horários e visitas autorizados para este perfil aparecerão aqui.</Text><Pressable style={styles.placeholderButton} onPress={() => router.push('/agenda')}><Text style={styles.placeholderButtonText}>Abrir agenda</Text></Pressable></View></View>}
-            {activeTab === 'messages' && <View style={styles.sectionCard}><Text style={styles.sectionTitle}>MENSAGENS</Text><View style={styles.placeholder}><Ionicons name="chatbubble-ellipses-outline" size={30} color={FioColors.orange} /><Text style={styles.placeholderTitle}>Fale com este perfil</Text><Text style={styles.placeholderText}>Envie uma mensagem rápida para iniciar o contato.</Text><Pressable style={[styles.placeholderButton, styles.orangeButton]} onPress={() => router.push({ pathname: '/messages', params: { userId: profile.user_id } })}><Text style={styles.placeholderButtonText}>Enviar mensagem</Text></Pressable></View></View>}
+            {activeTab === 'messages' && <View style={styles.sectionCard}><Text style={styles.sectionTitle}>MENSAGENS</Text><View style={styles.placeholder}><Ionicons name="chatbubble-ellipses-outline" size={30} color={FioColors.orange} /><Text style={styles.placeholderTitle}>Fale com este perfil</Text><Text style={styles.placeholderText}>Envie uma mensagem rápida para iniciar o contato.</Text><Pressable style={[styles.placeholderButton, styles.orangeButton]} onPress={() => setComposerOpen(true)}><Text style={styles.placeholderButtonText}>Enviar mensagem</Text></Pressable></View></View>}
 
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>VÍNCULO PROFISSIONAL</Text>
@@ -206,6 +228,9 @@ export default function PublicProfileScreen() {
           </>
         )}
       </ScrollView>
+      <Modal visible={composerOpen} transparent animationType="slide" onRequestClose={() => setComposerOpen(false)}>
+        <View style={styles.modalBackdrop}><View style={styles.composer}><View style={styles.composerHeader}><View><Text style={styles.composerEyebrow}>NOVA CONVERSA</Text><Text style={styles.composerTitle}>{profile?.full_name}</Text></View><Pressable onPress={() => setComposerOpen(false)}><Ionicons name="close-circle-outline" size={28} color={FioColors.textMuted} /></Pressable></View><Text style={styles.composerHint}>Escreva uma mensagem rápida para iniciar o contato.</Text><TextInput autoFocus multiline value={composerText} onChangeText={setComposerText} placeholder="Digite sua mensagem..." placeholderTextColor={FioColors.textSoft} style={styles.composerInput} /><Pressable disabled={!composerText.trim() || sendingMessage} style={[styles.composerButton, (!composerText.trim() || sendingMessage) && styles.composerButtonDisabled]} onPress={() => void startMessage()}><Text style={styles.composerButtonText}>{sendingMessage ? 'Enviando...' : 'Enviar mensagem'}</Text></Pressable></View></View>
+      </Modal>
     </View>
   );
 }
@@ -263,6 +288,16 @@ const styles = StyleSheet.create({
   placeholderButton: { minHeight: 40, marginTop: 14, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: FioColors.green },
   orangeButton: { backgroundColor: FioColors.orange },
   placeholderButtonText: { fontSize: 11, fontWeight: '900', color: FioColors.textOnAccent },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.58)' },
+  composer: { padding: 18, paddingBottom: 30, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: FioColors.surface },
+  composerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  composerEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1.2, color: FioColors.orange },
+  composerTitle: { marginTop: 3, fontSize: 19, fontWeight: '900', color: FioColors.text },
+  composerHint: { marginTop: 6, fontSize: 11, color: FioColors.textMuted },
+  composerInput: { minHeight: 92, marginTop: 14, padding: 13, textAlignVertical: 'top', borderWidth: 1, borderColor: FioColors.lineStrong, borderRadius: 13, color: FioColors.text, backgroundColor: FioColors.surfaceMuted },
+  composerButton: { minHeight: 50, marginTop: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: FioColors.orange },
+  composerButtonDisabled: { opacity: 0.45 },
+  composerButtonText: { fontSize: 13, fontWeight: '900', color: FioColors.textOnAccent },
   companyCard: { marginTop: 11, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: FioColors.line, borderRadius: 13, backgroundColor: FioColors.surfaceRaised },
   companyLogo: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: FioColors.ink },
   companyLogoText: { fontSize: 11, fontWeight: '900', color: FioColors.gold },
