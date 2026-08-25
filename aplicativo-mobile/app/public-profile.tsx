@@ -27,6 +27,7 @@ type PublicProfile = {
   job_title: string | null;
   coverage_area: string | null;
   avatar_url: string | null;
+  cover_url: string | null;
   professional_profile_enabled: boolean;
 };
 
@@ -95,7 +96,7 @@ export default function PublicProfileScreen() {
       canPreviewOwnProfile
         ? supabase
             .from('profiles')
-            .select('id, full_name, phone, job_title, coverage_area, avatar_url, professional_profile_enabled')
+            .select('id, full_name, phone, job_title, coverage_area, avatar_url, cover_url, professional_profile_enabled')
             .eq('id', userId)
             .maybeSingle()
         : supabase.rpc('get_public_professional_profile', { p_user_id: userId }),
@@ -118,6 +119,7 @@ export default function PublicProfileScreen() {
         job_title: row.job_title ?? null,
         coverage_area: row.coverage_area ?? null,
         avatar_url: row.avatar_url ?? null,
+        cover_url: row.cover_url ?? null,
         professional_profile_enabled: Boolean(row.professional_profile_enabled),
       } : null);
       if (!row) setMessage('Este perfil público está desativado.');
@@ -166,7 +168,7 @@ export default function PublicProfileScreen() {
         {!!message && !profile && <View style={styles.errorCard}><Ionicons name="information-circle-outline" size={19} color={FioColors.orange} /><Text style={styles.errorText}>{message}</Text></View>}
         {profile && (
           <>
-            <View style={styles.coverBanner}><View><Text style={styles.coverEyebrow}>{isOwnPreview ? 'PRÉVIA DO PERFIL' : 'PERFIL PÚBLICO'}</Text><Text style={styles.coverTitle}>FIO</Text></View><Ionicons name="construct-outline" size={42} color={FioColors.gold} /></View>
+            <View style={styles.coverBanner}>{profile.cover_url ? <Image source={{ uri: profile.cover_url }} style={styles.coverImage} /> : null}<View style={styles.coverShade}><View><Text style={styles.coverEyebrow}>{isOwnPreview ? 'PRÉVIA DO PERFIL' : 'PERFIL PÚBLICO'}</Text><Text style={styles.coverTitle}>FIO</Text></View><Ionicons name="construct-outline" size={42} color={FioColors.gold} /></View></View>
             <View style={styles.heroCard}>
               {isOwnPreview && !profile.professional_profile_enabled && <View style={styles.previewBadge}><Ionicons name="eye-off-outline" size={13} color={FioColors.orange} /><Text style={styles.previewBadgeText}>Desativado · somente você vê esta prévia</Text></View>}
               <View style={styles.heroTop}>
@@ -245,7 +247,9 @@ const styles = StyleSheet.create({
   publicBrandName: { fontFamily: 'serif', fontSize: 19, fontWeight: '900', color: FioColors.text },
   publicBrandCaption: { marginTop: 2, fontSize: 9, color: FioColors.gold },
   publicTopActions: { flexDirection: 'row', gap: 15 },
-  coverBanner: { minHeight: 132, marginHorizontal: -1, padding: 18, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', borderBottomLeftRadius: 19, borderBottomRightRadius: 19, backgroundColor: FioColors.inkSoft },
+  coverBanner: { minHeight: 132, marginHorizontal: -1, overflow: 'hidden', borderBottomLeftRadius: 19, borderBottomRightRadius: 19, backgroundColor: FioColors.inkSoft },
+  coverImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  coverShade: { minHeight: 132, padding: 18, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', backgroundColor: 'rgba(24,29,26,0.48)' },
   coverEyebrow: { fontSize: 9, fontWeight: '900', letterSpacing: 1.2, color: FioColors.gold },
   coverTitle: { marginTop: 5, fontFamily: 'serif', fontSize: 34, fontWeight: '900', color: FioColors.text },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: FioColors.canvas },

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import {
   ActivityIndicator,
   Image,
@@ -33,6 +34,7 @@ export default function EditProfileScreen() {
   const [coverageArea, setCoverageArea] = useState('');
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
   const [userId, setUserId] = useState('');
 
   const [loading, setLoading] = useState(true);
@@ -63,7 +65,7 @@ export default function EditProfileScreen() {
     const { data, error } = await supabase
       .from('profiles')
       .select(
-        'full_name, phone, job_title, coverage_area, avatar_url'
+        'full_name, phone, job_title, coverage_area, avatar_url, cover_url'
       )
       .eq('id', user.id)
       .maybeSingle();
@@ -79,6 +81,7 @@ export default function EditProfileScreen() {
       setPhone(data.phone ?? '');
       setCoverageArea(data.coverage_area ?? '');
       setAvatarUrl(data.avatar_url ?? '');
+      setCoverUrl(data.cover_url ?? '');
 
       const savedJobTitle = data.job_title ?? '';
 
@@ -92,6 +95,20 @@ export default function EditProfileScreen() {
     }
 
     setLoading(false);
+  }
+
+  async function chooseCover() {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [16, 7], quality: 0.8 });
+    const asset = result.canceled ? null : result.assets[0];
+    if (!asset || !userId) return;
+    setMessage('Enviando capa...');
+    const bytes = await fetch(asset.uri).then((response) => response.arrayBuffer());
+    const path = `${userId}/cover`;
+    const upload = await supabase.storage.from('avatars').upload(path, bytes, { contentType: asset.mimeType ?? 'image/jpeg', cacheControl: '3600', upsert: true });
+    if (upload.error) { setMessage(upload.error.message); return; }
+    const publicUrl = `${supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl}?v=${Date.now()}`;
+    const update = await supabase.from('profiles').update({ cover_url: publicUrl }).eq('id', userId);
+    if (update.error) setMessage(update.error.message); else { setCoverUrl(publicUrl); setMessage('Capa atualizada.'); }
   }
 
   async function handleSave() {
@@ -195,6 +212,10 @@ export default function EditProfileScreen() {
         <Text style={styles.subtitle}>
           Atualize suas informações profissionais no FIO.
         </Text>
+        <Pressable style={styles.coverButton} onPress={() => void chooseCover()}>
+          {coverUrl ? <Image source={{ uri: coverUrl }} style={styles.coverPreview} /> : <View style={styles.coverPlaceholder}><Text style={styles.coverPlaceholderText}>Adicionar foto de capa</Text></View>}
+          <View style={styles.coverOverlay}><Text style={styles.coverButtonText}>{coverUrl ? 'Trocar foto de capa' : 'Adicionar foto de capa'}</Text></View>
+        </Pressable>
       </View>
 
       <View style={styles.card}>
@@ -414,6 +435,12 @@ const styles = StyleSheet.create({
     color: '#687177',
     textAlign: 'center',
   },
+  coverButton: { width: '100%', height: 128, marginTop: 18, overflow: 'hidden', borderRadius: 16, backgroundColor: '#383E39' },
+  coverPreview: { width: '100%', height: '100%' },
+  coverPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  coverPlaceholderText: { fontSize: 12, fontWeight: '700', color: '#74B892' },
+  coverOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, minHeight: 34, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.48)' },
+  coverButtonText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
 
   card: {
     backgroundColor: '#2E332F',
