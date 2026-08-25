@@ -20,7 +20,7 @@ as $$
   from works w, q
   where is_work_participant(w.id) and w.archived_at is null and w.deleted_at is null
     and char_length(btrim(coalesce(p_search, ''))) >= 2
-    and (w.title ilike q.term or w.code ilike q.term or w.client_name ilike q.term)
+    and (w.code ilike q.term or w.client_name ilike q.term)
   limit 60;
 $$;
 
