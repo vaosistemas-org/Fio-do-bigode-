@@ -180,7 +180,7 @@ function RootNavigator() {
 
   return (
     <ThemeProvider value={navigationTheme}>
-      <View style={[styles.application, { backgroundColor: colors.canvas }]}>
+      <View key={themeId} style={[styles.application, { backgroundColor: colors.canvas }]}>
         <View
           style={[
             styles.navigator,

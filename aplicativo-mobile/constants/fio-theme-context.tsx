@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { processColor, StyleSheet } from 'react-native';
 
 import { FioColors } from '@/constants/fio-theme';
 
@@ -67,6 +68,44 @@ export const FioThemePalettes: Record<FioThemeId, FioThemeColors> = {
   },
 };
 
+let activePalette: FioThemeColors = FioThemePalettes.dark;
+
+const semanticDarkColors = Object.entries(FioColors).reduce<Record<string, keyof typeof FioColors>>(
+  (result, [token, color]) => {
+    result[color.toUpperCase()] = token as keyof typeof FioColors;
+    return result;
+  },
+  {}
+);
+
+function themedNativeColor(value: unknown) {
+  if (typeof value !== 'string') return processColor(value as never);
+  const token = semanticDarkColors[value.toUpperCase()];
+  return processColor(token ? activePalette[token] : value);
+}
+
+[
+  'backgroundColor',
+  'borderBottomColor',
+  'borderColor',
+  'borderEndColor',
+  'borderLeftColor',
+  'borderRightColor',
+  'borderStartColor',
+  'borderTopColor',
+  'color',
+  'shadowColor',
+  'textDecorationColor',
+  'tintColor',
+].forEach((property) => {
+  StyleSheet.setStyleAttributePreprocessor(property, themedNativeColor);
+});
+
+function activatePalette(themeId: FioThemeId) {
+  activePalette = FioThemePalettes[themeId];
+  Object.assign(FioColors, activePalette);
+}
+
 type ThemeContextValue = {
   themeId: FioThemeId;
   colors: FioThemeColors;
@@ -80,7 +119,10 @@ export function FioThemeProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_STORAGE_KEY).then((savedTheme) => {
-      if (savedTheme === 'dark' || savedTheme === 'light-sand' || savedTheme === 'light-lilac') setStoredThemeId(savedTheme);
+      if (savedTheme === 'dark' || savedTheme === 'light-sand' || savedTheme === 'light-lilac') {
+        activatePalette(savedTheme);
+        setStoredThemeId(savedTheme);
+      }
     }).catch(() => undefined);
   }, []);
 
@@ -88,6 +130,7 @@ export function FioThemeProvider({ children }: PropsWithChildren) {
     themeId,
     colors: FioThemePalettes[themeId],
     setThemeId: async (nextThemeId) => {
+      activatePalette(nextThemeId);
       setStoredThemeId(nextThemeId);
       await AsyncStorage.setItem(THEME_STORAGE_KEY, nextThemeId);
     },
