@@ -107,7 +107,7 @@ export default function EditProfileScreen() {
     const upload = await supabase.storage.from('avatars').upload(path, bytes, { contentType: asset.mimeType ?? 'image/jpeg', cacheControl: '3600', upsert: true });
     if (upload.error) { setMessage(upload.error.message); return; }
     const publicUrl = `${supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl}?v=${Date.now()}`;
-    const update = await supabase.from('profiles').update({ cover_url: publicUrl }).eq('id', userId);
+    const update = await supabase.rpc('set_my_profile_cover', { p_cover_url: publicUrl });
     if (update.error) setMessage(update.error.message); else { setCoverUrl(publicUrl); setMessage('Capa atualizada.'); }
   }
 
@@ -151,15 +151,12 @@ export default function EditProfileScreen() {
       return;
     }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: fullName.trim(),
-        phone: phone.trim(),
-        job_title: finalJobTitle,
-        coverage_area: coverageArea.trim(),
-      })
-      .eq('id', user.id);
+    const { error } = await supabase.rpc('save_my_profile', {
+      p_full_name: fullName.trim(),
+      p_phone: phone.trim(),
+      p_job_title: finalJobTitle,
+      p_coverage_area: coverageArea.trim(),
+    });
 
     if (error) {
       setMessage(error.message);

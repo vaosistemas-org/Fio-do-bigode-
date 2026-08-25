@@ -64,12 +64,9 @@ export function ProfileAvatar({
 
       const publicUrl = `${data.publicUrl}?v=${Date.now()}`;
 
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          avatar_url: publicUrl,
-        })
-        .eq('id', userId);
+      const { error: profileError } = await supabase.rpc('set_my_profile_avatar', {
+        p_avatar_url: publicUrl,
+      });
 
       if (profileError) {
         setMessage(profileError.message);

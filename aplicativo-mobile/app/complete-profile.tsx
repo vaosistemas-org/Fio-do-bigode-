@@ -81,13 +81,10 @@ export default function CompleteProfileScreen() {
       return;
     }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: fullName.trim(),
-        phone: phone.trim(),
-      })
-      .eq('id', user.id);
+    const { error } = await supabase.rpc('save_my_profile', {
+      p_full_name: fullName.trim(),
+      p_phone: phone.trim(),
+    });
 
     if (error) {
       setMessage(error.message);
