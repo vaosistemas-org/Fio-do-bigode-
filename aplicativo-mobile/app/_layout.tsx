@@ -218,6 +218,7 @@ function RootNavigator() {
           <Stack.Screen name="links" />
 
           <Stack.Screen name="my-professional-profile" />
+          <Stack.Screen name="edit-my-professional-profile" />
 
           <Stack.Screen name="public-profile" />
 

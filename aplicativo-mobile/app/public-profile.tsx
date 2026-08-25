@@ -24,6 +24,9 @@ type PublicProfile = {
   user_id: string;
   full_name: string;
   phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  bio: string | null;
   job_title: string | null;
   coverage_area: string | null;
   avatar_url: string | null;
@@ -96,7 +99,7 @@ export default function PublicProfileScreen() {
       canPreviewOwnProfile
         ? supabase
             .from('profiles')
-            .select('id, full_name, phone, job_title, coverage_area, avatar_url, cover_url, professional_profile_enabled')
+            .select('id, professional_name, professional_phone, professional_whatsapp, professional_email, professional_bio, job_title, coverage_area, professional_avatar_url, professional_cover_url, professional_profile_enabled')
             .eq('id', userId)
             .maybeSingle()
         : supabase.rpc('get_public_professional_profile', { p_user_id: userId }),
@@ -114,12 +117,15 @@ export default function PublicProfileScreen() {
         : null;
       setProfile(row ? {
         user_id: canPreviewOwnProfile ? row.id : row.user_id,
-        full_name: row.full_name ?? 'Profissional do FIO',
-        phone: row.phone ?? null,
+        full_name: (canPreviewOwnProfile ? row.professional_name : row.full_name) ?? 'Profissional do FIO',
+        phone: (canPreviewOwnProfile ? row.professional_phone : row.phone) ?? null,
+        whatsapp: (canPreviewOwnProfile ? row.professional_whatsapp : row.whatsapp) ?? null,
+        email: (canPreviewOwnProfile ? row.professional_email : row.email) ?? null,
+        bio: (canPreviewOwnProfile ? row.professional_bio : row.bio) ?? null,
         job_title: row.job_title ?? null,
         coverage_area: row.coverage_area ?? null,
-        avatar_url: row.avatar_url ?? null,
-        cover_url: row.cover_url ?? null,
+        avatar_url: (canPreviewOwnProfile ? row.professional_avatar_url : row.avatar_url) ?? null,
+        cover_url: (canPreviewOwnProfile ? row.professional_cover_url : row.cover_url) ?? null,
         professional_profile_enabled: Boolean(row.professional_profile_enabled),
       } : null);
       if (!row) setMessage('Este perfil público está desativado.');
@@ -185,7 +191,7 @@ export default function PublicProfileScreen() {
               <View style={styles.heroLine} />
               <View style={styles.heroActions}>
                 <Pressable style={styles.heroAction} onPress={() => void shareProfile()}><Ionicons name="share-outline" size={18} color={FioColors.green} /><Text style={styles.heroActionText}>Compartilhar</Text></Pressable>
-                <Pressable style={styles.heroAction} onPress={() => isOwnPreview ? router.push('/edit-profile') : setComposerOpen(true)}><Ionicons name={isOwnPreview ? 'create-outline' : 'chatbubble-ellipses-outline'} size={18} color={FioColors.orange} /><Text style={[styles.heroActionText, styles.orangeText]}>{isOwnPreview ? 'Editar perfil' : 'Enviar mensagem'}</Text></Pressable>
+                <Pressable style={styles.heroAction} onPress={() => isOwnPreview ? router.push('/edit-my-professional-profile') : setComposerOpen(true)}><Ionicons name={isOwnPreview ? 'create-outline' : 'chatbubble-ellipses-outline'} size={18} color={FioColors.orange} /><Text style={[styles.heroActionText, styles.orangeText]}>{isOwnPreview ? 'Editar perfil' : 'Enviar mensagem'}</Text></Pressable>
               </View>
             </View>
 
@@ -204,7 +210,10 @@ export default function PublicProfileScreen() {
             {activeTab === 'activities' && <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>ATIVIDADES RECENTES</Text>
               <DataRow icon="person-outline" label="Nome" value={profile.full_name} />
+              {profile.bio && <DataRow icon="document-text-outline" label="Apresentação" value={profile.bio} />}
               {profile.phone && <DataRow icon="call-outline" label="Telefone" value={profile.phone} />}
+              {profile.whatsapp && <DataRow icon="logo-whatsapp" label="WhatsApp" value={profile.whatsapp} />}
+              {profile.email && <DataRow icon="mail-outline" label="E-mail" value={profile.email} />}
               <View style={styles.activityRow}><Ionicons name="pulse-outline" size={19} color={FioColors.green} /><View style={styles.activityCopy}><Text style={styles.activityTitle}>Atuação no FIO</Text><Text style={styles.activityText}>{profile.job_title || 'Profissional do FIO'} · {summary.active_works} obras ativas</Text></View><Ionicons name="chevron-forward-outline" size={17} color={FioColors.textSoft} /></View>
               <View style={styles.activityRow}><Ionicons name="location-outline" size={19} color={FioColors.orange} /><View style={styles.activityCopy}><Text style={styles.activityTitle}>Área de atendimento</Text><Text style={styles.activityText}>{profile.coverage_area || 'Área não informada'}</Text></View></View>
             </View>}

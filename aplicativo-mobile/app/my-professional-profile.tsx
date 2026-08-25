@@ -58,7 +58,7 @@ export default function MyProfessionalProfileScreen() {
               <View style={styles.location}><Ionicons name="location-outline" size={15} color={FioColors.textMuted} /><Text style={styles.locationText}>{data.coverageArea || 'Área não informada'}</Text></View>
             </View>
             <View style={styles.publicInfo}><Ionicons name="information-circle-outline" size={18} color={FioColors.green} /><Text style={styles.publicText}>Esta tela mostra somente dados profissionais. Telefone, e-mail e dados privados continuam protegidos.</Text></View>
-            <Pressable style={styles.editButton} onPress={() => router.push('/edit-profile')}><Ionicons name="create-outline" size={17} color={FioColors.white} /><Text style={styles.editText}>Editar dados profissionais</Text></Pressable>
+            <Pressable style={styles.editButton} onPress={() => router.push('/edit-my-professional-profile')}><Ionicons name="create-outline" size={17} color={FioColors.white} /><Text style={styles.editText}>Editar dados profissionais</Text></Pressable>
           </View>
         )}
         {!!message && <Text style={styles.error}>{message}</Text>}
