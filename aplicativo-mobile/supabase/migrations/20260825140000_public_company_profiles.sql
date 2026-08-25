@@ -33,7 +33,7 @@ language sql stable security definer set search_path=public as $$
     coalesce(p.professional_avatar_url,p.avatar_url), cm.role::text
   from public.company_members cm join public.profiles p on p.id=cm.user_id join public.companies c on c.id=cm.company_id
   where cm.company_id=p_company_id and cm.status='active' and c.active=true and p.professional_profile_enabled=true
-  order by case when cm.role='owner' then 0 else 1 end, display_name;
+  order by case when cm.role='owner' then 0 else 1 end, 2;
 $$;
 
 revoke all on function public.get_company_public_media(uuid) from public;
