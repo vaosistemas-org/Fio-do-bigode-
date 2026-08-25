@@ -223,6 +223,7 @@ function RootNavigator() {
           <Stack.Screen name="public-profile" />
 
           <Stack.Screen name="company" />
+          <Stack.Screen name="company-public-profile" />
 
           <Stack.Screen name="client-profile" />
 

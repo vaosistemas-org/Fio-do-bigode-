@@ -5,6 +5,7 @@ import {
 
 import {
     ActivityIndicator,
+    Image,
     KeyboardAvoidingView,
     Platform,
     Pressable,
@@ -15,6 +16,7 @@ import {
     TextInput,
     View,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 import {
     useFocusEffect,
@@ -127,6 +129,8 @@ export default function EditProfessionalProfileScreen() {
 
   const [active, setActive] =
     useState(true);
+  const [logoUrl, setLogoUrl] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
 
   const [loading, setLoading] =
     useState(true);
@@ -204,6 +208,12 @@ export default function EditProfessionalProfileScreen() {
       setCompany(
         loadedCompany
       );
+
+      const media = await supabase.rpc('get_company_public_media', { p_company_id: loadedCompany.id });
+      if (!media.error && media.data?.[0]) {
+        setLogoUrl(media.data[0].logo_url ?? '');
+        setCoverUrl(media.data[0].cover_url ?? '');
+      }
 
       setName(
         loadedCompany.name ?? ''
@@ -321,6 +331,23 @@ export default function EditProfessionalProfileScreen() {
     }
 
     return true;
+  }
+
+  async function chooseCompanyImage(kind: 'logo' | 'cover') {
+    if (!company) return;
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: kind === 'cover' ? [16, 7] : [1, 1], quality: 0.82 });
+    if (result.canceled) return;
+    setErrorMessage(''); setSuccessMessage('Enviando imagem...');
+    const asset = result.assets[0];
+    const bytes = await fetch(asset.uri).then((response) => response.arrayBuffer());
+    const path = `companies/${company.id}/${kind}`;
+    const sent = await supabase.storage.from('avatars').upload(path, bytes, { contentType: asset.mimeType ?? 'image/jpeg', cacheControl: '3600', upsert: true });
+    if (sent.error) { setErrorMessage(sent.error.message); setSuccessMessage(''); return; }
+    const url = `${supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl}?v=${Date.now()}`;
+    const saved = await supabase.rpc('set_company_public_image', { p_company_id: company.id, p_image_kind: kind, p_image_url: url });
+    if (saved.error) { setErrorMessage(saved.error.message); setSuccessMessage(''); return; }
+    if (kind === 'logo') setLogoUrl(url); else setCoverUrl(url);
+    setSuccessMessage('Imagem da empresa atualizada.');
   }
 
   async function handleSave(
@@ -575,6 +602,15 @@ export default function EditProfessionalProfileScreen() {
           para sua equipe e suas
           obras.
         </Text>
+
+        <Pressable style={styles.coverMedia} onPress={() => void chooseCompanyImage('cover')}>
+          {coverUrl ? <Image source={{ uri: coverUrl }} style={styles.mediaImage} /> : <Text style={styles.mediaPlaceholder}>Adicionar foto de capa</Text>}
+          <Text style={styles.mediaAction}>{coverUrl ? 'Trocar capa' : 'Adicionar capa'}</Text>
+        </Pressable>
+        <Pressable style={styles.logoMedia} onPress={() => void chooseCompanyImage('logo')}>
+          {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.mediaImage} /> : <Text style={styles.logoPlaceholderText}>{name.trim().charAt(0).toUpperCase() || 'F'}</Text>}
+          <Text style={styles.logoAction}>Editar logo</Text>
+        </Pressable>
 
         <View
           style={styles.card}
@@ -1260,6 +1296,14 @@ const styles =
       lineHeight: 19,
       color: '#506455',
     },
+
+    coverMedia: { height: 138, marginBottom: 0, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 17, backgroundColor: '#383E39' },
+    logoMedia: { width: 88, height: 88, marginTop: -42, marginLeft: 18, marginBottom: 16, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 4, borderColor: '#242824', borderRadius: 22, backgroundColor: '#D7A84B' },
+    mediaImage: { width: '100%', height: '100%' },
+    mediaPlaceholder: { fontSize: 12, fontWeight: '800', color: '#74B892' },
+    mediaAction: { position: 'absolute', right: 9, bottom: 9, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9, overflow: 'hidden', fontSize: 10, fontWeight: '900', color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,.55)' },
+    logoPlaceholderText: { fontSize: 30, fontWeight: '900', color: '#242824' },
+    logoAction: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingVertical: 5, textAlign: 'center', fontSize: 8, fontWeight: '900', color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,.55)' },
 
     returnButton: {
       marginTop: 18,

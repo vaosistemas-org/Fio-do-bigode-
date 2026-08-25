@@ -34,7 +34,7 @@ export default function SearchScreen() {
 
   function openResult(item: Result) {
     if (item.result_type === 'person') router.push({ pathname: '/public-profile', params: { userId: item.result_id } });
-    else if (item.result_type === 'company') router.push({ pathname: '/professional-profile', params: { companyId: item.result_id } });
+    else if (item.result_type === 'company') router.push({ pathname: '/company-public-profile', params: { companyId: item.result_id } });
     else router.push({ pathname: '/works/[id]', params: { id: item.result_id } });
   }
 

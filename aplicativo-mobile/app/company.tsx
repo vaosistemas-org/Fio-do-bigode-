@@ -30,7 +30,7 @@ export default function CompanyScreen() {
         {loading ? <ActivityIndicator color={FioColors.gold} /> : companies.length === 0 ? (
           <View style={styles.empty}><Ionicons name="storefront-outline" size={29} color={FioColors.gold} /><Text style={styles.emptyTitle}>Crie o perfil da sua loja</Text><Text style={styles.emptyText}>Tenha uma página própria para empresa, equipe, obras, mensagens e agenda.</Text><Pressable style={styles.linkButton} onPress={() => router.push('/create-company')}><Text style={styles.linkButtonText}>Criar perfil da loja</Text></Pressable><Pressable style={styles.secondaryLinkButton} onPress={() => router.push('/links')}><Text style={styles.secondaryLinkButtonText}>Tenho um convite ou vínculo</Text></Pressable></View>
         ) : companies.map((company) => (
-          <Pressable key={company.company_id} style={styles.companyCard} onPress={() => router.push({ pathname: '/professional-profile', params: { companyId: company.company_id } })}>
+          <Pressable key={company.company_id} style={styles.companyCard} onPress={() => router.push({ pathname: '/company-public-profile', params: { companyId: company.company_id } })}>
             <View style={styles.companyIcon}><Ionicons name="storefront-outline" size={22} color={FioColors.green} /></View>
             <View style={styles.companyIdentity}><Text style={styles.companyName}>{company.company_name}</Text><Text style={styles.companyRole}>{company.role_title || company.company_role || (company.relationship_type === 'member' ? 'Membro' : 'Colaborador')}</Text></View>
             {company.is_active && <View style={styles.activeBadge}><Text style={styles.activeText}>Ativa</Text></View>}
