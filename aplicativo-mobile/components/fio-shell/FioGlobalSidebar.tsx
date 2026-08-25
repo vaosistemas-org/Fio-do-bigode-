@@ -74,7 +74,10 @@ const NAVIGATION: NavigationItem[] = [
     href: '/profile',
     icon: 'person-outline',
     match: (pathname) =>
-      pathname === '/profile' || pathname === '/edit-profile',
+      pathname === '/profile' || pathname === '/edit-profile' ||
+      pathname.startsWith('/my-professional-profile') ||
+      pathname.startsWith('/professional-profile') ||
+      pathname.startsWith('/company'),
   },
   {
     key: 'settings',
@@ -98,6 +101,9 @@ export function FioGlobalSidebar() {
   const [level, setLevel] = useState<SidebarLevel>(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [profileExpanded, setProfileExpanded] = useState(false);
+  const [professionalEnabled, setProfessionalEnabled] = useState(false);
+  const [companyEnabled, setCompanyEnabled] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -108,6 +114,24 @@ export function FioGlobalSidebar() {
       if (!active) return;
       setUnreadNotifications(Number(notificationResult.data ?? 0));
       setUnreadMessages(Number(messageResult.data ?? 0));
+    });
+    Promise.all([
+      supabase.auth.getUser(),
+      supabase.rpc('get_my_company_contexts'),
+    ]).then(([userResult, companyResult]) => {
+      if (!active) return;
+      const userId = userResult.data.user?.id;
+      if (userId) {
+        supabase
+          .from('profiles')
+          .select('professional_profile_enabled')
+          .eq('id', userId)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (active) setProfessionalEnabled(Boolean(data?.professional_profile_enabled));
+          });
+      }
+      setCompanyEnabled(Array.isArray(companyResult.data) && companyResult.data.some((item) => item.is_active !== false));
     });
     return () => { active = false; };
   }, [pathname]);
@@ -248,8 +272,8 @@ export function FioGlobalSidebar() {
               ? unreadMessages
               : 0;
             return (
+              <View key={item.key}>
               <Pressable
-                key={item.key}
                 accessibilityRole="button"
                 accessibilityLabel={
                   level === 0 ? 'Expandir menu principal' : item.label
@@ -258,11 +282,12 @@ export function FioGlobalSidebar() {
                   styles.item,
                   level === 0 && styles.itemCompact,
                   level === 2 && styles.itemWide,
+                  item.key === 'settings' && level === 2 && styles.settingsItem,
                   level === 0 && !active && styles.itemHidden,
                   active && level === 2 && styles.itemActive,
                   pressed && styles.pressed,
                 ]}
-                onPress={() => open(item)}
+                onPress={() => item.key === 'profile' && level === 2 ? setProfileExpanded((value) => !value) : open(item)}
               >
                 <Ionicons
                   name={item.icon}
@@ -305,7 +330,6 @@ export function FioGlobalSidebar() {
   );
 }
 
-const styles = StyleSheet.create({
 function ProfileChild({
   colors,
   styles,
@@ -407,7 +431,6 @@ function createStyles(colors: ReturnType<typeof useFioTheme>['colors']) { return
     gap: 12,
     paddingHorizontal: 13,
   },
-  itemActive: { backgroundColor: FioColors.goldSoft },
   settingsItem: { marginTop: 'auto' },
   profileChildren: { marginLeft: 15, marginBottom: 4, paddingLeft: 10, borderLeftWidth: 1, borderLeftColor: colors.lineStrong, gap: 2 },
   profileChild: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, borderRadius: 10 },
