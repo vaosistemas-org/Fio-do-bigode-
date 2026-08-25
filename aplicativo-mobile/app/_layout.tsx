@@ -9,6 +9,7 @@ import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
 import {
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 import 'react-native-reanimated';
@@ -18,24 +19,11 @@ import {
   FIO_SIDEBAR_RAIL_WIDTH,
   FioGlobalSidebar,
 } from '@/components/fio-shell/FioGlobalSidebar';
-import { FioColors } from '@/constants/fio-theme';
+import { FioThemeProvider, useFioTheme } from '@/constants/fio-theme-context';
 import { supabase } from '@/lib/supabase';
 
 export const unstable_settings = {
   anchor: '(tabs)',
-};
-
-const FioNavigationTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    primary: FioColors.green,
-    background: FioColors.canvas,
-    card: FioColors.surfaceMuted,
-    text: FioColors.text,
-    border: FioColors.line,
-    notification: FioColors.orange,
-  },
 };
 
 Notifications.setNotificationHandler({
@@ -49,7 +37,12 @@ Notifications.setNotificationHandler({
 });
 
 export default function RootLayout() {
+  return <FioThemeProvider><RootNavigator /></FioThemeProvider>;
+}
+
+function RootNavigator() {
   const pathname = usePathname();
+  const { colors, themeId } = useFioTheme();
   const [
     isAuthenticated,
     setIsAuthenticated,
@@ -64,6 +57,20 @@ export default function RootLayout() {
     isLoading,
     setIsLoading,
   ] = useState(true);
+
+  const navigationTheme = useMemo(() => ({
+    ...DarkTheme,
+    dark: themeId === 'dark',
+    colors: {
+      ...DarkTheme.colors,
+      primary: colors.green,
+      background: colors.canvas,
+      card: colors.surfaceMuted,
+      text: colors.text,
+      border: colors.line,
+      notification: colors.orange,
+    },
+  }), [colors, themeId]);
 
   useEffect(() => {
     if (!isAuthenticated || !isProfileComplete || !Device.isDevice) return;
@@ -172,8 +179,8 @@ export default function RootLayout() {
   const showInternalShell = isAuthenticated && isProfileComplete && !pathname.startsWith('/fio/');
 
   return (
-    <ThemeProvider value={FioNavigationTheme}>
-      <View style={styles.application}>
+    <ThemeProvider value={navigationTheme}>
+      <View style={[styles.application, { backgroundColor: colors.canvas }]}>
         <View
           style={[
             styles.navigator,
@@ -367,7 +374,7 @@ export default function RootLayout() {
         {showInternalShell && <FioGlobalSidebar />}
       </View>
 
-      <StatusBar style="light" />
+      <StatusBar style={themeId === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
   );
 }

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FioColors, FioShadow } from '@/constants/fio-theme';
+import { FioShadow } from '@/constants/fio-theme';
+import { useFioTheme } from '@/constants/fio-theme-context';
 import { supabase } from '@/lib/supabase';
 
 type SidebarLevel = 0 | 2;
@@ -92,6 +93,8 @@ export function FioGlobalSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const { colors } = useFioTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [level, setLevel] = useState<SidebarLevel>(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -226,7 +229,7 @@ export function FioGlobalSidebar() {
             <Ionicons
               name="chevron-back-outline"
               size={17}
-              color={FioColors.textMuted}
+              color={colors.textMuted}
             />
           </Pressable>
         )}
@@ -266,10 +269,10 @@ export function FioGlobalSidebar() {
                   size={level === 0 ? 16 : 20}
                   color={
                     level === 0
-                      ? FioColors.ink
+                      ? colors.ink
                       : active
-                      ? FioColors.ink
-                      : FioColors.textMuted
+                      ? colors.ink
+                      : colors.textMuted
                   }
                 />
                 {level === 2 && (
@@ -284,6 +287,14 @@ export function FioGlobalSidebar() {
                 )}
                 {level === 2 && active && <View style={styles.activeDot} />}
               </Pressable>
+              {item.key === 'profile' && level === 2 && profileExpanded && (
+                <View style={styles.profileChildren}>
+                  <ProfileChild colors={colors} styles={styles} label="Meu perfil pessoal" icon="person-outline" active={pathname === '/profile'} onPress={() => { router.push('/profile'); setLevel(0); }} />
+                  {professionalEnabled && <ProfileChild colors={colors} styles={styles} label="Perfil profissional" icon="construct-outline" active={pathname.startsWith('/my-professional-profile')} onPress={() => { router.push('/my-professional-profile'); setLevel(0); }} />}
+                  {companyEnabled && <ProfileChild colors={colors} styles={styles} label="Perfil da loja ou empresa" icon="storefront-outline" active={pathname.startsWith('/company')} onPress={() => { router.push('/company'); setLevel(0); }} />}
+                </View>
+              )}
+              </View>
             );
           })}
         </View>
@@ -295,6 +306,30 @@ export function FioGlobalSidebar() {
 }
 
 const styles = StyleSheet.create({
+function ProfileChild({
+  colors,
+  styles,
+  label,
+  icon,
+  active,
+  onPress,
+}: {
+  colors: ReturnType<typeof useFioTheme>['colors'];
+  styles: ReturnType<typeof createStyles>;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={({ pressed }) => [styles.profileChild, active && styles.profileChildActive, pressed && styles.pressed]} onPress={onPress}>
+      <Ionicons name={icon} size={16} color={active ? colors.ink : colors.green} />
+      <Text numberOfLines={1} style={[styles.profileChildLabel, active && styles.profileChildLabelActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function createStyles(colors: ReturnType<typeof useFioTheme>['colors']) { return StyleSheet.create({
   positioner: {
     position: 'absolute',
     top: 0,
@@ -305,8 +340,8 @@ const styles = StyleSheet.create({
   sidebar: {
     flex: 1,
     borderRightWidth: 1,
-    borderRightColor: FioColors.line,
-    backgroundColor: FioColors.surfaceMuted,
+    borderRightColor: colors.line,
+    backgroundColor: colors.surfaceMuted,
     ...FioShadow,
   },
   collapsedTouchArea: {
@@ -328,29 +363,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: FioColors.lineStrong,
+    borderColor: colors.lineStrong,
     borderRadius: 13,
-    backgroundColor: FioColors.surfaceRaised,
+    backgroundColor: colors.surfaceRaised,
   },
   brandLetter: {
     fontFamily: 'serif',
     fontSize: 23,
     fontWeight: '900',
-    color: FioColors.gold,
+    color: colors.gold,
   },
   brandIdentity: { flex: 1, minWidth: 0 },
   brandName: {
     fontFamily: 'serif',
     fontSize: 17,
     fontWeight: '900',
-    color: FioColors.ink,
+    color: colors.ink,
   },
   brandCaption: {
     marginTop: 1,
     fontSize: 7,
     fontWeight: '900',
     letterSpacing: 0.8,
-    color: FioColors.gold,
+    color: colors.gold,
   },
   navigation: { flex: 1, marginTop: 12, gap: 3 },
   item: {
@@ -373,28 +408,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
   },
   itemActive: { backgroundColor: FioColors.goldSoft },
+  settingsItem: { marginTop: 'auto' },
+  profileChildren: { marginLeft: 15, marginBottom: 4, paddingLeft: 10, borderLeftWidth: 1, borderLeftColor: colors.lineStrong, gap: 2 },
+  profileChild: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, borderRadius: 10 },
+  profileChildActive: { backgroundColor: colors.greenSoft },
+  profileChildLabel: { flex: 1, fontSize: 11, fontWeight: '700', color: colors.textMuted },
+  profileChildLabelActive: { fontWeight: '900', color: colors.ink },
+  itemActive: { backgroundColor: colors.electricAccentSoft },
   itemLabel: {
     flex: 1,
     fontSize: 12,
     fontWeight: '700',
-    color: FioColors.textMuted,
+    color: colors.textMuted,
   },
-  itemLabelActive: { fontWeight: '900', color: FioColors.ink },
+  itemLabelActive: { fontWeight: '900', color: colors.ink },
   itemLabelRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  notificationBadge: { minWidth: 19, height: 19, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, borderRadius: 999, backgroundColor: FioColors.orange },
-  notificationBadgeText: { fontSize: 9, fontWeight: '900', color: FioColors.textOnAccent },
+  notificationBadge: { minWidth: 19, height: 19, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, borderRadius: 999, backgroundColor: colors.orange },
+  notificationBadgeText: { fontSize: 9, fontWeight: '900', color: colors.textOnAccent },
   activeDot: {
     width: 6,
     height: 6,
     borderRadius: 999,
-    backgroundColor: FioColors.gold,
+    backgroundColor: colors.electricAccent,
   },
   compactGoldLine: {
     width: 12,
     height: 3,
     alignSelf: 'center',
     borderRadius: 999,
-    backgroundColor: FioColors.gold,
+    backgroundColor: colors.gold,
   },
   pressed: { opacity: 0.68 },
-});
+}); }
