@@ -4,7 +4,9 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -229,7 +231,7 @@ export default function PublicProfileScreen() {
         )}
       </ScrollView>
       <Modal visible={composerOpen} transparent animationType="slide" onRequestClose={() => setComposerOpen(false)}>
-        <View style={styles.modalBackdrop}><View style={styles.composer}><View style={styles.composerHeader}><View><Text style={styles.composerEyebrow}>NOVA CONVERSA</Text><Text style={styles.composerTitle}>{profile?.full_name}</Text></View><Pressable onPress={() => setComposerOpen(false)}><Ionicons name="close-circle-outline" size={28} color={FioColors.textMuted} /></Pressable></View><Text style={styles.composerHint}>Escreva uma mensagem rápida para iniciar o contato.</Text><TextInput autoFocus multiline value={composerText} onChangeText={setComposerText} placeholder="Digite sua mensagem..." placeholderTextColor={FioColors.textSoft} style={styles.composerInput} /><Pressable disabled={!composerText.trim() || sendingMessage} style={[styles.composerButton, (!composerText.trim() || sendingMessage) && styles.composerButtonDisabled]} onPress={() => void startMessage()}><Text style={styles.composerButtonText}>{sendingMessage ? 'Enviando...' : 'Enviar mensagem'}</Text></Pressable></View></View>
+        <View style={styles.modalBackdrop}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}><View style={styles.composer}><View style={styles.composerHeader}><View><Text style={styles.composerEyebrow}>NOVA CONVERSA</Text><Text style={styles.composerTitle}>{profile?.full_name}</Text></View><Pressable onPress={() => setComposerOpen(false)}><Ionicons name="close-circle-outline" size={28} color={FioColors.textMuted} /></Pressable></View><Text style={styles.composerHint}>Escreva uma mensagem rápida para iniciar o contato.</Text><TextInput autoFocus multiline value={composerText} onChangeText={setComposerText} placeholder="Digite sua mensagem..." placeholderTextColor={FioColors.textSoft} style={styles.composerInput} /><Pressable disabled={!composerText.trim() || sendingMessage} style={[styles.composerButton, (!composerText.trim() || sendingMessage) && styles.composerButtonDisabled]} onPress={() => void startMessage()}><Text style={styles.composerButtonText}>{sendingMessage ? 'Enviando...' : 'Enviar mensagem'}</Text></Pressable></View></KeyboardAvoidingView></View>
       </Modal>
     </View>
   );
