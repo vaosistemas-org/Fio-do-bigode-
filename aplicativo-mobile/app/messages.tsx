@@ -377,8 +377,8 @@ export default function MessagesScreen() {
       ) : (
         <KeyboardAvoidingView
           style={styles.chatArea}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={0}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 86 : 0}
         >
           {loadingMessages ? <ActivityIndicator style={styles.loading} color={FioColors.gold} /> : (
             <ScrollView
@@ -387,6 +387,7 @@ export default function MessagesScreen() {
               contentContainerStyle={styles.messageContent}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="interactive"
+              automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
               onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
             >
               {!!errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
@@ -441,7 +442,7 @@ export default function MessagesScreen() {
               <View style={styles.composerRow}>
                 <Pressable style={styles.attachButton} onPress={choosePhoto} disabled={sending}><Ionicons name="image-outline" size={20} color={FioColors.green} /></Pressable>
                 <Pressable style={styles.attachButton} onPress={chooseDocument} disabled={sending}><Ionicons name="attach-outline" size={20} color={FioColors.green} /></Pressable>
-                <TextInput style={styles.composerInput} value={composerText} onChangeText={setComposerText} placeholder="Escreva uma mensagem" placeholderTextColor={FioColors.textSoft} multiline maxLength={4000} />
+                <TextInput style={styles.composerInput} value={composerText} onChangeText={setComposerText} onFocus={() => listRef.current?.scrollToEnd({ animated: true })} placeholder="Escreva uma mensagem" placeholderTextColor={FioColors.textSoft} multiline maxLength={4000} />
                 <Pressable style={[styles.sendButton, (!composerText.trim() && !attachment) && styles.sendDisabled]} onPress={sendMessage} disabled={sending || (!composerText.trim() && !attachment)}>
                   {sending ? <ActivityIndicator size="small" color={FioColors.textOnAccent} /> : <Ionicons name="send" size={18} color={FioColors.textOnAccent} />}
                 </Pressable>
@@ -541,7 +542,7 @@ const styles = StyleSheet.create({
   fileIdentity: { flex: 1, minWidth: 0 },
   fileName: { fontSize: 10, fontWeight: '800', color: FioColors.text },
   fileAction: { marginTop: 2, fontSize: 8, color: FioColors.green },
-  composerArea: { padding: 8, borderTopWidth: 1, borderTopColor: FioColors.line, backgroundColor: FioColors.surfaceMuted },
+  composerArea: { padding: 8, paddingBottom: Platform.OS === 'ios' ? 8 : 10, borderTopWidth: 1, borderTopColor: FioColors.line, backgroundColor: FioColors.surfaceMuted },
   attachmentPreview: { width: '100%', maxWidth: 760, alignSelf: 'center', marginBottom: 6, padding: 8, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 10, backgroundColor: FioColors.surfaceRaised },
   attachmentName: { flex: 1, fontSize: 9, color: FioColors.text },
   composerRow: { width: '100%', maxWidth: 760, alignSelf: 'center', flexDirection: 'row', alignItems: 'flex-end', gap: 5 },
