@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { processColor, StyleSheet } from 'react-native';
+import { LogBox, processColor, StyleSheet } from 'react-native';
 
 import { FioColors } from '@/constants/fio-theme';
 
@@ -84,7 +84,7 @@ function themedNativeColor(value: unknown) {
   return processColor(token ? activePalette[token] : value);
 }
 
-[
+const themedColorProperties = [
   'backgroundColor',
   'borderBottomColor',
   'borderColor',
@@ -97,7 +97,13 @@ function themedNativeColor(value: unknown) {
   'shadowColor',
   'textDecorationColor',
   'tintColor',
-].forEach((property) => {
+] as const;
+
+LogBox.ignoreLogs(
+  themedColorProperties.map((property) => `Overwriting ${property} style attribute preprocessor`)
+);
+
+themedColorProperties.forEach((property) => {
   StyleSheet.setStyleAttributePreprocessor(property, themedNativeColor);
 });
 
