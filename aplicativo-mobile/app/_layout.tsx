@@ -1,7 +1,7 @@
 import {
   DarkTheme,
   ThemeProvider,
-} from '@react-navigation/native';
+} from "expo-router/react-navigation";
 import { Stack, usePathname } from 'expo-router';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
