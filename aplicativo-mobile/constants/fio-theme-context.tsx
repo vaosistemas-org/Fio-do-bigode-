@@ -103,9 +103,12 @@ LogBox.ignoreLogs(
   themedColorProperties.map((property) => `Overwriting ${property} style attribute preprocessor`)
 );
 
-themedColorProperties.forEach((property) => {
-  StyleSheet.setStyleAttributePreprocessor(property, themedNativeColor);
-});
+// React Native Web does not expose native style preprocessors.
+if (typeof StyleSheet.setStyleAttributePreprocessor === 'function') {
+  themedColorProperties.forEach((property) => {
+    StyleSheet.setStyleAttributePreprocessor(property, themedNativeColor);
+  });
+}
 
 function activatePalette(themeId: FioThemeId) {
   activePalette = FioThemePalettes[themeId];
